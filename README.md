@@ -4,8 +4,9 @@ Anastasia is a fast, local-first desktop workspace for Claude Code, Codex,
 Gemini CLI, Cursor, Grok, Hermes, and Pi. It is built in Rust with GPUI and is
 dark by default.
 
-Downloads are coming soon. Anastasia does not ship analytics, a hosted sync
-service, or inherited production credentials.
+[Download the latest release](https://github.com/cowboyshibuya/anastasia/releases/latest).
+Anastasia does not ship analytics, a hosted sync service, or inherited
+production credentials.
 
 ## Develop
 
