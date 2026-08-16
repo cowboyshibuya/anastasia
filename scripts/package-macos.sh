@@ -132,6 +132,9 @@ dmgbuild.build_dmg(
 )
 PY
 rm -f "$BG_TIFF"
+if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
+  codesign --force --timestamp --sign "$CODESIGN_IDENTITY" "$DMG"
+fi
 if $NOTARIZE; then
   notarize "$DMG"
   xcrun stapler staple "$DMG"
