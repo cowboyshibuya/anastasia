@@ -92,7 +92,7 @@ pub struct UiSettings {
     pub terminal_open: bool,
     /// Customizable shortcut combos (feature-inventory §1.4).
     pub keymap: KeymapConfig,
-    /// Light/dark preference. Defaults to following the OS.
+    /// Light/dark preference. New installations default to dark.
     pub appearance: crate::appearance::AppearanceMode,
 }
 
@@ -400,11 +400,11 @@ mod tests {
         assert_eq!(UiSettings::load(dir.path()), settings);
     }
 
-    /// A settings file written before light mode existed has no `appearance`
-    /// key; it must load as "follow the OS" rather than failing the whole parse
-    /// and resetting every other preference to defaults.
+    /// A settings file written before appearance preferences existed has no
+    /// `appearance` key; it must load with Anastasia's dark default rather than
+    /// failing the whole parse and resetting every other preference.
     #[test]
-    fn settings_without_appearance_default_to_system() {
+    fn settings_without_appearance_default_to_dark() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
             UiSettings::path(dir.path()),
@@ -412,7 +412,7 @@ mod tests {
         )
         .unwrap();
         let loaded = UiSettings::load(dir.path());
-        assert_eq!(loaded.appearance, crate::appearance::AppearanceMode::System);
+        assert_eq!(loaded.appearance, crate::appearance::AppearanceMode::Dark);
         assert_eq!(loaded.sidebar_width, 300.0);
         assert!(!loaded.sound_enabled, "other keys still parse");
         assert!(

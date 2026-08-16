@@ -31,11 +31,10 @@ use crate::theme::{Appearance, Theme};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AppearanceMode {
-    /// Follow the OS. The default — matches every other native app on the
-    /// machine, including when the user has macOS set to switch at sunset.
-    #[default]
+    /// Follow the OS, including when macOS switches at sunset.
     System,
     Light,
+    #[default]
     Dark,
 }
 
@@ -90,7 +89,7 @@ pub fn init(mode: AppearanceMode, data_dir: impl Into<PathBuf>, cx: &mut App) {
     Theme::install(resolve(mode, system), cx);
 }
 
-/// The mode currently in effect (defaults to `System` before [`init`]).
+/// The mode currently in effect (defaults to `Dark` before [`init`]).
 pub fn mode(cx: &App) -> AppearanceMode {
     cx.try_global::<AppearanceState>()
         .map(|s| s.mode)
@@ -270,8 +269,8 @@ mod tests {
     }
 
     #[test]
-    fn default_mode_is_system() {
-        assert_eq!(AppearanceMode::default(), AppearanceMode::System);
+    fn default_mode_is_dark() {
+        assert_eq!(AppearanceMode::default(), AppearanceMode::Dark);
     }
 
     /// The setting round-trips through the settings file as a lowercase string.
