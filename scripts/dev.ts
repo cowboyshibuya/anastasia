@@ -18,7 +18,13 @@ async function stop() {
   const running = app;
   app = undefined;
   if (running?.exitCode === null) {
-    if (isMacOS) Bun.spawnSync(["pkill", "-TERM", "-x", "anastasia-debug"]);
+    if (isMacOS) {
+      Bun.spawnSync(["pkill", "-TERM", "-x", "anastasia-debug"]);
+      await Bun.sleep(500);
+      if (Bun.spawnSync(["pgrep", "-x", "anastasia-debug"]).exitCode === 0) {
+        Bun.spawnSync(["pkill", "-KILL", "-x", "anastasia-debug"]);
+      }
+    }
     running.kill("SIGTERM");
     await running.exited;
   }

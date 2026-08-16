@@ -226,29 +226,37 @@ fn engine_config_from_env() -> anastasia_engine::EngineConfig {
 /// `ANASTASIA_HARNESS` (kebab-case id) picks the default harness for chats without a
 /// config row — `mock` powers the e2e smoke; default `claude-code`.
 fn harness_from_env() -> anastasia_engine::HarnessId {
-    match std::env::var("ANASTASIA_HARNESS").as_deref().map(str::trim) {
-        Ok("mock") => anastasia_engine::HarnessId::Mock,
-        Ok("codex") => anastasia_engine::HarnessId::Codex,
-        Ok("cursor") => anastasia_engine::HarnessId::Cursor,
-        Ok("grok") => anastasia_engine::HarnessId::Grok,
-        Ok("hermes") => anastasia_engine::HarnessId::Hermes,
-        Ok("pi") => anastasia_engine::HarnessId::Pi,
+    harness_from_name(std::env::var("ANASTASIA_HARNESS").ok().as_deref())
+}
+
+fn harness_from_name(value: Option<&str>) -> anastasia_engine::HarnessId {
+    match value.map(str::trim) {
+        Some("mock") => anastasia_engine::HarnessId::Mock,
+        Some("codex") => anastasia_engine::HarnessId::Codex,
+        Some("gemini") => anastasia_engine::HarnessId::Gemini,
+        Some("cursor") => anastasia_engine::HarnessId::Cursor,
+        Some("grok") => anastasia_engine::HarnessId::Grok,
+        Some("hermes") => anastasia_engine::HarnessId::Hermes,
+        Some("pi") => anastasia_engine::HarnessId::Pi,
         _ => anastasia_engine::HarnessId::ClaudeCode,
     }
 }
 
 fn dirs_data_dir() -> std::path::PathBuf {
     let home = std::path::PathBuf::from(std::env::var_os("HOME").expect("HOME not set"));
-    let dir = home.join(".anastasia");
-    // One-shot 0.2.0 migration: adopt the pre-rename data dir (sign-in,
-    // device identity, prefs) instead of starting fresh.
-    if !dir.exists() {
-        let old = home.join(".anastasia");
-        if old.exists() && std::fs::rename(&old, &dir).is_ok() {
-            eprintln!("migrated data dir {} -> {}", old.display(), dir.display());
-        }
+    home.join(".anastasia")
+}
+
+#[cfg(test)]
+mod harness_name_tests {
+    use super::harness_from_name;
+    use anastasia_engine::HarnessId;
+
+    #[test]
+    fn gemini_can_be_selected_for_headless_sessions() {
+        assert_eq!(harness_from_name(Some(" gemini ")), HarnessId::Gemini);
+        assert_eq!(harness_from_name(None), HarnessId::ClaudeCode);
     }
-    dir
 }
 
 /// `anastasia sync`: dial the running engine's IPC and print per-room sync state.

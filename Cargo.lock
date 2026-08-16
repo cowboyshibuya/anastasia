@@ -203,7 +203,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "anastasia"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anastasia-engine",
  "anastasia-rpc",
@@ -222,7 +222,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-doc"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anastasia-proto",
  "chrono",
@@ -236,7 +236,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-engine"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anastasia-doc",
  "anastasia-harness",
@@ -271,7 +271,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-harness"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anastasia-proto",
  "anyhow",
@@ -291,7 +291,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-proto"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "chrono",
  "serde",
@@ -301,7 +301,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-rpc"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anastasia-doc",
  "anastasia-proto",
@@ -320,7 +320,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-sync"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anastasia-doc",
  "anastasia-proto",
@@ -342,7 +342,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-syntax"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "thiserror 2.0.19",
  "tree-sitter",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-ui"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "alacritty_terminal",
  "anastasia-doc",
@@ -409,7 +409,7 @@ dependencies = [
 
 [[package]]
 name = "anastasia-update"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "futures",
