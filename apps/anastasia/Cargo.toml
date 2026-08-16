@@ -1,0 +1,27 @@
+[package]
+name = "anastasia"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "anastasia"
+path = "src/main.rs"
+
+[dependencies]
+anastasia-engine.workspace = true
+anastasia-rpc.workspace = true
+anastasia-ui.workspace = true
+anastasia-update.workspace = true
+tokio.workspace = true
+clap.workspace = true
+mimalloc.workspace = true
+anyhow.workspace = true
+libc.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

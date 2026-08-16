@@ -6,11 +6,11 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use anastasia_doc::{REGISTRY_DOC_ID, RegistryDoc};
+use anastasia_proto::{Chat, Device, Session, SessionStatus};
+use anastasia_sync::registry::mock_server::MockRegistryServer;
+use anastasia_sync::{DocsStore, RegistryClient, RegistryEvent};
 use chrono::{DateTime, Utc};
-use zeron_doc::{REGISTRY_DOC_ID, RegistryDoc};
-use zeron_proto::{Chat, Device, Session, SessionStatus};
-use zeron_sync::registry::mock_server::MockRegistryServer;
-use zeron_sync::{DocsStore, RegistryClient, RegistryEvent};
 
 fn ts(ms: i64) -> DateTime<Utc> {
     DateTime::from_timestamp_millis(ms).unwrap_or(DateTime::UNIX_EPOCH)

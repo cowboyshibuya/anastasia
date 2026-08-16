@@ -1,7 +1,7 @@
-//! Loader motion — the pure math behind zeron's loading indicators.
+//! Loader motion — the pure math behind anastasia's loading indicators.
 //!
 //! These are the curves and constants the gpui viewport animates with
-//! (`zeron-ui/src/motion.rs`, `zeron-ui/src/loaders.rs`), lifted here so any
+//! (`anastasia-ui/src/motion.rs`, `anastasia-ui/src/loaders.rs`), lifted here so any
 //! surface animates the *same* loaders rather than inventing its own spinner.
 //! A loading indicator is a brand surface; two of them that disagree read as
 //! two products.
@@ -10,24 +10,24 @@
 //! it from a frame delta or from wall-clock elapsed time and get identical
 //! output.
 
-/// Zeron loader pulse period.
-pub const ZERON_PULSE_MS: u64 = 2_400;
+/// Anastasia loader pulse period.
+pub const ANASTASIA_PULSE_MS: u64 = 2_400;
 /// Gradient matrix spinner wave period.
 pub const GRADIENT_SPIN_MS: u64 = 750;
 
-/// Cells in the zeron wave loader.
-pub const ZERON_CELLS: usize = 5;
+/// Cells in the anastasia wave loader.
+pub const ANASTASIA_CELLS: usize = 5;
 /// Side length of the gradient spinner matrix.
 pub const MATRIX_SIDE: usize = 3;
 
-/// Zeron loader cells rest at this opacity between pulses.
+/// Anastasia loader cells rest at this opacity between pulses.
 pub const PULSE_MIN_OPACITY: f32 = 0.08;
 /// …and at this scale.
 pub const PULSE_MIN_SCALE: f32 = 0.9;
 /// Per-cell stagger, as a fraction of the pulse period (0.15s of 2.4s).
 pub const PULSE_STAGGER: f32 = 0.15 / 2.4;
 
-/// Per-row tints of the gradient matrix spinner — zeron's "sunrise" gradient
+/// Per-row tints of the gradient matrix spinner — anastasia's "sunrise" gradient
 /// sampled at each row: cool blue at the top, through amber, to pink.
 pub const GSPIN_ROW_TINTS: [u32; MATRIX_SIDE] = [0xB6D3EF, 0xEDB185, 0xF888A0];
 /// Opacity a gradient-spinner cell rests at between pulses.
@@ -55,18 +55,18 @@ pub fn pulse_wave(phase: f32) -> f32 {
     0.5 - 0.5 * (phase * std::f32::consts::TAU).cos()
 }
 
-/// Zeron loader cell opacity for a phase: 0.08 → 1 → 0.08.
+/// Anastasia loader cell opacity for a phase: 0.08 → 1 → 0.08.
 pub fn pulse_opacity(phase: f32) -> f32 {
     PULSE_MIN_OPACITY + (1.0 - PULSE_MIN_OPACITY) * pulse_wave(phase)
 }
 
-/// Zeron loader cell scale for a phase: 0.9 → 1 → 0.9.
+/// Anastasia loader cell scale for a phase: 0.9 → 1 → 0.9.
 pub fn pulse_scale(phase: f32) -> f32 {
     PULSE_MIN_SCALE + (1.0 - PULSE_MIN_SCALE) * pulse_wave(phase)
 }
 
 /// Gradient-spin cell opacity for a local phase `t` (0..1 of the period),
-/// ported from zeron's `gradient-spin-pulse` keyframes: full at the cycle
+/// ported from anastasia's `gradient-spin-pulse` keyframes: full at the cycle
 /// start, easing down to `dim` by 45%, resting at `dim` until 92%, then rising
 /// back to full — the per-cell phase offset sweeps this pulse across the grid.
 pub fn gspin_opacity(t: f32, dim: f32) -> f32 {
@@ -90,28 +90,31 @@ pub fn gspin_cell_phase(row: usize, col: usize) -> f32 {
     if max == 0.0 { 0.0 } else { d / (max + 1.0) }
 }
 
-/// The zeron mark's pixels — `[x, y]` of each 100×100 cell on the 820×940
-/// canvas (zeron's `logo.tsx` CELLS), shared by the static mark and the
+/// The anastasia mark's pixels — `[x, y]` of each 100×100 cell on the 820×940
+/// canvas (anastasia's `logo.tsx` CELLS), shared by the static mark and the
 /// animated loader.
 #[rustfmt::skip]
-pub const MARK_CELLS: [(f32, f32); 34] = [
-    (0., 600.), (0., 720.), (240., 840.), (240., 720.), (120., 840.), (120., 600.), (240., 600.),
-    (0., 480.), (0., 360.), (480., 840.), (480., 720.), (120., 360.), (120., 240.), (240., 360.),
-    (600., 720.), (480., 600.), (360., 360.), (240., 240.), (600., 600.), (720., 600.), (720., 480.),
-    (240., 120.), (600., 380.), (720., 240.), (720., 0.), (480., 240.), (480., 0.), (120., 480.),
-    (240., 480.), (360., 840.), (360., 720.), (360., 600.), (360., 480.), (120., 720.),
+pub const MARK_CELLS: [(f32, f32); 24] = [
+    (360., 0.), (480., 0.),
+    (240., 120.), (360., 120.), (480., 120.), (600., 120.),
+    (240., 240.), (600., 240.),
+    (120., 360.), (720., 360.),
+    (120., 480.), (240., 480.), (360., 480.), (480., 480.), (600., 480.), (720., 480.),
+    (0., 600.), (120., 600.), (600., 600.), (720., 600.),
+    (0., 720.), (720., 720.),
+    (0., 840.), (720., 840.),
 ];
 
 /// Fraction of the pulse cycle the mark's light sweep occupies.
 pub const MARK_SPREAD: f32 = 0.55;
 
-/// Per-cell stagger along the zeron's flight axis. The stagger *adds* phase
+/// Per-cell stagger along the anastasia's flight axis. The stagger *adds* phase
 /// (the original uses a negative CSS delay, starting the cell mid-cycle), so a
 /// larger value means the cell is further along and therefore **leads**: the
 /// tail tip `(720, 0)` leads at `MARK_SPREAD`, the head `(0, 840)` trails at 0.
 pub fn mark_cell_stagger(x: f32, y: f32) -> f32 {
-    let t = (820.0 - x + y) / 1660.0;
-    (1.0 - t) * MARK_SPREAD
+    let _ = x;
+    (y / 840.0) * MARK_SPREAD
 }
 
 /// A mark cell's phase at loader phase `delta`.
@@ -155,7 +158,7 @@ mod tests {
         );
         // Always inside the unit interval, for any input.
         for raw in [-4.2f32, -0.1, 0.0, 0.5, 7.9] {
-            for index in 0..ZERON_CELLS {
+            for index in 0..ANASTASIA_CELLS {
                 let phase = staggered_phase(raw, index, PULSE_STAGGER);
                 assert!((0.0..1.0).contains(&phase), "{raw} {index} -> {phase}");
             }
@@ -190,15 +193,11 @@ mod tests {
     fn the_mark_sweeps_from_tail_to_head() {
         // The stagger adds phase, so leading means a LARGER value: the tail tip
         // is already mid-cycle while the head is still at zero.
-        let tail = mark_cell_stagger(720.0, 0.0);
-        let head = mark_cell_stagger(0.0, 840.0);
-        assert!(tail > head, "tail {tail} should lead head {head}");
-        close(head, 0.0, "the head anchors the sweep");
-        close(
-            tail,
-            MARK_SPREAD * (1.0 - 100.0 / 1660.0),
-            "tail leads by the spread",
-        );
+        let top = mark_cell_stagger(360.0, 0.0);
+        let bottom = mark_cell_stagger(0.0, 840.0);
+        assert!(bottom > top, "bottom {bottom} should lead top {top}");
+        close(top, 0.0, "the top anchors the sweep");
+        close(bottom, MARK_SPREAD, "bottom leads by the spread");
         // Every cell stays inside the unit interval once phased.
         for (x, y) in MARK_CELLS {
             let phase = mark_phase(0.3, x, y);

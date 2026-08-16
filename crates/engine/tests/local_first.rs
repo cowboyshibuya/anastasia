@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+use anastasia_engine::{AuthState, Engine, EngineConfig, EngineInfo, HarnessId, WorkspaceScope};
+use anastasia_rpc::{connect_ws, memory_client, methods};
 use base64::Engine as _;
 use futures::{SinkExt, StreamExt};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -11,8 +13,6 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tokio_tungstenite::tungstenite::handshake::server::{
     Request as WsRequest, Response as WsResponse,
 };
-use zeron_engine::{AuthState, Engine, EngineConfig, EngineInfo, HarnessId, WorkspaceScope};
-use zeron_rpc::{connect_ws, memory_client, methods};
 
 fn config(
     data_dir: &std::path::Path,
@@ -301,7 +301,7 @@ async fn clean_local_auth_construction_does_not_probe_edge_health() {
 }
 
 #[tokio::test]
-async fn local_runtime_does_not_start_the_edge_updater() {
+async fn local_runtime_starts_only_the_public_release_updater() {
     let dir = tempfile::tempdir().unwrap();
     let (edge_url, requests, edge_task) = rejecting_edge().await;
     let config = config(dir.path(), edge_url, Some("client_test"), None);
@@ -317,10 +317,7 @@ async fn local_runtime_does_not_start_the_edge_updater() {
 
     assert_eq!(scope, WorkspaceScope::Local);
     assert!(runtime.core().links().is_none());
-    assert!(
-        runtime.core().updater().is_none(),
-        "local runtime must not start an Edge updater"
-    );
+    assert!(runtime.core().updater().is_some());
     assert_eq!(requests.load(Ordering::SeqCst), 0);
 
     runtime.shutdown().await;

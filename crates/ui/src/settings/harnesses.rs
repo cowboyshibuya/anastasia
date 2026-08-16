@@ -19,9 +19,9 @@ use gpui::{
     px,
 };
 
-use zeron_engine::registry::{HarnessDescriptor, descriptor_enabled};
-use zeron_proto::HarnessId;
-use zeron_rpc::methods;
+use anastasia_engine::registry::{HarnessDescriptor, descriptor_enabled};
+use anastasia_proto::HarnessId;
+use anastasia_rpc::methods;
 
 use crate::pickers::visible_harnesses;
 use crate::popover::{self, Loadable};
@@ -35,6 +35,7 @@ pub fn blurb(harness: HarnessId) -> &'static str {
     match harness {
         HarnessId::ClaudeCode => "Anthropic's coding agent, driven through the Claude Code CLI.",
         HarnessId::Codex => "OpenAI's coding agent, driven through the Codex CLI.",
+        HarnessId::Gemini => "Google's coding agent, driven through Gemini CLI.",
         HarnessId::Cursor => "Cursor's coding agent, driven through the cursor-agent CLI.",
         HarnessId::Grok => "xAI's Grok Build agent (grok CLI).",
         HarnessId::Hermes => "Nous Research's Hermes Agent (hermes CLI).",
@@ -48,6 +49,7 @@ pub fn cli_name(harness: HarnessId) -> &'static str {
     match harness {
         HarnessId::ClaudeCode => "claude",
         HarnessId::Codex => "codex",
+        HarnessId::Gemini => "gemini",
         HarnessId::Cursor => "cursor-agent",
         HarnessId::Grok => "grok",
         HarnessId::Hermes => "hermes",

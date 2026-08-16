@@ -1,5 +1,5 @@
 /**
- * Zeron-native edge Worker (design §2, ARCHITECTURE §6): JWT auth at the
+ * Anastasia-native edge Worker (design §2, ARCHITECTURE §6): JWT auth at the
  * edge, then forwarding into per-session, per-workspace, and per-device
  * Durable Objects. Also serves content-addressed R2 attachments (§1.2) and
  * the absorbed WorkOS auth routes (formerly apps/server).
@@ -43,7 +43,6 @@ import { SessionRoom } from "./session-room";
 import { DeviceRoom } from "./device-room";
 import { RegistryRoom } from "./registry-room";
 import { ChatRoom } from "./chat-room";
-import installSh from "./install.sh";
 
 export { SessionRoom, DeviceRoom, RegistryRoom, ChatRoom };
 
@@ -115,40 +114,6 @@ export default {
 
     if (url.pathname === "/health") {
       return json({ ok: true, auth: env.AUTH_MODE === "dev" ? "dev" : "workos" });
-    }
-
-    // ── public install surface (also routed from zeron.sh): the
-    //    `curl | sh` installer and the release artifacts it downloads ───────
-    if (url.pathname === "/install.sh" && (request.method === "GET" || request.method === "HEAD")) {
-      return new Response(request.method === "HEAD" ? null : installSh, {
-        headers: {
-          "content-type": "application/x-sh",
-          "cache-control": "public, max-age=0, must-revalidate"
-        }
-      });
-    }
-    if (
-      parts[0] === "releases" &&
-      parts.length >= 2 &&
-      (request.method === "GET" || request.method === "HEAD")
-    ) {
-      const key = decodeURIComponent(url.pathname.slice("/releases/".length));
-      if (key.length === 0 || key.includes("..")) return json({ error: "bad request" }, 400);
-      const object = await env.RELEASES.get(key);
-      if (!object) return json({ error: "not_found" }, 404);
-      // latest.txt / manifest.json flip on release; artifacts are immutable by name.
-      const mutable = key.endsWith(".txt") || key.endsWith(".json");
-      const headers = new Headers({
-        "content-type": key.endsWith(".txt")
-          ? "text/plain; charset=utf-8"
-          : key.endsWith(".json")
-            ? "application/json"
-            : "application/octet-stream",
-        "content-length": String(object.size),
-        "cache-control": mutable ? "public, max-age=60" : "public, max-age=86400, immutable",
-        etag: object.httpEtag
-      });
-      return new Response(request.method === "HEAD" ? null : object.body, { headers });
     }
 
     // ── WorkOS auth routes (pre-bearer: exchange/refresh/callback have no

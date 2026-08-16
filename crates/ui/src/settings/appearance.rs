@@ -152,7 +152,7 @@ fn helper(mode: AppearanceMode, system: Appearance) -> SharedString {
         AppearanceMode::System => {
             let resolved = if system.is_dark() { "dark" } else { "light" };
             format!(
-                "Following the system appearance — currently {resolved}. Zeron switches with \
+                "Following the system appearance — currently {resolved}. Anastasia switches with \
                  macOS, including scheduled changes."
             )
             .into()
@@ -185,35 +185,35 @@ impl Render for AppearancePage {
             .size_full()
             .overflow_y_scroll()
             .child(
-                widgets::page_column()
-                    .child(widgets::page_header(&theme, "Appearance", None))
-                    .child(
-                        widgets::page_subtitle(
-                            &theme,
-                            "How zeron picks between light and dark. This setting stays on this \
+            widgets::page_column()
+                .child(widgets::page_header(&theme, "Appearance", None))
+                .child(
+                    widgets::page_subtitle(
+                        &theme,
+                        "How anastasia picks between light and dark. This setting stays on this \
                              device.",
-                        )
-                        .max_w(px(512.0))
-                        .line_height(px(20.0)),
                     )
-                    .child(
-                        div()
-                            .mt(px(32.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(12.0))
-                            .child(widgets::field_label(&theme, "Theme"))
-                            .child(widgets::option_card_row().children(cards)),
-                    )
-                    .child(
-                        div()
-                            .mt(px(16.0))
-                            .text_size(px(12.0))
-                            .text_color(theme.text_muted)
-                            .line_height(px(18.0))
-                            .child(helper(current, system)),
-                    ),
-            )
+                    .max_w(px(512.0))
+                    .line_height(px(20.0)),
+                )
+                .child(
+                    div()
+                        .mt(px(32.0))
+                        .flex()
+                        .flex_col()
+                        .gap(px(12.0))
+                        .child(widgets::field_label(&theme, "Theme"))
+                        .child(widgets::option_card_row().children(cards)),
+                )
+                .child(
+                    div()
+                        .mt(px(16.0))
+                        .text_size(px(12.0))
+                        .text_color(theme.text_muted)
+                        .line_height(px(18.0))
+                        .child(helper(current, system)),
+                ),
+        )
     }
 }
 

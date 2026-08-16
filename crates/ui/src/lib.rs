@@ -1,4 +1,4 @@
-//! zeron-ui — the gpui viewport. Shell, sidebar, conversation, composer, terminal,
+//! anastasia-ui — the gpui viewport. Shell, sidebar, conversation, composer, terminal,
 //! diff pane.
 //!
 //! Design: ARCHITECTURE.md §4; animation catalog docs/research/feature-inventory.md
@@ -6,11 +6,11 @@
 //!
 //! M3a foundation:
 //! - [`theme`] — always-dark monochrome theme (oklch-derived neutrals), a gpui Global;
-//! - [`motion`] — the zeron animation catalog over gpui `Animation` + cubic-bezier;
+//! - [`motion`] — the anastasia animation catalog over gpui `Animation` + cubic-bezier;
 //! - [`state`] — `AppState` entity + `EngineHandle` (connect-or-embed engine);
 //! - [`settings`] — persisted pane widths/collapse flags;
 //! - [`shell`] — sidebar + main panel + right-pane scaffold + gate;
-//! - [`loaders`] — zeron pulse loader, gradient spinner, boot splash.
+//! - [`loaders`] — anastasia pulse loader, gradient spinner, boot splash.
 
 pub mod app_menus;
 pub mod appearance;
@@ -72,11 +72,11 @@ fn register_fonts(cx: &App) {
     }
 }
 
+pub use anastasia_proto::HarnessId;
 pub use state::EngineBootConfig;
-pub use zeron_proto::HarnessId;
 
 /// Everything the headed binary passes in (config/env resolution lives in
-/// `apps/zeron`, not here).
+/// `apps/anastasia`, not here).
 #[derive(Debug, Clone)]
 pub struct UiConfig {
     /// Data directory — engine stores + `ui-settings.json`.
@@ -192,7 +192,7 @@ pub fn run_app(config: UiConfig) {
 /// root view. Called at boot and again from `on_reopen` if the dock icon is
 /// clicked after ⌘W closed the window.
 fn open_main_window(state: gpui::Entity<state::AppState>, boot: EngineBootConfig, cx: &mut App) {
-    // zeron window geometry: 1320×880, min 900×600 (feature-inventory §1.1).
+    // anastasia window geometry: 1320×880, min 900×600 (feature-inventory §1.1).
     let bounds = Bounds::centered(None, size(px(1320.), px(880.)), cx);
     cx.open_window(
         WindowOptions {
@@ -231,7 +231,7 @@ fn open_main_window(state: gpui::Entity<state::AppState>, boot: EngineBootConfig
             // — if these two ever disagree, vibrancy dies on the first theme
             // change and never comes back.
             window_background: theme::Theme::of(cx).window_background_appearance(),
-            app_id: Some("zeron".into()),
+            app_id: Some("anastasia".into()),
             ..Default::default()
         },
         move |window, cx| {

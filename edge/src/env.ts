@@ -8,9 +8,6 @@ export interface Env {
    * replacing SessionRoom's loro-aware s2 rooms (docs/chat2-sync.md). */
   CHAT_ROOMS: DurableObjectNamespace;
   BLOBS: R2Bucket;
-  /** Release artifacts (headless tarballs, dmgs, latest.txt) served at
-   * /releases/* for the curl-install flow. */
-  RELEASES: R2Bucket;
   WORKOS_CLIENT_ID: string;
   /** "workos" (verify AuthKit JWTs) or "dev" (bearer == userId, never prod). */
   AUTH_MODE: string;
@@ -26,10 +23,10 @@ export interface Env {
 /** Header the Worker stamps on requests it forwards into DOs after verifying
  * the caller's JWT. DOs trust it blindly — they are only reachable through
  * the Worker (design §2: "DO never sees an unauthenticated frame"). */
-export const AUTH_USER_HEADER = "x-zeron-auth-user";
+export const AUTH_USER_HEADER = "x-anastasia-auth-user";
 
 /** Header the Worker stamps on requests forwarded into workspace-doc rooms
  * (`ws/{orgId}`). Membership (JWT org claim == orgId) is enforced at the
  * Worker; the SessionRoom DO sees this and skips its per-chat
  * claim-on-first-join ownership discipline for the room. */
-export const ROOM_KIND_HEADER = "x-zeron-room-kind";
+export const ROOM_KIND_HEADER = "x-anastasia-room-kind";

@@ -4,8 +4,8 @@
 //! The in-memory bridge below stands in for the edge room: it cross-imports Loro
 //! updates (`export(updates)`) between the two engines' workspace docs on a timer,
 //! which is exactly what `RoomClient` + the SessionRoom DO do over the wire. A live
-//! variant against a real edge runs behind `#[ignore]` (ZERON_EDGE_WS, like
-//! zeron-sync's edge_convergence test).
+//! variant against a real edge runs behind `#[ignore]` (ANASTASIA_EDGE_WS, like
+//! anastasia-sync's edge_convergence test).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,14 +14,16 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use futures::stream::BoxStream;
 
-use zeron_doc::{CommandBasedOn, SessionCommandEntry, SessionCommandPayload, SessionCommandStatus};
-use zeron_engine::{EngineCore, HarnessRegistry};
-use zeron_harness::{Harness, HarnessError, RunControls};
-use zeron_proto::{
+use anastasia_doc::{
+    CommandBasedOn, SessionCommandEntry, SessionCommandPayload, SessionCommandStatus,
+};
+use anastasia_engine::{EngineCore, HarnessRegistry};
+use anastasia_harness::{Harness, HarnessError, RunControls};
+use anastasia_proto::{
     AgentEvent, ChatConfig, DoneStatus, HarnessId, Model, ReasoningLevel, RunRequest, SandboxLevel,
     SessionStatus, SteeringMode,
 };
-use zeron_rpc::methods;
+use anastasia_rpc::methods;
 
 const VIEWER: &str = "viewer-device";
 
@@ -122,8 +124,8 @@ fn assemble(dir: &std::path::Path, device_id: &str) -> EngineCore {
 async fn bridge(
     a: &EngineCore,
     b: &EngineCore,
-) -> zeron_sync::registry::mock_server::MockRegistryServer {
-    let server = zeron_sync::registry::mock_server::MockRegistryServer::start().await;
+) -> anastasia_sync::registry::mock_server::MockRegistryServer {
+    let server = anastasia_sync::registry::mock_server::MockRegistryServer::start().await;
     a.workspace.connect_registry_url(&server.url());
     b.workspace.connect_registry_url(&server.url());
     server
@@ -224,8 +226,8 @@ async fn two_engines_share_a_workspace() {
 
     // CreateSpace + CreateChat on A (Mutate over the real RPC surface), hosted
     // by dev-a via the space.
-    let client_a = zeron_rpc::memory_client(a.rpc_service());
-    let client_b = zeron_rpc::memory_client(b.rpc_service());
+    let client_a = anastasia_rpc::memory_client(a.rpc_service());
+    let client_b = anastasia_rpc::memory_client(b.rpc_service());
     client_a
         .call(
             methods::MUTATE,
@@ -378,7 +380,7 @@ async fn claim_on_first_command_creates_the_chat_row() {
 async fn claim_resolves_a_worktree_cwd_to_the_repo_root_space() {
     let dir = tempfile::tempdir().unwrap();
     let core = assemble(dir.path(), "dev-a");
-    let client = zeron_rpc::memory_client(core.rpc_service());
+    let client = anastasia_rpc::memory_client(core.rpc_service());
 
     // A checkout with a linked worktree — fs layout only; the claim path
     // reads `.git` without spawning git.
@@ -528,7 +530,7 @@ async fn chat_config_selects_the_run_harness() {
         || {
             handle.doc().read_entries().unwrap_or_default().iter().any(|e| {
                 e.parts.iter().any(
-                    |p| matches!(p, zeron_doc::MessagePart::Text { text, .. } if text == "From cursor"),
+                    |p| matches!(p, anastasia_doc::MessagePart::Text { text, .. } if text == "From cursor"),
                 )
             })
         },
@@ -543,15 +545,15 @@ async fn chat_config_selects_the_run_harness() {
 /// the TS edge (`wrangler dev` in `edge/` with AUTH_MODE=dev):
 ///
 /// ```sh
-/// ZERON_EDGE_WS=ws://127.0.0.1:8787 cargo test -p zeron-engine -- --ignored
+/// ANASTASIA_EDGE_WS=ws://127.0.0.1:8787 cargo test -p anastasia-engine -- --ignored
 /// ```
 #[tokio::test]
-#[ignore = "requires a live edge: set ZERON_EDGE_WS (e.g. ws://127.0.0.1:8787)"]
+#[ignore = "requires a live edge: set ANASTASIA_EDGE_WS (e.g. ws://127.0.0.1:8787)"]
 async fn two_engines_converge_through_a_real_workspace_room() {
-    use zeron_engine::doc_host::EdgeConfig;
+    use anastasia_engine::doc_host::EdgeConfig;
 
-    let base = std::env::var("ZERON_EDGE_WS")
-        .expect("set ZERON_EDGE_WS to the edge origin, e.g. ws://127.0.0.1:8787");
+    let base = std::env::var("ANASTASIA_EDGE_WS")
+        .expect("set ANASTASIA_EDGE_WS to the edge origin, e.g. ws://127.0.0.1:8787");
     let org = format!("org-{}", uuid::Uuid::new_v4().simple());
 
     let assemble_live = |dir: &std::path::Path, device_id: &str, user: &str| {
@@ -613,15 +615,15 @@ async fn two_engines_converge_through_a_real_workspace_room() {
 
 #[tokio::test]
 async fn legacy_workspace_doc_migrates_instantly_on_first_boot() {
-    use zeron_proto::{Chat, Device, Session, Space};
+    use anastasia_proto::{Chat, Device, Session, Space};
 
     let dir_a = tempfile::tempdir().unwrap();
     // Seed the identity-scoped store with a LEGACY Loro workspace snapshot —
     // what an updated engine finds on its first boot after the registry change.
     let org_dir = dir_a.path().join("orgs").join("dev-org").join("dev-user");
     {
-        let store = zeron_sync::DocsStore::open(&org_dir).expect("open store");
-        let legacy = zeron_doc::WorkspaceDoc::new();
+        let store = anastasia_sync::DocsStore::open(&org_dir).expect("open store");
+        let legacy = anastasia_doc::WorkspaceDoc::new();
         let now = chrono::Utc::now();
         legacy
             .upsert_device(&Device {
@@ -733,10 +735,10 @@ async fn legacy_workspace_doc_migrates_instantly_on_first_boot() {
     b.shutdown().await;
 
     // The registry snapshot now exists; the legacy snapshot is kept for rollback.
-    let store = zeron_sync::DocsStore::open(&org_dir).expect("reopen store");
+    let store = anastasia_sync::DocsStore::open(&org_dir).expect("reopen store");
     assert!(
         store
-            .load_snapshot(zeron_doc::REGISTRY_DOC_ID)
+            .load_snapshot(anastasia_doc::REGISTRY_DOC_ID)
             .expect("load registry snapshot")
             .is_some(),
         "registry snapshot persisted"

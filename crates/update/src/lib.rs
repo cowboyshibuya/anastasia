@@ -1,15 +1,13 @@
-//! zeron-update — release checking and self-update, shared by the engine (the
-//! background checker + `ApplyUpdate`), the CLI (`zeron update`), and the UI
+//! anastasia-update — release checking and self-update, shared by the engine (the
+//! background checker + `ApplyUpdate`), the CLI (`anastasia update`), and the UI
 //! (the sidebar update strip + macOS bundle swap).
 //!
-//! Release layout (see `.github/workflows/release.yml` and `edge/src/install.sh`):
-//! artifacts live in the `comet-native-releases` R2 bucket, served pre-auth at
-//! `{edge}/releases/*`. `manifest.json` carries the latest version plus a
-//! sha256 per artifact; `latest.txt` (version only) remains as the fallback for
-//! releases published before the manifest existed.
+//! Release layout (see `.github/workflows/release.yml`): GitHub Releases owns
+//! the artifacts and `manifest.json` carries the latest version plus a sha256
+//! per artifact. Legacy self-hosted release endpoints remain readable.
 //!
 //! Install kinds and their update paths:
-//! - **Managed** (`~/.zeron/app/<ver>` + `current` symlink — the curl|sh
+//! - **Managed** (`~/.anastasia/app/<ver>` + `current` symlink — the curl|sh
 //!   installer): download the headless tarball into a new versioned dir, flip
 //!   the symlink, restart the service. Same flow the installer script performs,
 //!   natively.
@@ -31,6 +29,15 @@ use tokio::sync::watch;
 /// The version compiled into this binary (the workspace version).
 pub const fn current_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
+}
+
+pub fn release_api_url() -> String {
+    std::env::var("ANASTASIA_RELEASE_API_URL")
+        .ok()
+        .filter(|url| !url.trim().is_empty())
+        .unwrap_or_else(|| {
+            "https://api.github.com/repos/cowboyshibuya/anastasia/releases/latest".into()
+        })
 }
 
 /// Background check cadence.
@@ -55,6 +62,9 @@ pub struct Manifest {
     /// via `latest.txt` — downloads then skip checksum verification (with a log).
     #[serde(default)]
     pub files: BTreeMap<String, FileMeta>,
+    /// Filled from the GitHub release response; not stored in manifest.json.
+    #[serde(default, skip_serializing)]
+    pub downloads: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -78,16 +88,16 @@ pub fn platform_key() -> (&'static str, &'static str) {
     (os, arch)
 }
 
-/// `zeron-<ver>-<os>-<arch>.tar.gz` — the headless/CLI tarball (Linux CI builds).
+/// `anastasia-<ver>-<os>-<arch>.tar.gz` — the headless/CLI tarball (Linux CI builds).
 pub fn headless_artifact(version: &str) -> String {
     let (os, arch) = platform_key();
-    format!("zeron-{version}-{os}-{arch}.tar.gz")
+    format!("anastasia-{version}-{os}-{arch}.tar.gz")
 }
 
-/// `zeron-<ver>-macos-<arch>-app.tar.gz` — the macOS app update payload.
+/// `anastasia-<ver>-macos-<arch>-app.tar.gz` — the macOS app update payload.
 pub fn mac_app_artifact(version: &str) -> String {
     let (_, arch) = platform_key();
-    format!("zeron-{version}-macos-{arch}-app.tar.gz")
+    format!("anastasia-{version}-macos-{arch}-app.tar.gz")
 }
 
 /// Strictly-newer dotted-numeric compare (`0.1.10` > `0.1.9` > `0.1`).
@@ -112,6 +122,9 @@ pub fn version_newer(latest: &str, current: &str) -> bool {
 /// Fetch the newest release metadata: `manifest.json`, falling back to
 /// `latest.txt` (version only, no checksums) for pre-manifest releases.
 pub async fn fetch_latest(edge_url: &str) -> anyhow::Result<Manifest> {
+    if edge_url.contains("api.github.com/repos/") {
+        return fetch_github_latest(edge_url).await;
+    }
     let base = edge_url.trim_end_matches('/');
     let client = http_client()?;
     let manifest_url = format!("{base}/releases/manifest.json");
@@ -147,12 +160,80 @@ pub async fn fetch_latest(edge_url: &str) -> anyhow::Result<Manifest> {
     Ok(Manifest {
         version,
         files: BTreeMap::new(),
+        downloads: BTreeMap::new(),
     })
+}
+
+#[derive(Deserialize)]
+struct GithubRelease {
+    tag_name: String,
+    assets: Vec<GithubAsset>,
+}
+
+#[derive(Deserialize)]
+struct GithubAsset {
+    name: String,
+    browser_download_url: String,
+}
+
+async fn fetch_github_latest(url: &str) -> anyhow::Result<Manifest> {
+    let client = http_client()?;
+    let release: GithubRelease = client
+        .get(url)
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .context("fetching latest GitHub release")?
+        .error_for_status()
+        .context("fetching latest GitHub release")?
+        .json()
+        .await
+        .context("parsing latest GitHub release")?;
+    let (version, downloads) = github_release_metadata(&release)?;
+    let mut manifest = match downloads.get("manifest.json") {
+        Some(manifest_url) => client
+            .get(manifest_url)
+            .send()
+            .await
+            .context("fetching release manifest")?
+            .error_for_status()
+            .context("fetching release manifest")?
+            .json::<Manifest>()
+            .await
+            .context("parsing release manifest")?,
+        None => Manifest {
+            version: version.clone(),
+            ..Manifest::default()
+        },
+    };
+    if manifest.version != version {
+        bail!(
+            "release tag v{version} does not match manifest {}",
+            manifest.version
+        );
+    }
+    manifest.downloads = downloads;
+    Ok(manifest)
+}
+
+fn github_release_metadata(
+    release: &GithubRelease,
+) -> anyhow::Result<(String, BTreeMap<String, String>)> {
+    let version = release.tag_name.trim_start_matches('v').to_string();
+    if version.is_empty() {
+        bail!("latest GitHub release has an empty tag");
+    }
+    let downloads = release
+        .assets
+        .iter()
+        .map(|asset| (asset.name.clone(), asset.browser_download_url.clone()))
+        .collect();
+    Ok((version, downloads))
 }
 
 fn http_client() -> anyhow::Result<reqwest::Client> {
     reqwest::Client::builder()
-        .user_agent(concat!("zeron/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("anastasia/", env!("CARGO_PKG_VERSION")))
         .build()
         .context("building http client")
 }
@@ -164,8 +245,8 @@ fn http_client() -> anyhow::Result<reqwest::Client> {
 /// How this binary was installed — decides the update path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InstallKind {
-    /// `~/.zeron/app/<ver>/zeron` behind the `current` symlink
-    /// (curl|sh installer / a previous `zeron update`).
+    /// `~/.anastasia/app/<ver>/anastasia` behind the `current` symlink
+    /// (curl|sh installer / a previous `anastasia update`).
     Managed { app_root: PathBuf },
     /// Running out of a macOS `.app` bundle.
     MacApp { bundle: PathBuf },
@@ -184,7 +265,7 @@ pub fn detect_install() -> InstallKind {
 fn detect_install_from(exe: &Path, home: Option<&Path>) -> InstallKind {
     if let Some(home) = home {
         // `current_exe` resolves the `current` symlink to the versioned dir.
-        let app_root = home.join(".zeron").join("app");
+        let app_root = home.join(".anastasia").join("app");
         if exe.starts_with(&app_root) {
             return InstallKind::Managed { app_root };
         }
@@ -214,7 +295,11 @@ pub async fn download_release_file(
     file: &str,
     dest: &Path,
 ) -> anyhow::Result<()> {
-    let url = format!("{}/releases/{file}", edge_url.trim_end_matches('/'));
+    let url = manifest
+        .downloads
+        .get(file)
+        .cloned()
+        .unwrap_or_else(|| format!("{}/releases/{file}", edge_url.trim_end_matches('/')));
     let expected = manifest.files.get(file).and_then(|m| m.sha256.as_deref());
     if expected.is_none() {
         tracing::warn!(
@@ -284,7 +369,7 @@ pub async fn stage_headless(
 ) -> anyhow::Result<PathBuf> {
     let version = &manifest.version;
     let dest = app_root.join(version);
-    if dest.join("zeron").exists() {
+    if dest.join("anastasia").exists() {
         return Ok(dest);
     }
     let file = headless_artifact(version);
@@ -308,13 +393,13 @@ pub async fn stage_headless(
                 "--strip-components=1",
             ],
         )?;
-        if !unpacked.join("zeron").is_file() {
-            bail!("tarball {file} did not contain a zeron binary");
+        if !unpacked.join("anastasia").is_file() {
+            bail!("tarball {file} did not contain a anastasia binary");
         }
         match std::fs::rename(&unpacked, &dest) {
             Ok(()) => {}
             // Lost a race with another stager — the staged copy is equivalent.
-            Err(_) if dest.join("zeron").exists() => {}
+            Err(_) if dest.join("anastasia").exists() => {}
             Err(err) => {
                 return Err(err).with_context(|| format!("moving {} into place", dest.display()));
             }
@@ -332,7 +417,7 @@ pub fn apply_headless(app_root: &Path, version: &str) -> anyhow::Result<()> {
     #[cfg(unix)]
     {
         let target = app_root.join(version);
-        if !target.join("zeron").exists() {
+        if !target.join("anastasia").exists() {
             bail!("{} is not a staged install", target.display());
         }
         let tmp = app_root.join(format!(".current-{}", std::process::id()));
@@ -348,7 +433,7 @@ pub fn apply_headless(app_root: &Path, version: &str) -> anyhow::Result<()> {
     }
 }
 
-/// Restart the installed engine service (the same units `zeron daemon` and the
+/// Restart the installed engine service (the same units `anastasia daemon` and the
 /// curl|sh installer manage). Called after a symlink swap so the running daemon
 /// picks up the new binary.
 pub fn restart_service() -> anyhow::Result<()> {
@@ -357,10 +442,10 @@ pub fn restart_service() -> anyhow::Result<()> {
         let uid = String::from_utf8_lossy(&output.stdout).trim().to_string();
         run(
             "launchctl",
-            &["kickstart", "-k", &format!("gui/{uid}/sh.zeron.app")],
+            &["kickstart", "-k", &format!("gui/{uid}/sh.anastasia.app")],
         )
     } else {
-        run("systemctl", &["--user", "restart", "zeron.service"])
+        run("systemctl", &["--user", "restart", "anastasia.service"])
     }
 }
 
@@ -368,7 +453,7 @@ pub fn restart_service() -> anyhow::Result<()> {
 // macOS app-bundle installs — the desktop path
 // ---------------------------------------------------------------------------
 
-/// Download + unpack the app tarball into `{data_dir}/updates/<ver>/Zeron.app`
+/// Download + unpack the app tarball into `{data_dir}/updates/<ver>/Anastasia.app`
 /// (idempotent). Returns the staged bundle path.
 pub async fn stage_mac_app(
     edge_url: &str,
@@ -377,8 +462,8 @@ pub async fn stage_mac_app(
 ) -> anyhow::Result<PathBuf> {
     let version = &manifest.version;
     let dir = data_dir.join("updates").join(version);
-    let staged = dir.join("Zeron.app");
-    if staged.join("Contents/MacOS/zeron").exists() {
+    let staged = dir.join("Anastasia.app");
+    if staged.join("Contents/MacOS/anastasia").exists() {
         return Ok(staged);
     }
     let _ = std::fs::remove_dir_all(&dir);
@@ -396,8 +481,8 @@ pub async fn stage_mac_app(
         ],
     )?;
     std::fs::remove_file(&tarball).ok();
-    if !staged.join("Contents/MacOS/zeron").exists() {
-        bail!("app tarball {file} did not contain Zeron.app");
+    if !staged.join("Contents/MacOS/anastasia").exists() {
+        bail!("app tarball {file} did not contain Anastasia.app");
     }
     Ok(staged)
 }
@@ -491,9 +576,9 @@ impl UpdateStatus {
     }
 }
 
-/// `ZERON_AUTO_UPDATE=1|true|yes` — headless daemons apply updates themselves.
+/// `ANASTASIA_AUTO_UPDATE=1|true|yes` — headless daemons apply updates themselves.
 fn auto_update_enabled() -> bool {
-    std::env::var("ZERON_AUTO_UPDATE")
+    std::env::var("ANASTASIA_AUTO_UPDATE")
         .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
         .unwrap_or(false)
 }
@@ -504,7 +589,7 @@ pub type QuiescentCheck = Arc<dyn Fn() -> bool + Send + Sync>;
 
 /// Background release checker: polls `{edge}/releases` on a 6h cadence and
 /// publishes [`UpdateStatus`] over a watch channel (the `UpdateStatus` RPC
-/// stream). Managed installs with `ZERON_AUTO_UPDATE` set stage + apply + service
+/// stream). Managed installs with `ANASTASIA_AUTO_UPDATE` set stage + apply + service
 /// restart on their own — but only in a quiet window: while `quiescent` reports
 /// activity, the apply defers and re-probes every [`IDLE_RECHECK`].
 #[derive(Clone)]
@@ -543,7 +628,7 @@ impl Updater {
     /// not keep polling `{edge}/releases` (or auto-applying) in the background.
     /// Idempotent, and callable from any clone.
     pub async fn shutdown(&self) {
-        let _ = self.shutdown_tx.send(true);
+        self.shutdown_tx.send_replace(true);
         let task = self
             .check_task
             .lock()
@@ -722,30 +807,30 @@ mod tests {
     fn install_kind_detection() {
         assert_eq!(
             detect_install_from(
-                Path::new("/home/u/.zeron/app/0.1.1/zeron"),
+                Path::new("/home/u/.anastasia/app/0.1.1/anastasia"),
                 Some(Path::new("/home/u")),
             ),
             InstallKind::Managed {
-                app_root: PathBuf::from("/home/u/.zeron/app")
+                app_root: PathBuf::from("/home/u/.anastasia/app")
             }
         );
         assert_eq!(
             detect_install_from(
-                Path::new("/Applications/Zeron.app/Contents/MacOS/zeron"),
+                Path::new("/Applications/Anastasia.app/Contents/MacOS/anastasia"),
                 Some(Path::new("/Users/u")),
             ),
             InstallKind::MacApp {
-                bundle: PathBuf::from("/Applications/Zeron.app")
+                bundle: PathBuf::from("/Applications/Anastasia.app")
             }
         );
         // A path merely containing `.app` without the bundle layout is not a bundle.
         assert_eq!(
-            detect_install_from(Path::new("/tmp/foo.app/zeron"), None),
+            detect_install_from(Path::new("/tmp/foo.app/anastasia"), None),
             InstallKind::Unmanaged
         );
         assert_eq!(
             detect_install_from(
-                Path::new("/src/target/release/zeron"),
+                Path::new("/src/target/release/anastasia"),
                 Some(Path::new("/home/u"))
             ),
             InstallKind::Unmanaged
@@ -755,10 +840,10 @@ mod tests {
     #[test]
     fn artifact_names_match_packaging() {
         let (os, arch) = platform_key();
-        assert!(headless_artifact("0.2.0").starts_with("zeron-0.2.0-"));
+        assert!(headless_artifact("0.2.0").starts_with("anastasia-0.2.0-"));
         assert_eq!(
             headless_artifact("0.2.0"),
-            format!("zeron-0.2.0-{os}-{arch}.tar.gz")
+            format!("anastasia-0.2.0-{os}-{arch}.tar.gz")
         );
         assert!(mac_app_artifact("0.2.0").ends_with("-app.tar.gz"));
     }
@@ -766,18 +851,43 @@ mod tests {
     #[test]
     fn manifest_parses_with_and_without_files() {
         let full: Manifest = serde_json::from_str(
-            r#"{"version":"0.1.1","files":{"zeron-0.1.1-linux-x86_64.tar.gz":{"sha256":"abc"}}}"#,
+            r#"{"version":"0.1.1","files":{"anastasia-0.1.1-linux-x86_64.tar.gz":{"sha256":"abc"}}}"#,
         )
         .unwrap();
         assert_eq!(full.version, "0.1.1");
         assert_eq!(
-            full.files["zeron-0.1.1-linux-x86_64.tar.gz"]
+            full.files["anastasia-0.1.1-linux-x86_64.tar.gz"]
                 .sha256
                 .as_deref(),
             Some("abc")
         );
         let bare: Manifest = serde_json::from_str(r#"{"version":"0.1.1"}"#).unwrap();
         assert!(bare.files.is_empty());
+    }
+
+    #[test]
+    fn github_release_tag_and_assets_become_update_metadata() {
+        let release = GithubRelease {
+            tag_name: "v0.3.0".into(),
+            assets: vec![GithubAsset {
+                name: "manifest.json".into(),
+                browser_download_url: "https://example.test/manifest.json".into(),
+            }],
+        };
+        let (version, downloads) = github_release_metadata(&release).unwrap();
+        assert_eq!(version, "0.3.0");
+        assert_eq!(
+            downloads.get("manifest.json").map(String::as_str),
+            Some("https://example.test/manifest.json")
+        );
+    }
+
+    #[tokio::test]
+    async fn immediate_shutdown_cannot_miss_the_stop_signal() {
+        let updater = Updater::spawn("http://127.0.0.1:1".into(), None);
+        tokio::time::timeout(std::time::Duration::from_secs(1), updater.shutdown())
+            .await
+            .expect("updater shutdown raced its first subscription");
     }
 
     #[cfg(unix)]
@@ -787,7 +897,7 @@ mod tests {
         let app_root = tmp.path().join("app");
         for ver in ["0.1.0", "0.1.1"] {
             std::fs::create_dir_all(app_root.join(ver)).unwrap();
-            std::fs::write(app_root.join(ver).join("zeron"), ver).unwrap();
+            std::fs::write(app_root.join(ver).join("anastasia"), ver).unwrap();
         }
         apply_headless(&app_root, "0.1.0").unwrap();
         assert_eq!(

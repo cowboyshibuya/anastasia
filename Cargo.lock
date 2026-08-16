@@ -202,6 +202,227 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "anastasia"
+version = "0.2.3"
+dependencies = [
+ "anastasia-engine",
+ "anastasia-rpc",
+ "anastasia-ui",
+ "anastasia-update",
+ "anyhow",
+ "clap",
+ "libc",
+ "mimalloc",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "anastasia-doc"
+version = "0.2.3"
+dependencies = [
+ "anastasia-proto",
+ "chrono",
+ "loro",
+ "serde",
+ "serde_json",
+ "similar",
+ "thiserror 2.0.19",
+ "tracing",
+]
+
+[[package]]
+name = "anastasia-engine"
+version = "0.2.3"
+dependencies = [
+ "anastasia-doc",
+ "anastasia-harness",
+ "anastasia-proto",
+ "anastasia-rpc",
+ "anastasia-sync",
+ "anastasia-update",
+ "anyhow",
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "gethostname",
+ "ignore",
+ "libc",
+ "loro",
+ "notify",
+ "portable-pty",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-harness"
+version = "0.2.3"
+dependencies = [
+ "anastasia-proto",
+ "anyhow",
+ "async-trait",
+ "base64",
+ "futures",
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-proto"
+version = "0.2.3"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-rpc"
+version = "0.2.3"
+dependencies = [
+ "anastasia-doc",
+ "anastasia-proto",
+ "anastasia-sync",
+ "anyhow",
+ "async-trait",
+ "futures",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-sync"
+version = "0.2.3"
+dependencies = [
+ "anastasia-doc",
+ "anastasia-proto",
+ "chrono",
+ "futures",
+ "loro",
+ "loro-protocol",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-syntax"
+version = "0.2.3"
+dependencies = [
+ "thiserror 2.0.19",
+ "tree-sitter",
+ "tree-sitter-bash",
+ "tree-sitter-c",
+ "tree-sitter-c-sharp",
+ "tree-sitter-containerfile",
+ "tree-sitter-cpp",
+ "tree-sitter-css",
+ "tree-sitter-go",
+ "tree-sitter-highlight",
+ "tree-sitter-html",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-json",
+ "tree-sitter-kotlin-ng",
+ "tree-sitter-lua",
+ "tree-sitter-make",
+ "tree-sitter-md",
+ "tree-sitter-nix",
+ "tree-sitter-php",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-sequel",
+ "tree-sitter-swift",
+ "tree-sitter-toml-ng",
+ "tree-sitter-typescript",
+ "tree-sitter-yaml",
+]
+
+[[package]]
+name = "anastasia-ui"
+version = "0.2.3"
+dependencies = [
+ "alacritty_terminal",
+ "anastasia-doc",
+ "anastasia-engine",
+ "anastasia-harness",
+ "anastasia-proto",
+ "anastasia-rpc",
+ "anastasia-syntax",
+ "anastasia-update",
+ "anyhow",
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "gpui",
+ "gpui_platform",
+ "gpui_tokio",
+ "objc",
+ "pulldown-cmark",
+ "serde",
+ "serde_json",
+ "sha2",
+ "similar",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "unicode-segmentation",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-update"
+version = "0.2.3"
+dependencies = [
+ "anyhow",
+ "futures",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9094,227 +9315,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "zeron"
-version = "0.2.3"
-dependencies = [
- "anyhow",
- "clap",
- "libc",
- "mimalloc",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "zeron-engine",
- "zeron-rpc",
- "zeron-ui",
- "zeron-update",
-]
-
-[[package]]
-name = "zeron-doc"
-version = "0.2.3"
-dependencies = [
- "chrono",
- "loro",
- "serde",
- "serde_json",
- "similar",
- "thiserror 2.0.19",
- "tracing",
- "zeron-proto",
-]
-
-[[package]]
-name = "zeron-engine"
-version = "0.2.3"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64",
- "chrono",
- "futures",
- "gethostname",
- "ignore",
- "libc",
- "loro",
- "notify",
- "portable-pty",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-tungstenite",
- "tokio-util",
- "tracing",
- "uuid",
- "zeron-doc",
- "zeron-harness",
- "zeron-proto",
- "zeron-rpc",
- "zeron-sync",
- "zeron-update",
-]
-
-[[package]]
-name = "zeron-harness"
-version = "0.2.3"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64",
- "futures",
- "libc",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
- "zeron-proto",
-]
-
-[[package]]
-name = "zeron-proto"
-version = "0.2.3"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "uuid",
-]
-
-[[package]]
-name = "zeron-rpc"
-version = "0.2.3"
-dependencies = [
- "anyhow",
- "async-trait",
- "futures",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
- "tokio",
- "tokio-tungstenite",
- "tracing",
- "uuid",
- "zeron-doc",
- "zeron-proto",
- "zeron-sync",
-]
-
-[[package]]
-name = "zeron-sync"
-version = "0.2.3"
-dependencies = [
- "chrono",
- "futures",
- "loro",
- "loro-protocol",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-tungstenite",
- "tracing",
- "uuid",
- "zeron-doc",
- "zeron-proto",
-]
-
-[[package]]
-name = "zeron-syntax"
-version = "0.2.3"
-dependencies = [
- "thiserror 2.0.19",
- "tree-sitter",
- "tree-sitter-bash",
- "tree-sitter-c",
- "tree-sitter-c-sharp",
- "tree-sitter-containerfile",
- "tree-sitter-cpp",
- "tree-sitter-css",
- "tree-sitter-go",
- "tree-sitter-highlight",
- "tree-sitter-html",
- "tree-sitter-java",
- "tree-sitter-javascript",
- "tree-sitter-json",
- "tree-sitter-kotlin-ng",
- "tree-sitter-lua",
- "tree-sitter-make",
- "tree-sitter-md",
- "tree-sitter-nix",
- "tree-sitter-php",
- "tree-sitter-python",
- "tree-sitter-ruby",
- "tree-sitter-rust",
- "tree-sitter-sequel",
- "tree-sitter-swift",
- "tree-sitter-toml-ng",
- "tree-sitter-typescript",
- "tree-sitter-yaml",
-]
-
-[[package]]
-name = "zeron-ui"
-version = "0.2.3"
-dependencies = [
- "alacritty_terminal",
- "anyhow",
- "async-trait",
- "base64",
- "chrono",
- "futures",
- "gpui",
- "gpui_platform",
- "gpui_tokio",
- "objc",
- "pulldown-cmark",
- "serde",
- "serde_json",
- "sha2",
- "similar",
- "tempfile",
- "tokio",
- "tracing",
- "unicode-segmentation",
- "uuid",
- "zeron-doc",
- "zeron-engine",
- "zeron-harness",
- "zeron-proto",
- "zeron-rpc",
- "zeron-syntax",
- "zeron-update",
-]
-
-[[package]]
-name = "zeron-update"
-version = "0.2.3"
-dependencies = [
- "anyhow",
- "futures",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tokio",
- "tracing",
 ]
 
 [[package]]
