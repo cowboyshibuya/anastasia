@@ -1361,7 +1361,6 @@ impl Waku {
     fn render_appearance_settings(&self, cx: &mut Context<Self>) -> AnyElement {
         let theme = Theme::current(cx);
         let selected_theme = self.state.theme;
-        let selected_language = self.state.language;
         let weak = cx.entity().downgrade();
         let theme_handle = self.menu_handle("theme-selector", cx);
         let theme_selector = dropdown_menu(
@@ -1385,34 +1384,6 @@ impl Waku {
                             });
                         })
                         .selected(preference == selected_theme)
-                    })
-                    .collect()
-            },
-        );
-
-        let weak = cx.entity().downgrade();
-        let language_handle = self.menu_handle("language-selector", cx);
-        let language_selector = dropdown_menu(
-            MenuChip::new("language-selector")
-                .label(selected_language.label())
-                .outlined()
-                .selected(language_handle.is_open())
-                .w(px(116.0))
-                .justify_between(),
-            "language-selector-menu",
-            &language_handle,
-            MenuAlign::BelowRight,
-            move |_| {
-                crate::i18n::AppLanguage::ALL
-                    .into_iter()
-                    .map(|language| {
-                        let weak = weak.clone();
-                        MenuItem::new(language.label(), move |window, cx| {
-                            let _ = weak.update(cx, |this, cx| {
-                                this.set_language(language, window, cx);
-                            });
-                        })
-                        .selected(language == selected_language)
                     })
                     .collect()
             },
@@ -1456,38 +1427,6 @@ impl Waku {
                             ),
                     )
                     .child(theme_selector),
-            )
-            .child(div().mx(px(20.0)).h(px(1.0)).bg(theme.border))
-            .child(
-                div()
-                    .w_full()
-                    .min_h(px(60.0))
-                    .px(px(20.0))
-                    .py(px(12.0))
-                    .flex()
-                    .items_center()
-                    .gap(px(24.0))
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .child(
-                                div()
-                                    .text_size(px(13.5))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(theme.text)
-                                    .child(tr!("language.title")),
-                            )
-                            .child(
-                                div()
-                                    .mt(px(5.0))
-                                    .text_size(px(12.5))
-                                    .line_height(px(18.0))
-                                    .text_color(theme.text_secondary)
-                                    .child(tr!("language.description")),
-                            ),
-                    )
-                    .child(language_selector),
             )
             .into_any_element()
     }

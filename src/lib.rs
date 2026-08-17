@@ -5,11 +5,7 @@ rust_i18n::i18n!("locales", fallback = "en");
 // rust-i18n expands locale data in a proc macro, which Cargo does not always
 // discover as an input when only a YAML file changes. Keep explicit source
 // dependencies so the watcher rebuilds the translation registry itself.
-const _LOCALE_SOURCES: [&str; 3] = [
-    include_str!("../locales/app.yml"),
-    include_str!("../locales/zh-CN.yml"),
-    include_str!("../locales/ja.yml"),
-];
+const _LOCALE_SOURCES: [&str; 1] = [include_str!("../locales/app.yml")];
 
 macro_rules! tr {
     ($key:expr) => {
@@ -204,15 +200,6 @@ pub fn run() {
             // process identity.
             cx.set_app_identity(APP_ID, APP_NAME);
             crate::assets::register_fonts(cx).expect("failed to register bundled fonts");
-            crate::input::init(cx);
-            crate::ui::menu::init(cx);
-            crate::app::init_composer_autocomplete(cx);
-            crate::app::init_settings_keys(cx);
-            crate::app::init_command_palette(cx);
-            crate::app::init_commit_dialog_keys(cx);
-            crate::app::init_image_preview_keys(cx);
-            crate::app::init_sidebar_keys(cx);
-            crate::app::init_skills_keys(cx);
             crate::theme::init(cx);
             crate::platform::init_reduce_motion(cx);
 

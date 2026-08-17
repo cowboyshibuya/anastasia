@@ -63,45 +63,6 @@ fn format_message_time_at(created_at: u64, now: DateTime<Local>) -> String {
             let timestamp = timestamp.with_timezone(&Local);
             let message_date = timestamp.date_naive();
             let today = now.date_naive();
-            if crate::i18n::uses_east_asian_date_format() {
-                let time = timestamp.format("%H:%M").to_string();
-                if message_date >= today {
-                    return time;
-                }
-                if today.pred_opt() == Some(message_date) {
-                    return tr!("time.yesterday_at", time = time);
-                }
-                let week_start = today
-                    .checked_sub_days(Days::new(today.weekday().num_days_from_monday().into()))
-                    .unwrap_or(today);
-                if message_date >= week_start {
-                    let weekday = match timestamp.weekday() {
-                        chrono::Weekday::Mon => tr!("time.monday"),
-                        chrono::Weekday::Tue => tr!("time.tuesday"),
-                        chrono::Weekday::Wed => tr!("time.wednesday"),
-                        chrono::Weekday::Thu => tr!("time.thursday"),
-                        chrono::Weekday::Fri => tr!("time.friday"),
-                        chrono::Weekday::Sat => tr!("time.saturday"),
-                        chrono::Weekday::Sun => tr!("time.sunday"),
-                    };
-                    return tr!("time.weekday_at", weekday = weekday, time = time);
-                }
-                if message_date.year() == today.year() {
-                    return tr!(
-                        "time.date_at",
-                        month = timestamp.month(),
-                        day = timestamp.day(),
-                        time = time
-                    );
-                }
-                return tr!(
-                    "time.full_date_at",
-                    year = timestamp.year(),
-                    month = timestamp.month(),
-                    day = timestamp.day(),
-                    time = time
-                );
-            }
             let time = timestamp
                 .format("%I:%M %p")
                 .to_string()

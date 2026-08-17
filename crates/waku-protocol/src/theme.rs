@@ -5,9 +5,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ThemePreference {
-    #[default]
     System,
     Light,
+    /// The default for a new installation. Anastasia is designed dark first —
+    /// the near-black plane is the identity, not a variant of it — so a fresh
+    /// install opens in it rather than inheriting whatever the OS is set to.
+    /// System and Light remain fully supported choices.
+    #[default]
     Dark,
 }
 

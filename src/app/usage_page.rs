@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Local, NaiveDate};
 use gpui::{PathBuilder, relative};
 
 use super::*;
@@ -2815,29 +2815,17 @@ fn usage_project_path(path: &Path, home: Option<&Path>) -> String {
 
 /// `2026-08-07` → `Aug 7`.
 fn format_day_short(day: NaiveDate) -> String {
-    if crate::i18n::uses_east_asian_date_format() {
-        format!("{}月{}日", day.month(), day.day())
-    } else {
-        day.format("%b %-d").to_string()
-    }
+    day.format("%b %-d").to_string()
 }
 
 /// `2026-08-01` → `August 2026`.
 fn format_month(first_day: NaiveDate) -> String {
-    if crate::i18n::uses_east_asian_date_format() {
-        format!("{}年{}月", first_day.year(), first_day.month())
-    } else {
-        first_day.format("%B %Y").to_string()
-    }
+    first_day.format("%B %Y").to_string()
 }
 
 /// `2025-09-01` → `Sep 2025`.
 fn format_month_short(day: NaiveDate) -> String {
-    if crate::i18n::uses_east_asian_date_format() {
-        format!("{}年{}月", day.year(), day.month())
-    } else {
-        day.format("%b %Y").to_string()
-    }
+    day.format("%b %Y").to_string()
 }
 
 /// Menu label for a selectable window.

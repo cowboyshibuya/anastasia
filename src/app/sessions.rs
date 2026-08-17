@@ -431,12 +431,11 @@ impl Waku {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // Same glide as a pointer toggle: the movement is what makes the
+        // pane's arrival legible, and that is worth having however it was
+        // asked for. Repeating the shortcut mid-glide re-aims from wherever
+        // the pane currently is, so it never queues up behind the animation.
         self.set_sidebar_visible(!self.sidebar_visible, cx);
-        // Keyboard toggles land immediately. The glide exists to keep a
-        // pointer's action connected to its result; a shortcut has no such
-        // gesture to stay continuous with, and repeated ⌘B should never queue
-        // up behind 200ms of animation.
-        self.sidebar_tween = None;
     }
 
     pub(super) fn toggle_right_panel_action(
@@ -446,7 +445,6 @@ impl Waku {
         cx: &mut Context<Self>,
     ) {
         self.set_right_panel_visible(!self.right_panel_visible, cx);
-        self.right_panel_tween = None;
     }
 
     pub(super) fn toggle_fps_counter_action(

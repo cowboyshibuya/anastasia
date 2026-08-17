@@ -227,7 +227,7 @@ impl Default for AppSettings {
         Self {
             analytics_enabled: default_analytics_enabled(),
             favorite_models: Vec::new(),
-            theme: ThemePreference::System,
+            theme: ThemePreference::default(),
             language: AppLanguage::default(),
             daemon_exposure: DaemonExposureSettings::default(),
             keymap: KeymapConfig::default(),
@@ -359,7 +359,7 @@ impl PersistedState {
             last_context_window: None,
             remembered_model_traits: Vec::new(),
             favorite_models: Vec::new(),
-            theme: ThemePreference::System,
+            theme: ThemePreference::default(),
             language: AppLanguage::default(),
             daemon_exposure: DaemonExposureSettings::default(),
             keymap: KeymapConfig::default(),

@@ -23,10 +23,25 @@ use crate::{
 /// "anywhere", which is what an app-level shortcut wants.
 const APP_CONTEXT: Option<&str> = None;
 
-/// Apply `keymap` on top of the fixed bindings, replacing everything currently
-/// bound. Safe to call at any time.
+/// Install the app's entire key map, replacing everything currently bound.
+/// Safe to call at any time; a shortcut edit calls it again.
+///
+/// Every module that owns bindings re-declares them here. `clear_key_bindings`
+/// is indiscriminate — it drops the composer's editing keys, the menus, the
+/// palette and the settings search along with the app shortcuts — so anything
+/// not re-registered on this path silently stops working the moment the map is
+/// applied. Each `init` below is a pure `bind_keys` call and is safe to re-run.
 pub fn bind(cx: &mut App, keymap: &KeymapConfig) {
     cx.clear_key_bindings();
+    crate::input::init(cx);
+    crate::ui::menu::init(cx);
+    crate::app::init_composer_autocomplete(cx);
+    crate::app::init_settings_keys(cx);
+    crate::app::init_command_palette(cx);
+    crate::app::init_commit_dialog_keys(cx);
+    crate::app::init_image_preview_keys(cx);
+    crate::app::init_sidebar_keys(cx);
+    crate::app::init_skills_keys(cx);
     cx.bind_keys(fixed_bindings());
     cx.bind_keys(customizable_bindings(keymap));
 }
