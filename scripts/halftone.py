@@ -3,7 +3,11 @@
 
 One-shot generator: run it when the logo changes, commit the result.
 
-    python3 scripts/halftone.py ~/Desktop/anastasia-logo-rounded.png
+    python3 scripts/halftone.py ~/Desktop/anastasia-logo-3.png
+
+The centered mark (logo-3, the same one the debug icon uses) is the source:
+the release logo is a crop that runs off the edge, which has no silhouette to
+sample.
 
 Writes `assets/hero-dots.txt` — one digit per cell, `0` (empty) to
 `9` (solid), rows top to bottom. The mark is cropped to its ink bounds first,
