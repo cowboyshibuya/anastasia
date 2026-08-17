@@ -208,9 +208,12 @@ jobs:
           rm -f "$RUNNER_TEMP/ac_api_key.p8"
 
       - name: Release
+        env:
+          # Signs the appcast Sparkle reads. Its public half is SUPublicEDKey in
+          # resources/Info.plist; without this the archive ships unsigned and
+          # every installed build refuses the update.
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         # ANASTASIA_SIGNING_IDENTITY comes from the certificate import above.
-        # Anastasia compiles in no analytics and ships no Sparkle feed, so
-        # neither an analytics endpoint nor a Sparkle key is passed here.
         run: bun run release --local
 
       - uses: actions/upload-artifact@v4
@@ -220,6 +223,7 @@ jobs:
             dist/Anastasia-*.dmg
             dist/Anastasia-*.md
             dist/Anastasia-*.zip
+            dist/appcast.xml
           if-no-files-found: error
 
   draft-release:
@@ -260,10 +264,12 @@ jobs:
           name: ${{ github.ref_name }}
           body_path: release-notes.md
           fail_on_unmatched_files: true
-          # No appcast.xml: the app ships no update feed, so release.ts skips
-          # generating one and fail_on_unmatched_files would fail the job.
+          # appcast.xml is the update feed itself: installed builds fetch it
+          # from /releases/latest/download/, so it must be an asset on every
+          # published release.
           files: |
             artifacts/*.tar.gz
             artifacts/*.dmg
             artifacts/*.md
             artifacts/*.zip
+            artifacts/appcast.xml

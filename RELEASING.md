@@ -1,235 +1,150 @@
 # Releasing Anastasia
 
-Anastasia auto-updates with [Sparkle](https://sparkle-project.org). Releases live in
-a **Cloudflare R2** bucket served at **`https://releases.anastasia.invalid`**. New users
-download a notarized **`.dmg`**; existing users get smaller in-app updates
-(binary deltas when available) via Sparkle, which reads the appcast at
-`https://releases.anastasia.invalid/appcast.xml`, verifies each build's EdDSA signature,
-and installs it. One release command produces and publishes both.
+Anastasia auto-updates with [Sparkle](https://sparkle-project.org), served from
+this repository's own **GitHub releases** — the same arrangement Alabasta uses,
+without a bucket or a CDN to maintain.
 
-Once set up, cutting a release is:
+New users download a notarized **`.dmg`**; existing users get an in-app update
+from the Sparkle archive. The app reads its feed from
 
-```sh
-bun run release
+```
+https://github.com/cowboyshibuya/anastasia/releases/latest/download/appcast.xml
 ```
 
-- Updater code: [`src/updater.rs`](src/updater.rs) — loads the embedded
-  Sparkle.framework at runtime and starts `SPUUpdater` with Anastasia's custom user
+`/releases/latest/download/` always resolves to the newest **published**
+(non-draft, non-prerelease) release, so the feed URL compiled into the app never
+changes even though each build's assets live under their own tag.
+
+Cutting a release is: bump the version, write the changelog section, push a
+`v*` tag, publish the draft the workflow opens.
+
+## Where the pieces live
+
+- **Updater**: [`src/updater.rs`](src/updater.rs) loads the embedded
+  Sparkle.framework at runtime and starts `SPUUpdater` with Anastasia's own user
   driver. Available updates appear in the sidebar footer; download, signature
-  verification, install, and relaunch remain owned by Sparkle. **Check for
-  Updates…** lives in the app menu, and the **Automatic updates** toggle in
-  Settings → General mirrors Sparkle's persisted setting.
-- Feed URL + public key: [`resources/Info.plist`](resources/Info.plist)
+  verification, install and relaunch stay Sparkle's. **Check for Updates…** is
+  in the app menu, and Settings → General mirrors Sparkle's automatic-check
+  setting.
+- **Feed URL + public key**: [`resources/Info.plist`](resources/Info.plist)
   (`SUFeedURL`, `SUPublicEDKey`).
-- Framework embedding + pinned Sparkle version:
-  [`scripts/bundle.sh`](scripts/bundle.sh) (bump `sparkle_version` and
-  `sparkle_sha256` together; the distribution is cached under
-  `.waku-cache/sparkle/`).
-- Release automation: [`scripts/release.ts`](scripts/release.ts),
+- **Framework embedding**: [`scripts/bundle.sh`](scripts/bundle.sh) — bump
+  `sparkle_version` and `sparkle_sha256` together; the distribution caches under
+  `.anastasia-cache/sparkle/`.
+- **Release automation**: [`scripts/release.ts`](scripts/release.ts),
   [`scripts/appcast.ts`](scripts/appcast.ts),
   [`scripts/changelog.ts`](scripts/changelog.ts).
-- GitHub Actions: [`.github/workflows/release.yml`](.github/workflows/release.yml)
-  builds Linux (x86_64, arm64) and macOS archives on a `v*` tag and opens a
-  draft GitHub release;
-  [`.github/workflows/sync-release.yml`](.github/workflows/sync-release.yml)
-  copies published assets into the R2 bucket.
+- **CI**: [`.github/workflows/release.yml`](.github/workflows/release.yml)
+  builds Linux (x86_64, arm64) and macOS on a `v*` tag and opens a draft
+  release.
+
+## Two constraints worth knowing
+
+**The archive's app bundle must carry `SUPublicEDKey`, and must be validly code
+signed.** `generate_appcast` verifies Apple code signing before it will touch an
+archive, and only emits `sparkle:edSignature` when the bundle names a public key
+it can match. An app signed *before* the plist was edited fails both. If an
+appcast comes out with no `edSignature`, this is why.
+
+**One release per appcast.** Sparkle's `generate_appcast` applies a single
+`--download-url-prefix` to every archive in the directory, but each GitHub
+release serves its assets from its own tag path. So the appcast carries only the
+release being cut. That also rules out binary deltas, which need the previous
+archives staged alongside — updates are full downloads.
 
 ---
 
 ## One-time setup
 
-The release runs on [Bun](https://bun.sh) and needs
-[`create-dmg`](https://github.com/create-dmg/create-dmg) and
-[rclone](https://rclone.org) (`brew install bun create-dmg rclone`).
+Local releases need [Bun](https://bun.sh) and
+[`create-dmg`](https://github.com/create-dmg/create-dmg):
+`brew install bun create-dmg`. CI installs them itself.
 
-### 1. Sparkle signing keys
+### 1. Sparkle signing key
 
-Updates are signed with an ed25519 key; the private half stays in the login
-keychain and the public half ships in Info.plist as `SUPublicEDKey`.
+Updates are signed with an ed25519 key. The private half lives in the login
+keychain; the public half ships in `Info.plist` as `SUPublicEDKey`.
 
-**This Mac already has the key** — Anastasia signs with the same default-account
-Sparkle key as kero, and the matching public key is already in Info.plist.
-Nothing to do.
-
-On a fresh machine, restore the key from the password-manager backup with the
-Sparkle tools (they land in `.waku-cache/sparkle/<version>/bin` after any
-build, or download the release from
-[sparkle-project/Sparkle](https://github.com/sparkle-project/Sparkle/releases)):
+The key already exists on this Mac and its public half is already in the plist.
+To put it in CI, export it and paste it into the `SPARKLE_PRIVATE_KEY`
+repository secret:
 
 ```sh
-./bin/generate_keys -f sparkle_private_key.txt   # import the backed-up key
-./bin/generate_keys -p                            # prints the public key — must
-                                                  # match SUPublicEDKey
+.anastasia-cache/sparkle/*/bin/generate_keys -x sparkle_private_key.txt
 ```
 
-> ⚠️ Lose the private key and existing installs can never update again. Keep
-> the backup current.
+Back that file up in a password manager, then delete it.
 
-To split Anastasia onto its own key later: `generate_keys --account waku`, put the
-new public key in Info.plist, and pass `--account waku` through to
-`generate_appcast` in `scripts/appcast.ts`. Users on old builds only trust the
-old key, so do this on a release that still signs with the old key… in other
-words, don't do it casually.
+> ⚠️ Lose the private key and **every existing install can never update again** —
+> they only trust the matching public key. There is no recovery but a manual
+> reinstall by each user.
+
+On a fresh machine, restore it with `generate_keys -f sparkle_private_key.txt`,
+and confirm with `generate_keys -p` that the printed key matches
+`SUPublicEDKey`.
 
 ### 2. Developer ID signing + notarization
 
-Copy `.env.example` to `.env` and replace the signing and analytics
-placeholders. Bun loads these values before Cargo compiles the release, so the
-analytics endpoint and website ID are embedded in the executable. The script
-notarizes with the `NOTARY` keychain profile by default. On a fresh machine:
+Local releases sign with `ANASTASIA_SIGNING_IDENTITY` (or `--signing-identity`)
+and notarize through the `NOTARY` keychain profile:
 
 ```sh
-cp .env.example .env
 xcrun notarytool store-credentials NOTARY \
-  --apple-id you@example.com --team-id YOUR_APPLE_TEAM_ID
+  --key AuthKey_XXXX.p8 --key-id YOUR_KEY_ID --issuer YOUR_ISSUER_ID
 ```
 
-Override the environment with `--signing-identity`, or change the notary
-profile with `--notary-profile` / `ANASTASIA_NOTARY_PROFILE`.
+CI does the same from repository secrets, and derives the signing identity from
+the imported certificate rather than keeping it as a separate secret.
 
-### 3. Cloudflare R2 bucket + domain  ← **still to do once**
+### 3. Repository secrets
 
-1. Create the bucket **`waku-releases`** (Cloudflare dashboard → R2 → Create
-   bucket). The release script will not create it — a bucket-scoped API token
-   can't.
-2. Attach the custom domain **`releases.waku.sh`** to the bucket (bucket →
-   Settings → Custom Domains). This serves objects publicly at
-   `https://releases.anastasia.invalid/<file>`.
-3. Make sure the R2 API token behind the `r2` rclone remote covers this bucket
-   (R2 → Manage API Tokens → Object Read & Write). The remote already exists
-   for kero; if `rclone lsf r2:waku-releases --s3-no-check-bucket` returns
-   *AccessDenied* after the bucket exists, extend the token's bucket list.
+| Secret | Purpose |
+| --- | --- |
+| `MACOS_CERT_P12` | **base64** Developer ID Application `.p12` |
+| `MACOS_CERT_PASSWORD` | password for that `.p12` |
+| `AC_API_KEY_P8` | App Store Connect API key, **raw `.p8` text** (not base64) |
+| `AC_API_KEY_ID` | that key's ID |
+| `AC_API_ISSUER_ID` | that key's issuer ID |
+| `SPARKLE_PRIVATE_KEY` | EdDSA private key that signs the appcast |
 
-The rclone remote itself (`~/.config/rclone/rclone.conf`, type S3, provider
-Cloudflare, `no_check_bucket = true`) is shared with kero and needs no change.
+The two Apple secrets are stored in *different* formats — base64 for the
+certificate, raw text for the key. Decoding the `.p8` as base64 fails with
+`invalidPrivateKeyContents`.
 
 ---
 
 ## Cutting a release
 
 1. **Bump `version` in `Cargo.toml`** — the single source of truth.
-   `CFBundleShortVersionString` is the version, and `CFBundleVersion` is
-   derived from it (`major*1e6 + minor*1e3 + patch`, so `0.2.0` → `2000`),
-   which keeps Sparkle's build-number comparison monotonic without a manual
-   counter. Prerelease versions (`-beta.1`) are refused for publishing — the
-   appcast serves one stable channel.
-2. **Write the release notes** — add a `## [<version>]` section at the top of
-   [`CHANGELOG.md`](CHANGELOG.md).
-3. **Run it:**
+   `CFBundleShortVersionString` is that version and `CFBundleVersion` is derived
+   from it (`major*1e6 + minor*1e3 + patch`, so `0.3.1` → `3001`), which keeps
+   Sparkle's build-number comparison monotonic with no manual counter.
+2. **Write the release notes** — a `## [<version>]` section at the top of
+   [`CHANGELOG.md`](CHANGELOG.md). It ships beside the archive and Sparkle shows
+   it in the update prompt.
+3. **Tag and push:**
    ```sh
-   bun run release
+   git tag v<version> && git push origin v<version>
    ```
+4. **Publish the draft release** the workflow opens. Nothing updates until you
+   do — `/releases/latest/` ignores drafts.
 
-The script checks R2 up front (bucket reachable, version not already
-published), builds and signs the app via `scripts/bundle.sh release`, verifies
-the bundled JS REPL and computer-use helper, builds the styled DMG, notarizes
-and staples DMG + app, zips the app for Sparkle, pulls the recent archives
-from R2 so `generate_appcast` can build binary deltas, attaches the changelog
-section as release notes, regenerates the signed `appcast.xml`, and uploads
-everything with immutable cache headers (the appcast itself stays
-`max-age=300`). When it finishes:
+The macOS job runs `bun run release --local`, which builds and signs the app,
+verifies the bundled JS REPL and computer-use helper, builds the DMG, notarizes
+and staples DMG + app, zips the app for Sparkle, attaches the changelog section,
+and writes the signed `appcast.xml`. Assets on the release:
 
-- **Download link**: `https://releases.anastasia.invalid/Anastasia-<version>.dmg`
-- **In-app updates**: served from the same origin via the appcast.
+- `Anastasia-<version>.dmg` — what new users download
+- `Anastasia-<version>.zip` — what Sparkle downloads
+- `Anastasia-<version>.md` — release notes
+- `appcast.xml` — the feed
+- `anastasia-<version>-{x86_64,aarch64}-unknown-linux-gnu.tar.gz`
 
-Test by keeping an older build around, launching it, and choosing
-**Check for Updates…**.
+To test: keep an older build, launch it, and choose **Check for Updates…**.
 
-### GitHub draft release + R2 sync
+### Prereleases
 
-Pushing a `v*` tag (matching the `version` in `Cargo.toml`) runs the Release
-workflow. macOS CI runs `bun run release --local`, which signs, notarizes, and
-writes the same artifacts as a local release:
-
-- `Anastasia-<version>.dmg`
-- `Anastasia-<version>.zip`
-- `appcast.xml` (Sparkle-signed)
-
-Linux CI adds:
-
-- `waku-<version>-x86_64-unknown-linux-gnu.tar.gz`
-- `waku-<version>-aarch64-unknown-linux-gnu.tar.gz`
-
-The workflow opens (or updates) a **draft** GitHub release with those files and
-the matching `CHANGELOG.md` section. Publishing the GitHub release syncs the
-assets — including the signed `appcast.xml` — to R2.
-
-Publishing that GitHub release (or running **Sync release** from Actions)
-uploads the assets to the `waku-releases` R2 bucket. Configure these repository
-secrets first:
-
-| Secret | Purpose |
-| --- | --- |
-| `ANASTASIA_ANALYTICS_ENDPOINT` | embedded in the macOS CI build |
-| `ANASTASIA_ANALYTICS_WEBSITE_ID` | embedded in the macOS CI build |
-| `ANASTASIA_SIGNING_IDENTITY` | Developer ID identity selector |
-| `APPLE_CERTIFICATE` | base64-encoded Developer ID Application `.p12` |
-| `APPLE_CERTIFICATE_PASSWORD` | password for that `.p12` |
-| `APPLE_ID` | Apple ID used by `notarytool` |
-| `APPLE_APP_SPECIFIC_PASSWORD` | app-specific password for that Apple ID |
-| `APPLE_TEAM_ID` | Developer Team ID |
-| `SPARKLE_PRIVATE_KEY` | EdDSA private key for `generate_appcast` |
-| `R2_ACCOUNT_ID` | Cloudflare account id for the R2 API |
-| `R2_ACCESS_KEY_ID` | R2 Object Read & Write token |
-| `R2_SECRET_ACCESS_KEY` | matching secret |
-| `R2_BUCKET` | optional; defaults to `waku-releases` |
-
-### Options
-
-| Flag / Env | Default | Purpose |
-| --- | --- | --- |
-| `--local` | — | build, notarize, and write the DMG + zip without publishing |
-| `--force` | — | re-publish a version that already exists in R2 |
-| `--adhoc`, `--skip-notarize` | — | local test builds (imply `--local`) |
-| `--skip-build` | — | reuse existing release binaries |
-| `--build-number <n>` / `ANASTASIA_BUILD_NUMBER` | derived | `CFBundleVersion` override |
-| `ANASTASIA_R2_REMOTE` | `r2` | rclone remote name |
-| `ANASTASIA_R2_BUCKET` | `waku-releases` | R2 bucket |
-| `ANASTASIA_DOWNLOAD_URL_PREFIX` | `https://releases.anastasia.invalid/` | base URL in the appcast |
-| `ANASTASIA_HISTORY_COUNT` | `15` | recent archives pulled for delta generation |
-| `ANASTASIA_NO_HISTORY=1` | — | skip pulling old archives (full updates only) |
-| `SPARKLE_BIN` | the `.waku-cache` copy | Sparkle tools directory |
-
----
-
-## Notes
-
-- **Two artifacts per release:** the notarized `.dmg` (what people download)
-  and a `.zip` (what Sparkle installs, plus `.delta` files against recent
-  builds). Only the zip family appears in the appcast; point download buttons
-  at the DMG.
-- **Debug builds never update themselves.** `Updater::init` returns `None`
-  under `debug_assertions`, so the dev watcher's app can't offer to replace
-  itself with a production Anastasia. Set `ANASTASIA_FORCE_UPDATER=1` to exercise the
-  real Sparkle flow from a debug bundle anyway. A bare `cargo run` binary has
-  no embedded framework and also degrades to no updater. For UI-only testing,
-  start the watcher with `ANASTASIA_PREVIEW_UPDATE=1`; the sidebar immediately
-  shows an available update and clicking it changes to the spinner without
-  installing anything. The preview flag fakes only that sidebar result;
-  **Check for Updates…** still uses the embedded Sparkle framework and its
-  real standard window.
-- **Automatic and explicit checks have separate presentation.** Scheduled
-  checks stay silent until the sidebar update button appears. Choosing
-  **Check for Updates…** promotes an existing silent result into Sparkle's
-  standard updater window, or shows its checking progress while an automatic
-  check finishes. With no automatic session active, it starts Sparkle's
-  standard user-initiated check directly.
-- **First-run consent:** Sparkle shows its one-time "check automatically?"
-  prompt on the second launch. The Settings → General toggle reads and writes
-  the same persisted value.
-- **Anastasia isn't sandboxed**, so Sparkle's XPC services are unnecessary;
-  `bundle.sh` strips them (plus headers/modules) from the embedded framework
-  and re-signs the rest with the app's identity — hardened-runtime library
-  validation requires the identities to match.
-- **Old archives stay in R2** so far-behind users can still be served; only
-  the recent history is staged locally under `dist/updates/` (git-ignored).
-- **Platform artifacts:** keep the bucket layout flat and platform-tagged by
-  artifact name/extension — today's macOS names
-  (`Anastasia-<v>.dmg`, `Anastasia-<v>.zip`, `appcast.xml`) must keep their URLs.
-  Linux CI releases produce `waku-<v>-<target>.tar.gz` with
-  `scripts/bundle-linux.sh` and land in GitHub Releases, then R2 via the
-  sync workflow. Automatic Linux updates are not yet wired. Windows can later join with
-  `Anastasia-<v>-Setup.exe` + `appcast-windows.xml` (WinSparkle reads the same
-  appcast format). `src/updater.rs` is the per-platform seam, and everything
-  mac-specific in the existing release pipeline lives behind the Darwin guard
-  in `scripts/release.ts` plus `scripts/bundle.sh`.
+A version like `0.4.0-beta.1` is built and published as normal, but
+`/releases/latest/` skips prereleases, so it never reaches anyone on the stable
+feed — mark the GitHub release as a prerelease and it stays invisible to the
+updater.

@@ -24,12 +24,21 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
-    <!-- Sparkle auto-update configuration, intentionally absent until Anastasia
-         has its own release endpoint and signing key. Sparkle's `startUpdater`
-         rejects a host with no SUFeedURL, so `updater::init` returns None and
-         the app runs with in-app updates simply switched off (see
-         src/updater.rs). Restore SUFeedURL + SUPublicEDKey — and the private
-         half in the login keychain — to turn updates back on. -->
+    <!-- Sparkle auto-update configuration. The appcast is published as an asset
+         on this repository's own GitHub releases, and `/releases/latest/download/`
+         always resolves to the newest published (non-draft, non-prerelease)
+         release — so the feed URL is stable even though each build's archive
+         lives under its own tag.
+
+         SUPublicEDKey's private half lives in the login keychain and in the
+         SPARKLE_PRIVATE_KEY repository secret; `scripts/appcast.ts` signs every
+         archive with it. Both halves are permanent: an installed build only
+         trusts this URL and this key, so changing either strands existing
+         users. See RELEASING.md. -->
+    <key>SUFeedURL</key>
+    <string>https://github.com/cowboyshibuya/anastasia/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>b4/UsPmTDBSg3Er0TXVw4Fv4e/g2ZespIK5EBdp6Y2g=</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSPrincipalClass</key>

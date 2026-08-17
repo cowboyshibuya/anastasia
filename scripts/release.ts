@@ -23,20 +23,18 @@ const packageName = "waku";
 const defaultNotaryProfile = "NOTARY";
 const projectRoot = resolve(import.meta.dir, "..");
 
-const help = `Build, notarize, and publish a production release of Anastasia.
+const help = `Build a production release of Anastasia.
 
 Usage:
   bun run release [options]
 
-The default run builds a signed, notarized DMG, packages the Sparkle update
-archive, regenerates the signed appcast (with binary deltas against recent
-releases), and uploads everything to Cloudflare R2 — the bucket behind
-the configured release endpoint. One-time setup lives in RELEASING.md.
+Builds a signed, notarized DMG, packages the Sparkle update archive, and writes
+the signed appcast next to them in dist/. Publishing is the release workflow's
+job: it uploads dist/ as GitHub release assets, and installed builds read the
+appcast from that release. One-time setup lives in RELEASING.md.
 
 Options:
-  --local                       Build, notarize, and write the DMG + zip
-                                without publishing to R2
-  --force                       Publish even if this version is already in R2
+  --local                       Skip nothing; kept for symmetry with CI
   --output <path>               DMG output path (default: dist/Anastasia-<version>.dmg)
   --signing-identity <name>     Developer ID Application identity selector
                                 (or ANASTASIA_SIGNING_IDENTITY; required unless --adhoc)
@@ -54,8 +52,6 @@ Options:
 
 Environment:
   ANASTASIA_SIGNING_IDENTITY         Developer ID Application identity selector
-  ANASTASIA_R2_REMOTE                rclone remote name (default: r2)
-  ANASTASIA_R2_BUCKET                R2 bucket name (default: anastasia-releases)
   ANASTASIA_DOWNLOAD_URL_PREFIX      base URL served by the bucket
                                 (default: ${defaultDownloadUrlPrefix})
   ANASTASIA_HISTORY_COUNT            prior archives pulled for deltas (default: 15)
@@ -66,7 +62,7 @@ Environment:
 
 Before the first production release:
   xcrun notarytool store-credentials NOTARY   # notarization credentials
-  See RELEASING.md for the R2 bucket, rclone remote, and Sparkle key setup.
+  See RELEASING.md for the Sparkle key setup.
 `;
 
 const { values } = parseArgs({
@@ -144,20 +140,9 @@ const explicitBuildNumber =
   values["build-number"] ?? process.env.ANASTASIA_BUILD_NUMBER;
 const localOnly = values.local ?? false;
 const force = values.force ?? false;
-// Publishing requires a Developer ID-signed, notarized DMG, so the flags that
-// weaken signing imply --local.
-const publishing = !localOnly && !adhoc && !skipNotarize;
-
-const r2Remote = process.env.ANASTASIA_R2_REMOTE ?? "r2";
-const r2Bucket = process.env.ANASTASIA_R2_BUCKET ?? "anastasia-releases";
-const r2Destination = `${r2Remote}:${r2Bucket}`;
-// A bucket-scoped R2 API token cannot create buckets, and rclone otherwise
-// checks/creates one before writing. The bucket must already exist.
-const rcloneFlags = ["--s3-no-check-bucket"];
-const downloadUrlPrefix =
-  process.env.ANASTASIA_DOWNLOAD_URL_PREFIX ?? defaultDownloadUrlPrefix;
-const historyCount = Number(process.env.ANASTASIA_HISTORY_COUNT ?? "15");
-const skipHistory = process.env.ANASTASIA_NO_HISTORY === "1";
+// This script only ever builds. Publishing belongs to the release workflow,
+// which uploads dist/ as GitHub release assets — so there is no bucket to push
+// to and no "publish" mode to get wrong.
 
 if (adhoc && values["signing-identity"]) {
   throw new Error("Use either --adhoc or --signing-identity, not both.");
@@ -171,9 +156,6 @@ if (explicitBuildNumber && !/^\d+(?:\.\d+){0,2}$/.test(explicitBuildNumber)) {
   throw new Error(
     "--build-number must contain one to three period-separated integers.",
   );
-}
-if (!Number.isSafeInteger(historyCount) || historyCount < 0) {
-  throw new Error("ANASTASIA_HISTORY_COUNT must be a non-negative integer.");
 }
 // Upstream refused to build a release without analytics credentials.
 // Anastasia compiles in no analytics at all (src/analytics.rs hardcodes the
@@ -195,9 +177,6 @@ if (!adhoc && !skipNotarize) {
   requireTool("xcrun");
   requireTool("spctl");
 }
-if (publishing) {
-  requireTool("rclone");
-}
 
 process.chdir(projectRoot);
 
@@ -212,46 +191,23 @@ if (!cargoPackage) {
 }
 
 const version = cargoPackage.version;
+// Updates are served from this repository's own GitHub releases. Each build's
+// assets live under their own tag, so the prefix is per-version — unlike a flat
+// bucket, where one prefix covers every archive. The appcast itself is fetched
+// from `/releases/latest/download/`, which always resolves to the newest
+// published release, so the feed URL baked into the app stays constant.
+const downloadUrlPrefix =
+  process.env.ANASTASIA_DOWNLOAD_URL_PREFIX ??
+  `${defaultDownloadUrlPrefix}v${version}/`;
+
 const shortVersion = version.split("-", 1)[0];
 const buildNumber = explicitBuildNumber ?? derivedBuildNumber(version);
 const dmgName = `${appName}-${version}.dmg`;
 const zipName = `${appName}-${version}.zip`;
-if (publishing && version !== shortVersion) {
-  throw new Error(
-    `Version ${version} is a prerelease, and the appcast serves a single ` +
-      "stable channel. Release a stable version, or build with --local.",
-  );
-}
-if (!publishing) {
-  const reason = localOnly ? "--local" : adhoc ? "--adhoc" : "--skip-notarize";
-  console.log(`Building without publishing (${reason}).`);
-}
-
-// Fail before the long build: the bucket must exist and the version must be
-// new. An unreachable remote should not surface after notarization.
-if (publishing) {
-  logStep(`Checking ${r2Destination}`);
-  const listing = await $`rclone lsf ${r2Destination} ${rcloneFlags}`
-    .quiet()
-    .nothrow();
-  if (listing.exitCode !== 0) {
-    const detail = listing.stderr.toString().trim();
-    if (detail.includes("directory not found")) {
-      throw new Error(
-        `R2 bucket "${r2Bucket}" does not exist on remote "${r2Remote}". ` +
-          "Create it in the Cloudflare dashboard and attach the " +
-          "release endpoint's custom domain (see RELEASING.md), then re-run.",
-      );
-    }
-    throw new Error(`Cannot reach ${r2Destination}: ${detail}`);
-  }
-  const published = listing.stdout.toString().split("\n").filter(Boolean);
-  if (published.includes(zipName) && !force) {
-    throw new Error(
-      `${zipName} is already published — bump the version in Cargo.toml, ` +
-        "or pass --force to re-release it.",
-    );
-  }
+// GitHub's /releases/latest/ resolves to the newest non-prerelease release, so
+// a prerelease tag simply never becomes anyone's update — which is the intent.
+if (version !== shortVersion) {
+  console.log(`${version} is a prerelease; it will not be offered as an update.`);
 }
 
 const outputPath = resolve(
@@ -572,60 +528,16 @@ try {
   logStep(`Packaging ${zipName}`);
   await $`ditto -c -k --keepParent ${appBundle} ${zipPath}`;
 
-  // A clean staging directory holds this release plus, when publishing, the
-  // recent history generate_appcast needs to build binary deltas.
+  // A clean staging directory holding exactly this release: generate_appcast
+  // signs whatever it finds here.
   const updatesDirectory = join(projectRoot, "dist", "updates");
   await rm(updatesDirectory, { force: true, recursive: true });
   await mkdir(updatesDirectory, { recursive: true });
 
-  if (publishing && !skipHistory) {
-    logStep(
-      `Selecting the ${historyCount} most recent archives from R2 (for deltas)`,
-    );
-    type RemoteFile = { Name: string; IsDir: boolean };
-    const remoteFiles = JSON.parse(
-      await $`rclone lsjson ${r2Destination} ${rcloneFlags} --files-only --include ${"*.zip"} --include ${"appcast.xml"}`
-        .quiet()
-        .text(),
-    ) as RemoteFile[];
-    const archivePattern = new RegExp(`^${appName}-.+\\.zip$`);
-    const archiveVersion = (name: string) =>
-      name.slice(appName.length + 1, -".zip".length);
-    const versionOrder = new Intl.Collator("en", { numeric: true });
-    const recentArchives = remoteFiles
-      .filter(
-        ({ Name, IsDir }) =>
-          !IsDir && archivePattern.test(Name) && Name !== zipName,
-      )
-      .sort((a, b) =>
-        versionOrder.compare(archiveVersion(b.Name), archiveVersion(a.Name)),
-      )
-      .slice(0, historyCount)
-      .map(({ Name }) => Name);
-    const historyFiles = [
-      ...(remoteFiles.some(({ Name }) => Name === "appcast.xml")
-        ? ["appcast.xml"]
-        : []),
-      ...recentArchives,
-    ];
-    if (historyFiles.length > 0) {
-      const includeFlags = historyFiles.flatMap((name) => [
-        "--include",
-        `/${name}`,
-      ]);
-      await $`rclone copy ${r2Destination} ${updatesDirectory} ${rcloneFlags} ${includeFlags}`;
-    }
-    console.log(
-      recentArchives.length > 0
-        ? `Pulled ${recentArchives.join(", ")}`
-        : "No prior archives found.",
-    );
-  }
-
   await $`ditto ${zipPath} ${join(updatesDirectory, zipName)}`;
 
   // Release notes: this version's CHANGELOG.md section ships next to the
-  // archive as Waku-<version>.md; generate_appcast links it as the update's
+  // archive as Anastasia-<version>.md; generate_appcast links it as the update's
   // release notes, which Sparkle renders in the prompt.
   const changelogFile = Bun.file(join(projectRoot, "CHANGELOG.md"));
   const notes = (await changelogFile.exists())
@@ -634,9 +546,8 @@ try {
   const notesName = `${appName}-${version}.md`;
   const notesContents = `${notes ?? "See CHANGELOG.md for details."}\n`;
   await Bun.write(join(updatesDirectory, notesName), notesContents);
-  // The tag workflow publishes files from dist/ as GitHub release assets;
-  // sync-release then mirrors those assets to R2. Keep the notes beside the
-  // appcast there as well so Sparkle's release-notes URL cannot 404.
+  // The workflow publishes dist/ as GitHub release assets, so the notes have to
+  // sit beside the appcast there too or Sparkle's release-notes URL 404s.
   await Bun.write(join(projectRoot, "dist", notesName), notesContents);
   console.log(
     notes
@@ -644,39 +555,24 @@ try {
       : `No "${version}" section in CHANGELOG.md — attached fallback notes.`,
   );
 
-  // Anastasia ships no SUFeedURL yet (see resources/Info.plist), so there is
-  // nothing to serve an appcast to. Generating one would also require the
-  // Sparkle signing key. Set ANASTASIA_DOWNLOAD_URL_PREFIX once a release
-  // endpoint exists and this comes back automatically.
-  if (process.env.ANASTASIA_DOWNLOAD_URL_PREFIX) {
-    logStep("Generating the signed appcast");
-    await generateAppcast(updatesDirectory, downloadUrlPrefix);
-    await $`ditto ${join(updatesDirectory, "appcast.xml")} ${join(projectRoot, "dist", "appcast.xml")}`;
-  } else {
-    console.log(
-      "Skipped the appcast: no ANASTASIA_DOWNLOAD_URL_PREFIX, and the app " +
-        "ships no update feed to consume it.",
-    );
-  }
+  // The appcast carries this release only. Sparkle needs the newest item to be
+  // downloadable; older entries would each need their own per-tag URL, which a
+  // single --download-url-prefix cannot express. That also rules out binary
+  // deltas, which need the previous archives staged alongside this one.
+  logStep("Generating the signed appcast");
+  await generateAppcast(updatesDirectory, downloadUrlPrefix);
+  await $`ditto ${join(updatesDirectory, "appcast.xml")} ${join(projectRoot, "dist", "appcast.xml")}`;
 
-  if (publishing) {
-    // Archives and the DMG are immutable once published → cache forever.
-    // appcast.xml changes every release → keep it fresh so update checks are
-    // never served stale.
-    const immutableCache =
-      "Cache-Control: public, max-age=31536000, immutable";
-    logStep(`Uploading ${dmgName} to ${r2Destination}`);
-    await $`rclone copyto ${outputPath} ${`${r2Destination}/${dmgName}`} ${rcloneFlags} --header-upload ${immutableCache} --progress`;
-    logStep(`Uploading update archives to ${r2Destination}`);
-    await $`rclone copy ${updatesDirectory} ${r2Destination} ${rcloneFlags} --exclude ${"appcast.xml"} --exclude ${"old_updates/**"} --header-upload ${immutableCache} --progress`;
-    logStep("Uploading appcast.xml");
-    await $`rclone copyto ${join(updatesDirectory, "appcast.xml")} ${`${r2Destination}/appcast.xml`} ${rcloneFlags} --header-upload ${"Cache-Control: public, max-age=300, must-revalidate"}`;
-
-    console.log(`\nWaku ${version} (build ${buildNumber}) is live:`);
-    console.log(`  download : ${downloadUrlPrefix}${dmgName}`);
-    console.log(`  update   : ${downloadUrlPrefix}${zipName}`);
-    console.log(`  feed     : ${downloadUrlPrefix}appcast.xml`);
-  }
+  console.log(`\nAnastasia ${version} (build ${buildNumber}) is packaged.`);
+  console.log(`  download : ${downloadUrlPrefix}${dmgName}`);
+  console.log(`  update   : ${downloadUrlPrefix}${zipName}`);
+  console.log(
+    "  feed     : https://github.com/cowboyshibuya/anastasia/releases/latest/download/appcast.xml",
+  );
+  console.log(
+    "  Publishing is the release workflow's job: it uploads dist/ as GitHub " +
+      "release assets. Those URLs go live when the draft release is published.",
+  );
 
   console.log(`\nDMG ready: ${outputPath}`);
   console.log(`ZIP ready: ${zipPath}`);

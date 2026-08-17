@@ -16,6 +16,17 @@ the original feature bullet instead of adding separate entries for them.
 
 ## [unreleased]
 
+## [0.3.1]
+
+- Anastasia now updates itself. New versions are downloaded and installed from
+  within the app, verified against Anastasia's signing key before they run.
+  **Check for Updates…** is in the app menu, and Settings → General controls
+  whether it checks on its own.
+
+  If you installed 0.3.0, download 0.3.1 by hand once — 0.3.0 shipped before the
+  updater existed and cannot reach it. Every version after this one updates in
+  place.
+
 ## [0.3.0]
 
 Anastasia is rebuilt on Waku, replacing the previous foundation.

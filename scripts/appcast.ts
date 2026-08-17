@@ -16,11 +16,16 @@
 //   ANASTASIA_DOWNLOAD_URL_PREFIX   base URL for enclosure links
 import { $ } from "bun";
 import { existsSync, readdirSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const projectRoot = resolve(import.meta.dir, "..");
 
-export const defaultDownloadUrlPrefix = "https://releases.anastasia.invalid/";
+/** Base for a release's assets on GitHub. `release.ts` appends the tag, since
+ *  each release's assets live under their own `download/v<version>/` path. */
+export const defaultDownloadUrlPrefix =
+  "https://github.com/cowboyshibuya/anastasia/releases/download/";
 
 /** Locate Sparkle's `generate_appcast`: SPARKLE_BIN first, then the pinned
  *  distribution scripts/bundle.sh caches under .anastasia-cache, then PATH. */
@@ -62,20 +67,34 @@ export async function generateAppcast(
   // Same prefix for both: archives and the Anastasia-<version>.md release notes are
   // served from the same origin. The notes prefix makes generate_appcast emit
   // <sparkle:releaseNotesLink> for any notes file matching an archive name.
+  // On a developer machine the key comes from the login keychain and
+  // generate_appcast finds it unaided. CI has no keychain, so the key arrives in
+  // SPARKLE_PRIVATE_KEY and is handed over as a file: `--ed-key-file -` would
+  // read stdin, but Bun's shell has no stdin plumbing for it. The file lives in
+  // a 0700 temp directory and is removed even if generation throws.
   const privateKey = process.env.SPARKLE_PRIVATE_KEY?.trim();
-  const command = [
-    generator,
-    "--download-url-prefix",
-    downloadUrlPrefix,
-    "--release-notes-url-prefix",
-    downloadUrlPrefix,
-    ...(privateKey ? ["--ed-key-file", "-"] : []),
-    updatesDir,
-  ];
-  if (privateKey) {
-    await $`${command}`.stdin(privateKey);
-  } else {
-    await $`${command}`;
+  let keyDirectory: string | undefined;
+  try {
+    let keyArguments: string[] = [];
+    if (privateKey) {
+      keyDirectory = await mkdtemp(join(tmpdir(), "anastasia-sparkle-"));
+      const keyPath = join(keyDirectory, "ed25519");
+      await writeFile(keyPath, `${privateKey}\n`, { mode: 0o600 });
+      keyArguments = ["--ed-key-file", keyPath];
+    }
+    await $`${[
+      generator,
+      "--download-url-prefix",
+      downloadUrlPrefix,
+      "--release-notes-url-prefix",
+      downloadUrlPrefix,
+      ...keyArguments,
+      updatesDir,
+    ]}`;
+  } finally {
+    if (keyDirectory) {
+      await rm(keyDirectory, { force: true, recursive: true });
+    }
   }
   console.log(`Wrote ${join(updatesDir, "appcast.xml")}`);
 }
