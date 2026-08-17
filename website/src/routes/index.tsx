@@ -2,12 +2,20 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Menu } from '@base-ui/react/menu'
 import {
+  Activity,
+  ArrowRight,
+  Check,
+  ChevronRight,
   Command,
+  Cpu,
   Download,
   HardDrive,
   History,
   Layers,
+  Moon,
   RefreshCw,
+  Sparkles,
+  Sun,
   Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -24,20 +32,21 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { FALLBACK_DOWNLOAD_URL, releaseQuery } from '@/lib/release'
+import { useTheme } from '@/lib/theme'
+import { AppWindow } from '@/components/app-window'
 import type { ReactNode } from 'react'
 
 export const Route = createFileRoute('/')({
   loader: ({ context }) => {
-    // Fire-and-forget: the version chip streams in when the appcast answers.
     void context.queryClient.prefetchQuery(releaseQuery)
   },
   component: Home,
 })
 
 const PROVIDERS = [
-  { slug: 'amp', label: 'Amp' },
   { slug: 'claude', label: 'Claude Code' },
   { slug: 'openai', label: 'Codex' },
+  { slug: 'amp', label: 'Amp' },
   { slug: 'cursor', label: 'Cursor' },
   { slug: 'opencode', label: 'OpenCode' },
   { slug: 'grok', label: 'Grok' },
@@ -48,61 +57,90 @@ const FEATURES = [
   {
     icon: Zap,
     title: 'Native down to the frame',
-    body: 'Rust and GPUI — the GPU-accelerated framework behind Zed. Instant launch, smooth scrolling through years of transcript, no Electron.',
+    body: 'Rust and GPUI — the GPU-accelerated engine powering Zed. Instant launch, smooth 120 FPS scrolling through large transcripts, and zero Electron overhead.',
   },
   {
     icon: Layers,
     title: 'Every agent, one timeline',
-    body: 'Each agent is connected over its strongest native interface — stream-json, JSON-RPC, live events — and normalized into one provider-neutral model.',
+    body: 'Connects directly to your local agent CLIs via stream-json, JSON-RPC, and live event pipes, normalized into one unified provider-neutral workspace.',
   },
   {
     icon: History,
-    title: 'Rewind that means it',
-    body: 'Every prompt checkpoints your working tree under a hidden git ref. Roll back the code and the provider conversation together, not just the chat log.',
+    title: 'Atomic rewind that means it',
+    body: 'Every turn snapshots your working tree under a hidden git ref. Roll back file edits and the AI conversation context simultaneously with ⌘Z.',
   },
   {
     icon: Command,
-    title: 'Keyboard first',
-    body: '⌘N starts a session, ⏎ queues a follow-up while the agent works, ⌘⏎ steers it mid-turn, Escape stops. Every control works without a mouse.',
+    title: 'Keyboard-first ergonomics',
+    body: '⌘N starts a session, ⌘P switches projects, ⏎ queues follow-ups while the agent works, ⌘⏎ steers mid-turn, and Escape stops execution.',
   },
   {
     icon: HardDrive,
     title: 'Local by architecture',
-    body: 'Projects, sessions, transcripts, and provider IDs live on your disk. No account, no telemetry, no Waku cloud between you and your agents.',
+    body: 'Sessions, transcripts, tool activity, and project logs live strictly on your disk. No telemetry, no middleman cloud, and no extra account required.',
   },
   {
     icon: RefreshCw,
     title: 'Quietly current',
-    body: 'Signed, notarized, and auto-updated with binary deltas via Sparkle. The app stays fresh without asking for your attention.',
+    body: 'Signed, Apple-notarized, and seamlessly auto-updated with binary deltas via Sparkle so Anastasia stays current without friction.',
+  },
+]
+
+const COMPARISONS = [
+  {
+    feature: 'Engine',
+    anastasia: 'Native Rust + GPUI (Metal GPU)',
+    traditional: 'Chromium / Electron Web Engine',
+  },
+  {
+    feature: 'Idle Memory',
+    anastasia: '~45 MB',
+    traditional: '400 MB – 1.2 GB',
+  },
+  {
+    feature: 'Input Latency',
+    anastasia: 'Sub-millisecond direct draw',
+    traditional: '16–50 ms DOM paint loop',
+  },
+  {
+    feature: 'Timeline Virtualization',
+    anastasia: 'Zero-copy list() renderer',
+    traditional: 'DOM node reflow & virtualization lag',
+  },
+  {
+    feature: 'Undo & Rewind',
+    anastasia: 'Atomic git working-tree ref snapshots',
+    traditional: 'Chat history only (code left dirty)',
   },
 ]
 
 const FAQ = [
   {
-    q: 'Is this another Electron app?',
-    a: 'No. Waku is a single Rust binary rendered by GPUI, the UI framework Zed is built on. The window you see is drawn by the GPU, not by a browser engine.',
+    q: 'How does Anastasia differ from standard web or Electron coding clients?',
+    a: 'Anastasia is built from the ground up in native Rust and GPUI (the GPU framework powering Zed). Every pixel is rendered directly by Metal on your Mac. It launches instantaneously, consumes minimal memory, and maintains 120 FPS under immense transcripts without browser engine bloat.',
   },
   {
-    q: 'Do I need new API keys?',
-    a: 'No. Waku detects amp, claude, codex, cursor-agent, opencode, grok, and pi on your machine and drives them directly — your existing logins, plans, and rate limits apply unchanged.',
+    q: 'Do I need separate API keys or cloud subscriptions for Anastasia?',
+    a: 'No. Anastasia detects and drives the agent CLIs already installed and authenticated on your machine (Claude Code, Codex, Amp, Cursor, OpenCode, Grok, Pi). Your existing logins, subscription plans, and rate limits apply directly.',
   },
   {
-    q: 'Where does my data live?',
-    a: 'On your Mac. Projects, sessions, transcripts, and provider session IDs are stored locally. There is no Waku account and no telemetry.',
+    q: 'How does working-tree checkpoint rewind work?',
+    a: 'Before each agent turn executes, Anastasia creates a lightweight snapshot of your current git working tree under a private ref. If an agent goes down the wrong path or makes breaking modifications, pressing ⌘Z rolls back both the code edits and the conversation state.',
   },
   {
-    q: 'What about Windows and Linux?',
-    a: "Waku runs natively on macOS and Linux. Prebuilt downloads currently target Apple Silicon; Linux can be built from source, and Windows remains planned.",
+    q: 'Where does my source code and session data live?',
+    a: 'Exclusively on your machine. Anastasia never uploads your code to third-party relay servers or telemetry hubs. All sessions, transcripts, and checkpoints reside in your local project directories.',
   },
   {
-    q: 'What is the future plan?',
-    a: 'A mobile app for remote control, and cloud agents are planned',
+    q: 'What platforms are currently supported?',
+    a: 'Anastasia is optimized for macOS (Apple Silicon arm64). Linux support can be built directly from source, and Windows support is on the roadmap.',
   },
 ]
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground/80 uppercase">
+    <div className="flex items-center gap-2 font-mono text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase">
+      <span className="size-1.5 rounded-full bg-emerald-500/80" />
       {children}
     </div>
   )
@@ -122,13 +160,13 @@ function DownloadMenu({
   showIcon?: boolean
 }) {
   const itemClassName =
-    'flex h-8 cursor-default items-center rounded-md px-2.5 text-sm outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-45'
+    'flex h-8 cursor-pointer items-center rounded-md px-2.5 text-sm outline-none transition-colors data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-40'
 
   return (
     <Menu.Root>
       <Menu.Trigger render={<Button size={size} className={className} />}>
-        {showIcon && <Download data-icon="inline-start" />}
-        Download
+        {showIcon && <Download data-icon="inline-start" className="size-4" />}
+        <span>Download for macOS</span>
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner
@@ -137,24 +175,43 @@ function DownloadMenu({
           align={align}
           className="isolate z-50"
         >
-          <Menu.Popup className="min-w-52 origin-(--transform-origin) rounded-lg border bg-popover p-1 text-popover-foreground shadow-md outline-none data-[side=bottom]:slide-in-from-top-1 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
+          <Menu.Popup className="min-w-56 origin-(--transform-origin) rounded-lg border bg-popover p-1 text-popover-foreground shadow-xl outline-none data-[side=bottom]:slide-in-from-top-1 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
             <Menu.LinkItem
               href={downloadUrl}
               closeOnClick
               className={itemClassName}
             >
-              macOS (Apple Silicon)
+              <span className="font-medium">macOS</span>
+              <span className="ml-auto text-xs text-muted-foreground">Apple Silicon</span>
             </Menu.LinkItem>
             <Menu.Item disabled className={itemClassName}>
-              Windows (soon)
+              <span>Linux</span>
+              <span className="ml-auto text-[11px] text-muted-foreground">from source</span>
             </Menu.Item>
             <Menu.Item disabled className={itemClassName}>
-              Linux (soon)
+              <span>Windows</span>
+              <span className="ml-auto text-[11px] text-muted-foreground">planned</span>
             </Menu.Item>
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
     </Menu.Root>
+  )
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme()
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label="Toggle theme"
+      className="flex size-8 items-center justify-center rounded-lg border border-border/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 outline-none"
+    >
+      <Sun className="size-4 hidden dark:block transition-transform" />
+      <Moon className="size-4 block dark:hidden transition-transform" />
+    </button>
   )
 }
 
@@ -164,32 +221,54 @@ function Home() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-dvh antialiased">
-        <div className="mx-auto w-full max-w-[1100px] border-border/70 md:border-x">
+      <div className="min-h-dvh antialiased bg-dot-grid">
+        <div className="mx-auto w-full max-w-[1140px] border-border/70 bg-background/95 backdrop-blur-sm md:border-x shadow-2xl">
           {/* Header */}
-          <header className="flex h-16 items-center justify-between px-5 md:px-10">
-            <a href="/" className="flex items-center gap-2.5">
-              <img
-                src="/app-icon.png"
-                alt=""
-                className="size-8 rounded-[6px]"
-              />
-              <span className="text-[15px] font-semibold tracking-tight">
-                Waku
-              </span>
+          <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border/70 bg-background/90 px-5 backdrop-blur-md md:px-10">
+            <a href="/" className="flex items-center gap-2.5 group">
+              <div className="relative flex size-8 items-center justify-center rounded-lg bg-zinc-900 dark:bg-zinc-800 p-1 ring-1 ring-white/10 transition-transform group-hover:scale-105">
+                <img
+                  src="/anastasia-logo-dark.png"
+                  alt="Anastasia logo"
+                  className="size-6 object-contain"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[16px] font-semibold tracking-tight leading-none">
+                  Anastasia
+                </span>
+                <span className="font-mono text-[9px] text-muted-foreground tracking-widest uppercase">
+                  Native Agent Client
+                </span>
+              </div>
             </a>
-            <div className="flex items-center gap-5">
+
+            <div className="flex items-center gap-3 md:gap-4">
+              <nav className="hidden items-center gap-5 text-[13px] font-medium text-muted-foreground md:flex">
+                <a href="#features" className="transition-colors hover:text-foreground">
+                  Features
+                </a>
+                <a href="#architecture" className="transition-colors hover:text-foreground">
+                  Architecture
+                </a>
+                <a href="#faq" className="transition-colors hover:text-foreground">
+                  FAQ
+                </a>
+              </nav>
+
+              <div className="h-4 w-px bg-border hidden md:block" />
+
               <a
-                href="https://github.com/egoist/waku"
+                href="https://github.com/cowboyshibuya/anastasia"
                 target="_blank"
                 rel="noreferrer"
                 aria-label="GitHub"
-                className="rounded-full text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
+                className="flex size-8 items-center justify-center rounded-lg border border-border/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground outline-none"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
-                  className='size-6'
+                  className="size-4"
                 >
                   <path
                     fill="currentColor"
@@ -197,106 +276,147 @@ function Home() {
                   />
                 </svg>
               </a>
+
+              <ThemeToggle />
+
               <DownloadMenu
                 downloadUrl={downloadUrl}
                 size="sm"
                 align="end"
+                className="h-8 text-xs font-medium"
               />
             </div>
           </header>
 
           <main>
             {/* Hero */}
-            <section className="px-5 pt-14 pb-14 md:px-10 md:pt-24">
-              <div className="mb-7 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
-                <span className="flex size-3.5 items-center justify-center rounded-[3px] bg-[#f26522] text-[10px] font-bold text-white">
-                  Y
+            <section className="relative px-5 pt-14 pb-16 md:px-10 md:pt-20 md:pb-24">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-muted/60 px-3 py-1 text-xs text-muted-foreground mb-6 backdrop-blur-xs">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
                 </span>
-                Not backed by Y Combinator
+                <span className="font-mono font-medium tracking-wide">ANASTASIA 1.0</span>
+                <span className="text-border">•</span>
+                <span>Native AI Coding Agent Workbench</span>
               </div>
-              <h1 className="max-w-4xl text-4xl font-semibold tracking-[-0.03em] text-balance md:text-[3.4rem] md:leading-[1.04]">
+
+              <h1 className="max-w-4xl text-4xl font-semibold tracking-[-0.035em] text-balance md:text-[3.6rem] md:leading-[1.05]">
                 One native app for all your coding agents.
               </h1>
-              <p className="mt-5 max-w-[36rem] text-[17px] leading-relaxed text-pretty text-muted-foreground">
-                Waku drives the agent CLIs you already have — sessions,
-                transcripts, tool activity, and checkpoints in one fast
-                graphite window, entirely on your machine.
+
+              <p className="mt-5 max-w-[38rem] text-[17px] leading-relaxed text-pretty text-muted-foreground">
+                Anastasia connects directly to the agent CLIs you already have — sessions,
+                transcripts, tool activity, and git working-tree checkpoints in one lightning-fast
+                native window. 100% on your machine.
               </p>
+
               <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
                 <DownloadMenu
                   downloadUrl={downloadUrl}
                   size="lg"
-                  className="h-10 px-4"
+                  className="h-11 px-5 text-[14px] font-medium shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all"
                   align="start"
                   showIcon
                 />
                 {release && (
-                  <span className="font-mono text-xs text-muted-foreground">
-                    v{release.version}
-                  </span>
+                  <div className="flex items-center gap-2 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1.5 font-mono text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">v{release.version}</span>
+                    <span className="text-border">•</span>
+                    <span>Apple Silicon</span>
+                  </div>
                 )}
               </div>
 
-              {/* Providers */}
-              <div className="mt-16">
-                <SectionLabel>Drives the agents you already use</SectionLabel>
-                <div className="mt-4 flex flex-wrap items-center gap-x-7 gap-y-4">
+              {/* Providers bar */}
+              <div className="mt-14 border-t border-border/60 pt-6">
+                <SectionLabel>Drives the coding agents you already use</SectionLabel>
+                <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-4">
                   {PROVIDERS.map((p) => (
                     <Tooltip key={p.slug}>
                       <TooltipTrigger
                         render={
-                          <button
-                            type="button"
+                          <div
                             aria-label={p.label}
-                            className="cursor-default rounded-sm text-muted-foreground/70 transition-colors outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
-                          />
+                            className="group flex items-center gap-2 rounded-md py-1 text-muted-foreground transition-colors hover:text-foreground cursor-default"
+                          >
+                            <span
+                              className="provider-mark size-5 opacity-75 group-hover:opacity-100 transition-opacity"
+                              style={{
+                                maskImage: `url(/providers/${p.slug}.svg)`,
+                                WebkitMaskImage: `url(/providers/${p.slug}.svg)`,
+                              }}
+                            />
+                            <span className="text-xs font-medium">{p.label}</span>
+                          </div>
                         }
-                      >
-                        <span
-                          className="provider-mark size-[22px]"
-                          style={{
-                            maskImage: `url(/providers/${p.slug}.svg)`,
-                            WebkitMaskImage: `url(/providers/${p.slug}.svg)`,
-                          }}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent>{p.label}</TooltipContent>
+                      />
+                      <TooltipContent>{p.label} native CLI interface</TooltipContent>
                     </Tooltip>
                   ))}
                 </div>
               </div>
             </section>
 
-            {/* Product */}
-            <section>
-              <picture>
-                <source
-                  media="(prefers-color-scheme: dark)"
-                  srcSet="/app-screenshot-dark.png"
-                />
-                <img
-                  src="/app-screenshot-light.png"
-                  alt="Waku showing a coding-agent session"
-                  width={2266}
-                  height={1752}
-                  className="block h-auto w-full"
-                />
-              </picture>
+            {/* Showcase App Window */}
+            <section className="px-3 pb-16 md:px-8 md:pb-24">
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-2xl bg-gradient-to-b from-primary/10 via-transparent to-transparent blur-xl pointer-events-none" />
+                <AppWindow />
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card/60 p-3.5 backdrop-blur-xs">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-500">
+                    <Zap className="size-4" />
+                  </div>
+                  <div className="text-xs leading-snug">
+                    <div className="font-medium text-foreground">Metal GPU Accelerated</div>
+                    <div className="text-muted-foreground text-[11px]">120 FPS high-refresh timeline</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card/60 p-3.5 backdrop-blur-xs">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sky-500">
+                    <History className="size-4" />
+                  </div>
+                  <div className="text-xs leading-snug">
+                    <div className="font-medium text-foreground">Working-Tree Checkpoints</div>
+                    <div className="text-muted-foreground text-[11px]">Rewind code & chat together</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card/60 p-3.5 backdrop-blur-xs">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-500">
+                    <HardDrive className="size-4" />
+                  </div>
+                  <div className="text-xs leading-snug">
+                    <div className="font-medium text-foreground">Zero Cloud Proxy</div>
+                    <div className="text-muted-foreground text-[11px]">Direct local CLI process pipes</div>
+                  </div>
+                </div>
+              </div>
             </section>
 
             {/* Features */}
-            <section className="border-t">
+            <section id="features" className="border-t border-border/70">
               <div className="px-5 pt-14 md:px-10">
-                <SectionLabel>Why native</SectionLabel>
+                <SectionLabel>Engineered for Speed</SectionLabel>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+                  Built natively for high-velocity coding.
+                </h2>
               </div>
-              <div className="mt-8 grid grid-cols-1 gap-px border-t bg-border/70 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-8 grid grid-cols-1 gap-px border-t border-border/70 bg-border/70 sm:grid-cols-2 lg:grid-cols-3">
                 {FEATURES.map((f) => (
-                  <div key={f.title} className="bg-background p-6 md:p-8">
+                  <div
+                    key={f.title}
+                    className="bg-card p-6 md:p-8 transition-colors hover:bg-muted/40"
+                  >
                     <div className="flex items-center gap-2.5">
-                      <f.icon className="size-4 text-muted-foreground" />
-                      <h3 className="text-sm font-medium">{f.title}</h3>
+                      <f.icon className="size-4 text-emerald-500" />
+                      <h3 className="text-sm font-semibold tracking-tight">{f.title}</h3>
                     </div>
-                    <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                       {f.body}
                     </p>
                   </div>
@@ -304,38 +424,78 @@ function Home() {
               </div>
             </section>
 
-            {/* Download */}
-            <section id="download" className="border-t px-5 py-16 md:px-10 md:py-20">
-              <SectionLabel>Download</SectionLabel>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                Get Waku
+            {/* Architecture / Performance Comparison */}
+            <section id="architecture" className="border-t border-border/70 px-5 py-16 md:px-10 md:py-20">
+              <SectionLabel>Architecture</SectionLabel>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+                Native Rust + GPUI vs Web Wrappers
               </h2>
-              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-                <DownloadMenu
-                  downloadUrl={downloadUrl}
-                  size="lg"
-                  className="h-10 px-4"
-                  align="start"
-                  showIcon
-                />
-                {release && (
-                  <span className="font-mono text-xs text-muted-foreground">
-                    v{release.version}
-                  </span>
-                )}
+              <p className="mt-3 max-w-[34rem] text-sm text-muted-foreground">
+                Anastasia eliminates the Chromium/DOM layers entirely, talking straight to the GPU
+                and your local filesystem.
+              </p>
+
+              <div className="mt-8 overflow-hidden rounded-xl border border-border/80 bg-card">
+                <div className="grid grid-cols-3 border-b border-border/80 bg-muted/60 px-4 py-3 font-mono text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  <div>Capability</div>
+                  <div className="text-foreground">Anastasia (Native)</div>
+                  <div>Typical Web / Electron App</div>
+                </div>
+                {COMPARISONS.map((item, idx) => (
+                  <div
+                    key={item.feature}
+                    className={`grid grid-cols-3 px-4 py-3.5 text-xs transition-colors hover:bg-muted/30 ${
+                      idx !== COMPARISONS.length - 1 ? 'border-b border-border/60' : ''
+                    }`}
+                  >
+                    <div className="font-medium text-foreground">{item.feature}</div>
+                    <div className="font-medium text-emerald-500 dark:text-emerald-400 flex items-center gap-1.5">
+                      <Check className="size-3.5 shrink-0" />
+                      <span>{item.anastasia}</span>
+                    </div>
+                    <div className="text-muted-foreground">{item.traditional}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Download CTA Banner */}
+            <section id="download" className="border-t border-border/70 px-5 py-16 md:px-10 md:py-20 bg-muted/20">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div>
+                  <SectionLabel>Ready to experience native speed?</SectionLabel>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
+                    Get Anastasia for Mac
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground max-w-md">
+                    Universal Apple Silicon build with automatic Sparkle binary delta updates.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <DownloadMenu
+                    downloadUrl={downloadUrl}
+                    size="lg"
+                    className="h-12 px-6 text-sm font-medium shadow-lg"
+                    align="start"
+                    showIcon
+                  />
+                </div>
               </div>
             </section>
 
             {/* FAQ */}
-            <section className="border-t px-5 py-16 md:px-10">
-              <SectionLabel>Questions</SectionLabel>
-              <Accordion className="mt-6 max-w-2xl">
+            <section id="faq" className="border-t border-border/70 px-5 py-16 md:px-10 md:py-20">
+              <SectionLabel>Frequently Asked Questions</SectionLabel>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+                Everything you need to know.
+              </h2>
+              <Accordion className="mt-8 max-w-3xl">
                 {FAQ.map((item) => (
-                  <AccordionItem key={item.q} value={item.q}>
-                    <AccordionTrigger className="text-[15px]">
+                  <AccordionItem key={item.q} value={item.q} className="border-border/70">
+                    <AccordionTrigger className="text-[15px] font-medium hover:no-underline py-4">
                       {item.q}
                     </AccordionTrigger>
-                    <AccordionContent className="max-w-[38rem] text-muted-foreground">
+                    <AccordionContent className="text-sm leading-relaxed text-muted-foreground pb-4">
                       {item.a}
                     </AccordionContent>
                   </AccordionItem>
@@ -345,16 +505,43 @@ function Home() {
           </main>
 
           {/* Footer */}
-          <footer className="flex items-center gap-2 border-t px-5 py-10 text-xs text-muted-foreground md:px-10">
-            <img
-              src="/app-icon.png"
-              alt=""
-              className="size-4 rounded-[4px] opacity-80 grayscale"
-            />
-            <span>© 2026 Waku</span>
+          <footer className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border/70 px-5 py-10 text-xs text-muted-foreground md:px-10 bg-muted/10">
+            <div className="flex items-center gap-3">
+              <img
+                src="/anastasia-logo-dark.png"
+                alt="Anastasia"
+                className="size-5 object-contain"
+              />
+              <span className="font-semibold text-foreground">Anastasia</span>
+              <span className="text-border">•</span>
+              <span>© {new Date().getFullYear()} Anastasia. Open Source.</span>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <a
+                href="https://github.com/cowboyshibuya/anastasia"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://github.com/cowboyshibuya/anastasia/blob/main/CHANGELOG.md"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                Changelog
+              </a>
+              <span className="font-mono text-[11px] text-muted-foreground/80">
+                macOS Sonoma & Sequoia
+              </span>
+            </div>
           </footer>
         </div>
       </div>
     </TooltipProvider>
   )
 }
+

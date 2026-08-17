@@ -9,10 +9,10 @@ import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import appCss from '@/styles.css?url'
 
-const SITE_URL = 'https://waku.sh'
-const TITLE = 'Waku — one native app for all your coding agents'
+const SITE_URL = 'https://anastasia.sh'
+const TITLE = 'Anastasia — One native app for all your coding agents'
 const DESCRIPTION =
-  'A fast, native app for local coding agents. Amp, Claude Code, Codex, Cursor, OpenCode, Grok, and Pi — one timeline, entirely on your machine.'
+  'A fast, GPU-accelerated native macOS app for local coding agents. Amp, Claude Code, Codex, Cursor, OpenCode, Grok, and Pi — one timeline, working-tree checkpoints, zero Electron.'
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -28,7 +28,7 @@ export const Route = createRootRouteWithContext<{
       { property: 'og:type', content: 'website' },
       { property: 'og:url', content: SITE_URL },
       { property: 'og:image', content: `${SITE_URL}/og-icon.png` },
-      { name: 'twitter:card', content: 'summary' },
+      { name: 'twitter:card', content: 'summary_large_image' },
       {
         name: 'theme-color',
         media: '(prefers-color-scheme: light)',
@@ -37,7 +37,7 @@ export const Route = createRootRouteWithContext<{
       {
         name: 'theme-color',
         media: '(prefers-color-scheme: dark)',
-        content: '#1e1e1e',
+        content: '#090a0f',
       },
     ],
     links: [
@@ -47,8 +47,8 @@ export const Route = createRootRouteWithContext<{
     ],
     scripts: [
       {
-        // Mirror the system color scheme onto <html> before first paint.
-        children: `try{var m=matchMedia('(prefers-color-scheme: dark)'),d=document.documentElement,s=function(){d.classList.toggle('dark',m.matches)};s();m.addEventListener('change',s)}catch(e){}`,
+        // Dark mode preference with localStorage support, defaulting to dark.
+        children: `try{var t=localStorage.getItem('anastasia-theme');if(t==='light'){document.documentElement.classList.remove('dark')}else if(t==='dark'||!t){document.documentElement.classList.add('dark')}else{var m=window.matchMedia('(prefers-color-scheme: dark)');document.documentElement.classList.toggle('dark',m.matches)}}catch(e){document.documentElement.classList.add('dark')}`,
       },
       // Analytics, production builds only.
       ...(import.meta.env.PROD

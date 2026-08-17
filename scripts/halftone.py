@@ -77,9 +77,9 @@ def main():
     x0, y0, x1, y1 = ink_bounds(width, height, rows)
     box_w, box_h = x1 - x0, y1 - y0
 
-    lines = []
+    grid = []
     for gy in range(ROWS):
-        line = []
+        grid_row = []
         for gx in range(COLS):
             # Box-average the source pixels under this cell: partial coverage
             # at the glyph's edges becomes a partial dot, which is what makes
@@ -90,11 +90,18 @@ def main():
             sy1 = max(sy0 + 1, y0 + box_h * (gy + 1) // ROWS)
             total = sum(rows[y][x] for y in range(sy0, sy1) for x in range(sx0, sx1))
             mean = total / ((sy1 - sy0) * (sx1 - sx0))
-            line.append(str(min(9, round(mean / 255 * 9))))
-        lines.append("".join(line))
+            grid_row.append(mean)
+        grid.append(grid_row)
+
+    max_mean = max(max(r) for r in grid) or 255.0
+    lines = [
+        "".join(str(min(9, round(v / max_mean * 9))) for v in r)
+        for r in grid
+    ]
 
     out.write_text("\n".join(lines) + "\n")
     print(f"wrote {out} ({COLS}x{ROWS} from {src.name} ink box {box_w}x{box_h})")
+
 
 
 if __name__ == "__main__":
