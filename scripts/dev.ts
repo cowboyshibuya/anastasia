@@ -81,7 +81,7 @@ function launchApp(): ReturnType<typeof Bun.spawn> {
   const command = isMacOS ? ["open", "-n", "-W", appPath] : [appPath];
   const launchedApp = Bun.spawn(command, {
     cwd: root,
-    env: { ...process.env, WAKU_DAEMON_PATH: daemonPath },
+    env: { ...process.env, ANASTASIA_DAEMON_PATH: daemonPath },
     stdout: "inherit",
     stderr: "inherit",
   });

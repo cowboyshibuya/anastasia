@@ -562,7 +562,7 @@ struct DriverStartRequest {
 }
 
 /// A provider process that has started off-thread but is not installed into
-/// Waku's runtime map yet. Its event receiver safely buffers early events.
+/// Anastasia's runtime map yet. Its event receiver safely buffers early events.
 struct PreparedDriver {
     handle: DriverHandle,
     events: Receiver<DriverEvent>,
@@ -649,7 +649,7 @@ enum EventPumpSchedule {
 }
 
 /// One cached island of the root view: a region rendered by delegating back
-/// into [`Waku`] under its own view identity.
+/// into [`Anastasia`] under its own view identity.
 ///
 /// All state stays on the root entity; what the island buys is scope for
 /// gpui's cached-view machinery. The pulse clock and the streaming veil lease
@@ -2264,7 +2264,7 @@ impl Waku {
             .detach();
 
             // Clipboard images and Finder file copies are attachment payloads,
-            // not text paths. The input owns representation priority; Waku
+            // not text paths. The input owns representation priority; Anastasia
             // owns durable staging and composer/session state.
             cx.subscribe(
                 &composer,

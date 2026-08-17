@@ -23,14 +23,14 @@ use std::os::unix::process::CommandExt;
 
 const LOGIN_SHELL_ENV_TIMEOUT: Duration = Duration::from_secs(5);
 const INTERACTIVE_SHELL_ENV_TIMEOUT: Duration = Duration::from_secs(3);
-const SHELL_ENV_COMMAND: &str = "/usr/bin/env -0 > \"$WAKU_SHELL_ENV_CAPTURE_FILE\"";
+const SHELL_ENV_COMMAND: &str = "/usr/bin/env -0 > \"$ANASTASIA_SHELL_ENV_CAPTURE_FILE\"";
 
 type ShellEnvironment = Vec<(OsString, OsString)>;
 
 static LOGIN_SHELL_ENVIRONMENT: OnceLock<RwLock<Option<ShellEnvironment>>> = OnceLock::new();
 static SHELL_ENV_CAPTURE_ID: AtomicU64 = AtomicU64::new(0);
 
-/// Build a command with the environment a terminal-launched Waku normally
+/// Build a command with the environment a terminal-launched Anastasia normally
 /// inherits. Apps opened through LaunchServices do not receive variables
 /// exported by the user's shell, including the PATH needed by script-based
 /// CLIs whose shebang uses `/usr/bin/env` (for example, an npm-installed Codex
@@ -64,7 +64,7 @@ pub fn output(command: &mut Command) -> io::Result<Output> {
     spawn(command)?.wait_with_output()
 }
 
-/// Normalize a Waku-owned provider thread before a dependency spawns the child
+/// Normalize a Anastasia-owned provider thread before a dependency spawns the child
 /// internally. The ACP SDK owns its `async_process::Command`, so its dedicated
 /// connection thread uses this once at startup instead of [`spawn`].
 pub(crate) fn unblock_sigchld_for_current_thread() -> io::Result<()> {
@@ -338,7 +338,7 @@ fn capture_shell_environment(
     command
         .args(shell_args)
         .arg(SHELL_ENV_COMMAND)
-        .env("WAKU_SHELL_ENV_CAPTURE_FILE", capture.path())
+        .env("ANASTASIA_SHELL_ENV_CAPTURE_FILE", capture.path())
         // Match shell-env's safeguards for common interactive zsh setups so
         // an update prompt or tmux auto-start cannot consume the probe budget.
         .env("DISABLE_AUTO_UPDATE", "true")
@@ -379,7 +379,7 @@ fn parse_shell_environment(bytes: &[u8]) -> Option<ShellEnvironment> {
 
 fn is_shell_capture_variable(name: &OsStr) -> bool {
     [
-        "WAKU_SHELL_ENV_CAPTURE_FILE",
+        "ANASTASIA_SHELL_ENV_CAPTURE_FILE",
         "DISABLE_AUTO_UPDATE",
         "ZSH_TMUX_AUTOSTARTED",
         "ZSH_TMUX_AUTOSTART",
@@ -430,7 +430,7 @@ impl ShellEnvironmentCapture {
         for _ in 0..16 {
             let id = SHELL_ENV_CAPTURE_ID.fetch_add(1, Ordering::Relaxed);
             let path =
-                std::env::temp_dir().join(format!(".waku-shell-env-{}-{id}", std::process::id()));
+                std::env::temp_dir().join(format!(".anastasia-shell-env-{}-{id}", std::process::id()));
             let mut options = OpenOptions::new();
             options.write(true).create_new(true);
             #[cfg(unix)]
@@ -495,7 +495,7 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn spawn_unblocks_sigchld_in_the_child_and_restores_the_caller() {
-        if std::env::var_os("WAKU_SIGCHLD_CHILD_PROBE").is_some() {
+        if std::env::var_os("ANASTASIA_SIGCHLD_CHILD_PROBE").is_some() {
             assert!(!sigchld_is_blocked().expect("read child signal mask"));
             return;
         }
@@ -510,7 +510,7 @@ mod tests {
                 "command_env::tests::spawn_unblocks_sigchld_in_the_child_and_restores_the_caller",
                 "--nocapture",
             ])
-            .env("WAKU_SIGCHLD_CHILD_PROBE", "1");
+            .env("ANASTASIA_SIGCHLD_CHILD_PROBE", "1");
         let output = output(&mut command).expect("spawn child signal probe");
 
         assert!(
@@ -586,7 +586,7 @@ mod tests {
     #[test]
     fn parses_null_delimited_environment_without_losing_value_contents() {
         let environment = parse_shell_environment(
-            b"PATH=/Users/example/.fnm/current/bin:/usr/bin\0TOKEN=line one\nline two=rest\0EMPTY=\0WAKU_SHELL_ENV_CAPTURE_FILE=/tmp/capture\0",
+            b"PATH=/Users/example/.fnm/current/bin:/usr/bin\0TOKEN=line one\nline two=rest\0EMPTY=\0ANASTASIA_SHELL_ENV_CAPTURE_FILE=/tmp/capture\0",
         )
         .expect("parse shell environment");
 
@@ -616,7 +616,7 @@ mod tests {
         let shell = directory.join("fake-shell");
         fs::write(
             &shell,
-            "#!/bin/sh\n/usr/bin/printf 'PATH=/Users/example/.fnm/current/bin:/usr/bin\\000WAKU_TEST_TOKEN=from-shell\\000' > \"$WAKU_SHELL_ENV_CAPTURE_FILE\"\n",
+            "#!/bin/sh\n/usr/bin/printf 'PATH=/Users/example/.fnm/current/bin:/usr/bin\\000ANASTASIA_TEST_TOKEN=from-shell\\000' > \"$ANASTASIA_SHELL_ENV_CAPTURE_FILE\"\n",
         )
         .expect("write shell fixture");
         let mut permissions = fs::metadata(&shell)
@@ -637,7 +637,7 @@ mod tests {
                     OsString::from("/Users/example/.fnm/current/bin:/usr/bin"),
                 ),
                 (
-                    OsString::from("WAKU_TEST_TOKEN"),
+                    OsString::from("ANASTASIA_TEST_TOKEN"),
                     OsString::from("from-shell"),
                 ),
             ]

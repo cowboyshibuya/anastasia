@@ -28,7 +28,7 @@ const STREAM_RETRY_DELAY: Duration = Duration::from_millis(200);
 const MAX_WEBSOCKET_MESSAGE_BYTES: usize = 32 * 1024 * 1024;
 
 // The development watcher terminates the app with SIGTERM, which does not run
-// Rust destructors. Keep one pipe open in Waku and let this wrapper terminate
+// Rust destructors. Keep one pipe open in Anastasia and let this wrapper terminate
 // the resident Host when that pipe closes, so a rebuild cannot orphan `dsh
 // web`. The second watcher makes a spontaneous Host exit observable through
 // the wrapper Child as well as through the ordinary process monitor.
@@ -703,7 +703,7 @@ mod tests {
         assert!(second.try_recv().is_ok());
     }
 
-    /// Exercises Waku's HTTP envelope, WebSocket handshakes, and process-tree
+    /// Exercises Anastasia's HTTP envelope, WebSocket handshakes, and process-tree
     /// lifecycle against the locally installed Harness without creating a
     /// session or making a model request.
     #[test]
@@ -718,7 +718,7 @@ mod tests {
         assert!(listed.get("items").and_then(Value::as_array).is_some());
         #[cfg(unix)]
         {
-            // Simulate an abruptly terminated Waku process: the OS closes its
+            // Simulate an abruptly terminated Anastasia process: the OS closes its
             // pipe without giving DeepSeekServer a chance to run Drop.
             drop(server.child.lock().stdin.take());
             let deadline = Instant::now() + Duration::from_secs(5);
@@ -762,7 +762,7 @@ mod tests {
                     "session.create",
                     json!({"cwd": root.0.to_string_lossy(), "sessionId": session_id}),
                 )
-                .expect("session.create should accept Waku's payload");
+                .expect("session.create should accept Anastasia's payload");
             assert_eq!(
                 created.get("sessionId").and_then(Value::as_str),
                 Some(session_id.as_str())
@@ -772,7 +772,7 @@ mod tests {
                     "session.history",
                     json!({"sessionId": session_id, "maxMessages": 200}),
                 )
-                .expect("session.history should accept Waku's payload");
+                .expect("session.history should accept Anastasia's payload");
             assert!(history.get("events").and_then(Value::as_array).is_some());
             assert!(
                 server

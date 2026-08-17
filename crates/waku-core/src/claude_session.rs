@@ -348,7 +348,7 @@ fn fork_session_at_in(
     output.push(json!({
         "type": "custom-title",
         "sessionId": forked_session_id,
-        "customTitle": if title.trim().is_empty() { "Waku rewind" } else { title.trim() },
+        "customTitle": if title.trim().is_empty() { "Anastasia rewind" } else { title.trim() },
         "uuid": Uuid::new_v4().to_string(),
         "timestamp": now,
     }));

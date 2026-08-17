@@ -1,6 +1,6 @@
 //! `opencode serve` is OpenCode's real API: one resident process serves
 //! every session in a workspace, streams server-sent events, and answers
-//! permission requests the user can actually be asked. Waku already started
+//! permission requests the user can actually be asked. Anastasia already started
 //! this server for a side-quest — forking a session — while running
 //! conversations through one-shot `opencode run` invocations; this drives
 //! everything through it, pooled per workspace via `opencode_pool` so
@@ -1030,7 +1030,7 @@ fn request_permission(
 
     // OpenCode's `always` response updates a process-wide approval cache. A
     // pooled Full Access task must never suppress prompts in a Supervised task,
-    // so Waku sends only one-shot provider replies and retains durable choices
+    // so Anastasia sends only one-shot provider replies and retains durable choices
     // in this driver's session-local state.
     if auto_approve || permissions.lock().is_approved(&permission_request) {
         let _ = commands.send(CommandMessage::Respond {

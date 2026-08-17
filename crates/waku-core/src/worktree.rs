@@ -1,7 +1,7 @@
 //! Daemon-owned isolated Git worktrees for tasks.
 //!
 //! A draft records only the user's choice. The first submission creates the
-//! worktree beneath `~/.waku/worktrees`, then every workspace consumer uses
+//! worktree beneath `~/.anastasia/worktrees`, then every workspace consumer uses
 //! the returned project-relative path for the lifetime of the task.
 
 use std::fs;
@@ -25,8 +25,8 @@ pub fn create(
     base_branch: Option<&str>,
 ) -> anyhow::Result<CreatedWorktree> {
     let root = dirs::home_dir()
-        .ok_or_else(|| anyhow!("could not locate the home directory for ~/.waku/worktrees"))?
-        .join(".waku/worktrees");
+        .ok_or_else(|| anyhow!("could not locate the home directory for ~/.anastasia/worktrees"))?
+        .join(".anastasia/worktrees");
     create_in(
         project_path,
         &root,
@@ -265,7 +265,7 @@ mod tests {
             &repository,
             &[
                 "-c",
-                "user.name=Waku Tests",
+                "user.name=Anastasia Tests",
                 "-c",
                 "user.email=waku@example.com",
                 "commit",
@@ -292,7 +292,7 @@ mod tests {
             &repository,
             &[
                 "-c",
-                "user.name=Waku Tests",
+                "user.name=Anastasia Tests",
                 "-c",
                 "user.email=waku@example.com",
                 "commit",

@@ -65,7 +65,7 @@ pub(crate) fn fork_session_removing_turns_on_server(
 fn retained_turn_count(total_turns: usize, turns_to_remove: usize) -> anyhow::Result<usize> {
     total_turns.checked_sub(turns_to_remove).ok_or_else(|| {
         anyhow!(
-            "OpenCode has only {total_turns} native turns, but Waku needs to remove {turns_to_remove}"
+            "OpenCode has only {total_turns} native turns, but Anastasia needs to remove {turns_to_remove}"
         )
     })
 }
@@ -113,7 +113,7 @@ fn fork_session_with_message_ids(
 fn fork_message_id(message_ids: &[String], retained_turns: usize) -> anyhow::Result<Option<&str>> {
     if retained_turns > message_ids.len() {
         bail!(
-            "OpenCode has only {} native turns, but Waku needs {retained_turns}",
+            "OpenCode has only {} native turns, but Anastasia needs {retained_turns}",
             message_ids.len()
         );
     }
@@ -574,16 +574,16 @@ mod tests {
     }
 
     /// Exercises the same cold-session path used when an edited message is
-    /// submitted after Waku has relaunched. The source session is supplied by
+    /// submitted after Anastasia has relaunched. The source session is supplied by
     /// the caller so this never creates provider traffic; it only forks the
     /// already-completed native transcript and removes the test fork again.
     #[test]
-    #[ignore = "requires an installed opencode and WAKU_OPENCODE_TEST_SESSION_ID"]
+    #[ignore = "requires an installed opencode and ANASTASIA_OPENCODE_TEST_SESSION_ID"]
     fn forks_away_a_real_single_turn_session() {
         let binary =
             crate::command_env::find_executable("opencode").expect("opencode is not installed");
-        let session_id = std::env::var("WAKU_OPENCODE_TEST_SESSION_ID")
-            .expect("set WAKU_OPENCODE_TEST_SESSION_ID to a completed one-turn session");
+        let session_id = std::env::var("ANASTASIA_OPENCODE_TEST_SESSION_ID")
+            .expect("set ANASTASIA_OPENCODE_TEST_SESSION_ID to a completed one-turn session");
         let cwd = std::env::current_dir().expect("the test working directory should exist");
         let server = OpenCodeServer::start(&binary, &cwd).expect("the server should start");
         let ProviderResumeCursor::OpenCode {

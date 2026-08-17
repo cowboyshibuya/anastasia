@@ -524,7 +524,7 @@ mod tests {
             &root,
             &[
                 "-c",
-                "user.name=Waku Tests",
+                "user.name=Anastasia Tests",
                 "-c",
                 "user.email=waku@example.com",
                 "commit",
@@ -638,7 +638,7 @@ mod tests {
             &root,
             &[
                 "-c",
-                "user.name=Waku Tests",
+                "user.name=Anastasia Tests",
                 "-c",
                 "user.email=waku@example.com",
                 "commit",
@@ -718,7 +718,7 @@ mod tests {
             &root,
             &[
                 "-c",
-                "user.name=Waku Tests",
+                "user.name=Anastasia Tests",
                 "-c",
                 "user.email=waku@example.com",
                 "commit",
@@ -733,7 +733,7 @@ mod tests {
             &root,
             &[
                 "-c",
-                "user.name=Waku Tests",
+                "user.name=Anastasia Tests",
                 "-c",
                 "user.email=waku@example.com",
                 "commit",

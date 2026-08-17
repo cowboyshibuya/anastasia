@@ -81,7 +81,7 @@ pub fn merge_reported_commands(
     merged
 }
 
-/// Whether the submitted text resolves to Waku's Codex-only fast-mode
+/// Whether the submitted text resolves to Anastasia's Codex-only fast-mode
 /// toggle. Checking the resolved entry preserves project/user command
 /// precedence when one of them intentionally owns `/fast`.
 pub fn is_fast_mode_toggle_submission(

@@ -121,8 +121,8 @@ fn build_opencode_computer_use_config(
             "command": [repl_path.display().to_string()],
             "enabled": true,
             "environment": {
-                "WAKU_COMPUTER_USE_SERVER": server_path.display().to_string(),
-                "WAKU_COMPUTER_USE_PROCESS_DIRECTORY": process_directory.display().to_string(),
+                "ANASTASIA_COMPUTER_USE_SERVER": server_path.display().to_string(),
+                "ANASTASIA_COMPUTER_USE_PROCESS_DIRECTORY": process_directory.display().to_string(),
             },
         }),
     );
@@ -155,11 +155,11 @@ pub(super) fn opencode_computer_use_environment(
     vec![
         ("OPENCODE_CONFIG_CONTENT".to_owned(), config_content.clone()),
         (
-            "WAKU_COMPUTER_USE_SERVER".to_owned(),
+            "ANASTASIA_COMPUTER_USE_SERVER".to_owned(),
             base.server_path.display().to_string(),
         ),
         (
-            "WAKU_COMPUTER_USE_PROCESS_DIRECTORY".to_owned(),
+            "ANASTASIA_COMPUTER_USE_PROCESS_DIRECTORY".to_owned(),
             base.process_directory.display().to_string(),
         ),
     ]
@@ -234,7 +234,7 @@ fn build_grok_computer_use_config(
         });
     let rules = fs::read_to_string(&base.skill_path).with_context(|| {
         format!(
-            "could not read Waku Computer Use skill {}",
+            "could not read Anastasia Computer Use skill {}",
             base.skill_path.display()
         )
     })?;
@@ -263,11 +263,11 @@ fn build_grok_computer_use_toml(
         .ok_or_else(|| anyhow!("Grok config.toml mcp_servers must be a table"))?;
     let mut environment = toml::Table::new();
     environment.insert(
-        "WAKU_COMPUTER_USE_SERVER".into(),
+        "ANASTASIA_COMPUTER_USE_SERVER".into(),
         toml::Value::String(base.server_path.display().to_string()),
     );
     environment.insert(
-        "WAKU_COMPUTER_USE_PROCESS_DIRECTORY".into(),
+        "ANASTASIA_COMPUTER_USE_PROCESS_DIRECTORY".into(),
         toml::Value::String(base.process_directory.display().to_string()),
     );
     let mut server = toml::Table::new();
@@ -302,11 +302,11 @@ pub(super) fn grok_computer_use_launch_configuration(
         let mut environment = vec![
             ("GROK_HOME".to_owned(), grok_home.display().to_string()),
             (
-                "WAKU_COMPUTER_USE_SERVER".to_owned(),
+                "ANASTASIA_COMPUTER_USE_SERVER".to_owned(),
                 base.server_path.display().to_string(),
             ),
             (
-                "WAKU_COMPUTER_USE_PROCESS_DIRECTORY".to_owned(),
+                "ANASTASIA_COMPUTER_USE_PROCESS_DIRECTORY".to_owned(),
                 base.process_directory.display().to_string(),
             ),
         ];
@@ -374,12 +374,12 @@ mod tests {
 
     fn computer_use_config() -> computer_use_runtime::ComputerUseConfig {
         computer_use_runtime::ComputerUseConfig {
-            server_path: PathBuf::from("/tmp/Waku Computer Use"),
-            repl_path: PathBuf::from("/Applications/Waku.app/Contents/Resources/waku_js_repl"),
+            server_path: PathBuf::from("/tmp/Anastasia Computer Use"),
+            repl_path: PathBuf::from("/Applications/Anastasia.app/Contents/Resources/waku_js_repl"),
             skill_path: PathBuf::from(
-                "/Applications/Waku.app/Contents/Resources/skills/waku-computer-use/SKILL.md",
+                "/Applications/Anastasia.app/Contents/Resources/skills/anastasia-computer-use/SKILL.md",
             ),
-            process_directory: PathBuf::from("/tmp/waku-computer-use/session"),
+            process_directory: PathBuf::from("/tmp/anastasia-computer-use/session"),
         }
     }
 
@@ -415,10 +415,10 @@ mod tests {
                     "plugin": ["existing-plugin"]
                 }"#,
             ),
-            Path::new("/Applications/Waku Computer Use"),
-            Path::new("/Applications/Waku.app/Contents/Resources/waku_js_repl"),
+            Path::new("/Applications/Anastasia Computer Use"),
+            Path::new("/Applications/Anastasia.app/Contents/Resources/waku_js_repl"),
             Path::new(
-                "/Applications/Waku.app/Contents/Resources/skills/waku-computer-use/SKILL.md",
+                "/Applications/Anastasia.app/Contents/Resources/skills/anastasia-computer-use/SKILL.md",
             ),
             Path::new("/tmp/waku computer use/session"),
         )
@@ -435,20 +435,20 @@ mod tests {
             value
                 .pointer("/mcp/waku_js_repl/command/0")
                 .and_then(Value::as_str),
-            Some("/Applications/Waku.app/Contents/Resources/waku_js_repl")
+            Some("/Applications/Anastasia.app/Contents/Resources/waku_js_repl")
         );
         assert_eq!(
             value
-                .pointer("/mcp/waku_js_repl/environment/WAKU_COMPUTER_USE_SERVER")
+                .pointer("/mcp/waku_js_repl/environment/ANASTASIA_COMPUTER_USE_SERVER")
                 .and_then(Value::as_str),
-            Some("/Applications/Waku Computer Use")
+            Some("/Applications/Anastasia Computer Use")
         );
         assert_eq!(
             value.get("instructions").and_then(Value::as_array).unwrap(),
             &[
                 Value::String("existing.md".into()),
                 Value::String(
-                    "/Applications/Waku.app/Contents/Resources/skills/waku-computer-use/SKILL.md"
+                    "/Applications/Anastasia.app/Contents/Resources/skills/anastasia-computer-use/SKILL.md"
                         .into(),
                 ),
             ]
@@ -497,14 +497,14 @@ mod tests {
             .unwrap();
         assert_eq!(
             server.get("command").and_then(toml::Value::as_str),
-            Some("/Applications/Waku.app/Contents/Resources/waku_js_repl")
+            Some("/Applications/Anastasia.app/Contents/Resources/waku_js_repl")
         );
         assert_eq!(
             server
                 .get("env")
-                .and_then(|env| env.get("WAKU_COMPUTER_USE_SERVER"))
+                .and_then(|env| env.get("ANASTASIA_COMPUTER_USE_SERVER"))
                 .and_then(toml::Value::as_str),
-            Some("/tmp/Waku Computer Use")
+            Some("/tmp/Anastasia Computer Use")
         );
     }
 
@@ -512,16 +512,16 @@ mod tests {
     fn grok_computer_use_command_is_process_scoped_and_loads_rules() {
         let config = HeadlessComputerUseConfig::Grok {
             base: computer_use_config(),
-            grok_home: PathBuf::from("/tmp/waku-computer-use/session/grok-home"),
+            grok_home: PathBuf::from("/tmp/anastasia-computer-use/session/grok-home"),
             auth_path: Some(PathBuf::from("/Users/test/.grok/auth.json")),
-            rules: "Waku Computer Use rules".into(),
+            rules: "Anastasia Computer Use rules".into(),
         };
         let (arguments, environment) = grok_computer_use_launch_configuration(Some(&config));
-        assert_eq!(arguments, ["--rules=Waku Computer Use rules"]);
+        assert_eq!(arguments, ["--rules=Anastasia Computer Use rules"]);
         let environment = environment.into_iter().collect::<HashMap<_, _>>();
         assert_eq!(
             environment.get("GROK_HOME"),
-            Some(&"/tmp/waku-computer-use/session/grok-home".into())
+            Some(&"/tmp/anastasia-computer-use/session/grok-home".into())
         );
         assert_eq!(
             environment.get("GROK_AUTH_PATH"),
@@ -533,7 +533,7 @@ mod tests {
     fn provider_stderr_keeps_cli_argument_errors_compact() {
         let message = provider_stderr_error(vec![
             "error: unexpected argument '---".into(),
-            "name: waku-computer-use".into(),
+            "name: anastasia-computer-use".into(),
             "description: a very long bundled skill".into(),
             "---' found".into(),
             "tip: to pass it as a value, use '-- ---'".into(),

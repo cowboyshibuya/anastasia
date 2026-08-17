@@ -85,7 +85,7 @@ pub fn detect_trigger(text: &str, cursor: usize) -> Option<Trigger> {
 // ── Slash commands ─────────────────────────────────────────────────────────
 
 /// Where a command came from, in the order groups are listed.
-/// Waku's own built-ins. The shared commands are plain prompt templates Waku
+/// Anastasia's own built-ins. The shared commands are plain prompt templates Anastasia
 /// expands at submit, so they work over any transport — unlike a CLI's native
 /// built-ins, which only its own TUI understands. Provider-specific local
 /// commands such as Codex's `/fast` are handled by the client without starting
@@ -179,12 +179,12 @@ fn builtin_claude_commands() -> Vec<SlashCommand> {
 /// - Claude Code: `.claude/commands` and `.claude/skills` in the project and
 ///   the config dir (`$CLAUDE_CONFIG_DIR`, default `~/.claude`), plus curated
 ///   built-ins. All passthrough: the CLI expands its own commands.
-/// - Codex: `~/.codex/prompts`, expanded by Waku at submit.
+/// - Codex: `~/.codex/prompts`, expanded by Anastasia at submit.
 /// - OpenCode: `.opencode/command` and `~/.config/opencode/command`, expanded
-///   by Waku — its server transport takes plain prompt text.
-/// - Cursor: `.cursor/commands` in the project and home, expanded by Waku.
+///   by Anastasia — its server transport takes plain prompt text.
+/// - Cursor: `.cursor/commands` in the project and home, expanded by Anastasia.
 /// - Pi: prompt templates in `.pi/prompts` and `~/.pi/agent/prompts`,
-///   expanded by Waku, plus skills in `.pi/skills` and `~/.pi/agent/skills`.
+///   expanded by Anastasia, plus skills in `.pi/skills` and `~/.pi/agent/skills`.
 /// - Amp registers commands through TypeScript plugins and Grok publishes no
 ///   file convention, so neither has a native command scan; Amp's skills in
 ///   `~/.config/agents/skills` are listed.
@@ -194,9 +194,9 @@ fn builtin_claude_commands() -> Vec<SlashCommand> {
 /// provider and always sent raw: `/skillname …` goes through verbatim and
 /// the provider's own skill machinery takes it from there.
 ///
-/// On top of the native sources, every provider reads Waku's own layer —
-/// `.waku/commands` in the project and `~/.config/waku/commands` — and gets
-/// Waku's built-ins ([`builtin_waku_commands`]), always expanded by Waku, so
+/// On top of the native sources, every provider reads Anastasia's own layer —
+/// `.anastasia/commands` in the project and `~/.config/anastasia/commands` — and gets
+/// Anastasia's built-ins ([`builtin_waku_commands`]), always expanded by Anastasia, so
 /// a template written once works over any transport. Native files scan
 /// first, so they win a same-scope name collision. Live processes may add
 /// more at runtime ([`merge_reported_commands`]): Claude's init handshake
@@ -309,20 +309,20 @@ pub fn discover_slash_commands(provider: ProviderKind, project_root: &Path) -> V
         ProviderKind::DeepSeek | ProviderKind::Grok => {}
     }
     // The cross-tool skill standard, read by Amp and OpenCode among others;
-    // Waku lists it for every provider.
+    // Anastasia lists it for every provider.
     scan_skill_files(&project_root.join(".agents/skills"), &mut commands);
     if let Some(home) = home.as_deref() {
         scan_skill_files(&home.join(".agents/skills"), &mut commands);
     }
     scan_command_files(
-        &project_root.join(".waku/commands"),
+        &project_root.join(".anastasia/commands"),
         CommandScope::Project,
         true,
         &mut commands,
     );
     if let Some(home) = home.as_deref() {
         scan_command_files(
-            &home.join(".config/waku/commands"),
+            &home.join(".config/anastasia/commands"),
             CommandScope::User,
             true,
             &mut commands,
@@ -1175,11 +1175,11 @@ mod tests {
                         panic!("{} is missing /{expected}", provider.display_name())
                     });
                 // Claude's own /init and /review pass through to the CLI;
-                // everywhere else Waku expands its template.
+                // everywhere else Anastasia expands its template.
                 if provider != ProviderKind::Claude {
                     assert!(
                         command.template.is_some(),
-                        "{} /{expected} must be a Waku template",
+                        "{} /{expected} must be a Anastasia template",
                         provider.display_name()
                     );
                 }

@@ -1,7 +1,7 @@
 //! Agent Client Protocol transport backed by the official Rust SDK.
 //!
 //! The SDK owns JSON-RPC framing, request IDs, response routing, cancellation,
-//! unknown-method errors, stdio lifetime, and protocol type validation. Waku
+//! unknown-method errors, stdio lifetime, and protocol type validation. Anastasia
 //! only adapts typed ACP messages to its provider-neutral [`DriverEvent`]s.
 
 use std::collections::HashMap;
@@ -1275,7 +1275,7 @@ fn handle_session_update(
                 });
             }
         }
-        // `user_message_chunk` is Waku's own prompt echoed back. Other typed
+        // `user_message_chunk` is Anastasia's own prompt echoed back. Other typed
         // updates currently have no transcript representation.
         _ => {}
     }

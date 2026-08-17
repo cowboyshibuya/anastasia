@@ -29,9 +29,9 @@ class WakuMcpClient {
   }
 
   private async start(): Promise<void> {
-    const executable = process.env.WAKU_JS_REPL_SERVER;
+    const executable = process.env.ANASTASIA_JS_REPL_SERVER;
     if (!executable) {
-      throw new Error("WAKU_JS_REPL_SERVER is not configured");
+      throw new Error("ANASTASIA_JS_REPL_SERVER is not configured");
     }
     const child = spawn(executable, [], {
       env: process.env,

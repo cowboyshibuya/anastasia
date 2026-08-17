@@ -529,7 +529,7 @@ pub struct Project {
 
 /// Filesystem context a task runs in.
 ///
-/// Drafts may carry [`Self::NewWorktree`] until their first prompt. Waku then
+/// Drafts may carry [`Self::NewWorktree`] until their first prompt. Anastasia then
 /// creates the Git worktree and replaces it with [`Self::Worktree`] before any
 /// checkpoint or provider process can observe the task.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -625,7 +625,7 @@ impl SessionStatus {
 pub struct QueuedMessage {
     pub id: Uuid,
     pub content: String,
-    /// The text typed before Waku appended provider-facing attachment
+    /// The text typed before Anastasia appended provider-facing attachment
     /// mentions. `None` is the legacy/plain-message representation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_content: Option<String>,
@@ -1548,7 +1548,7 @@ pub enum DriverEvent {
         provider_cursor: Option<ProviderResumeCursor>,
     },
     /// The provider-owned agent composition this session actually runs. A
-    /// fresh Harness session may resolve its deployment default when Waku did
+    /// fresh Harness session may resolve its deployment default when Anastasia did
     /// not name one explicitly, so the driver reports the resolved value.
     AgentPresetSelected(Option<String>),
     /// A provider-owned, automatically generated session title. `None`
@@ -2976,8 +2976,8 @@ mod tests {
             ),
             (
                 ActivityKind::Search,
-                serde_json::json!({"action": {"queries": ["Waku GPUI"]}}),
-                "Waku GPUI",
+                serde_json::json!({"action": {"queries": ["Anastasia GPUI"]}}),
+                "Anastasia GPUI",
             ),
             (
                 ActivityKind::FileRead,
@@ -3205,7 +3205,7 @@ mod tests {
     #[test]
     fn projectless_projects_use_projects_root_and_recognize_legacy_paths() {
         let home = dirs::home_dir().expect("test user has a home directory");
-        let root = home.join(".waku");
+        let root = home.join(".anastasia");
         let legacy = Project::from_path(root.clone());
         let legacy_dated = Project::from_path(root.join("2026-08-08/new-chat"));
         let project = Project::from_path(root.join("projects/2026-08-08/new-chat"));

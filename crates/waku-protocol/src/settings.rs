@@ -36,7 +36,7 @@ impl DaemonSettings {
     pub fn default_path() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(std::env::temp_dir)
-            .join(".waku")
+            .join(".anastasia")
             .join("settings.json")
     }
 

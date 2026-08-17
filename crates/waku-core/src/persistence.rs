@@ -2,8 +2,8 @@
 //!
 //! Sessions and projects live in SQLite (`app.db`), app-managed UI state in
 //! `state.json`, desktop preferences in `temp/app.json` for Debug or
-//! `~/.waku/app.json` for Release, daemon preferences in
-//! `~/.waku/settings.json`, and binary payloads in [`crate::blob_store`].
+//! `~/.anastasia/app.json` for Release, daemon preferences in
+//! `~/.anastasia/settings.json`, and binary payloads in [`crate::blob_store`].
 //! Of the configuration documents, only the desktop file is written here;
 //! daemon settings cross the RPC boundary and are persisted by `waku-daemon`.
 //!
@@ -182,7 +182,7 @@ impl ComposerDraftStore {
 ///
 /// This deliberately excludes navigation, panel geometry, and other values
 /// that the app changes as a side effect of ordinary use. Both builds keep it
-/// at `~/.waku/app.json` without exposing app-managed state or daemon-owned
+/// at `~/.anastasia/app.json` without exposing app-managed state or daemon-owned
 /// provider policy.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -851,7 +851,7 @@ pub struct StateStore {
     /// cache. It is never read by the daemon.
     app_state_path: PathBuf,
     /// Desktop-owned preferences. Debug stays isolated in the checkout while
-    /// Release uses the explicit cross-client Waku configuration directory.
+    /// Release uses the explicit cross-client Anastasia configuration directory.
     app_settings_path: PathBuf,
     /// Read-only migration sources for the former combined settings document.
     legacy_settings_paths: Vec<PathBuf>,
@@ -887,7 +887,7 @@ impl StateStore {
         let directory = path.parent().unwrap_or_else(|| Path::new(".")).to_owned();
         let configuration_directory = dirs::home_dir()
             .unwrap_or_else(std::env::temp_dir)
-            .join(".waku");
+            .join(".anastasia");
         let (app_settings_path, legacy_settings_paths) = if cfg!(debug_assertions) {
             (
                 directory.join("app.json"),
@@ -2419,10 +2419,10 @@ mod tests {
         }
         #[cfg(not(debug_assertions))]
         {
-            assert_eq!(directory, Some(std::ffi::OsStr::new("Waku")));
+            assert_eq!(directory, Some(std::ffi::OsStr::new("Anastasia")));
             let configuration_directory = dirs::home_dir()
                 .unwrap_or_else(std::env::temp_dir)
-                .join(".waku");
+                .join(".anastasia");
             assert_eq!(
                 store.app_settings_path,
                 configuration_directory.join("app.json")

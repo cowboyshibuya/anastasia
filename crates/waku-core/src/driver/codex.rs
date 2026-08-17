@@ -139,7 +139,7 @@ impl CodexComputerUseConfig {
     }
 }
 
-/// Register Waku's long-lived QuickJS MCP server and keep the raw native helper
+/// Register Anastasia's long-lived QuickJS MCP server and keep the raw native helper
 /// private behind its built-in `sky` object. Codex sees only the compact
 /// `js` / `js_reset` execution surface.
 fn configure_computer_use_command(command: &mut Command, config: Option<&CodexComputerUseConfig>) {
@@ -155,9 +155,9 @@ fn configure_computer_use_command(command: &mut Command, config: Option<&CodexCo
             .arg(DISABLE_EXTERNAL_COMPUTER_USE_SKILL)
             .arg("-c")
             .arg(DISABLE_CODEX_NODE_REPL)
-            .env("WAKU_COMPUTER_USE_SERVER", &config.server_path)
+            .env("ANASTASIA_COMPUTER_USE_SERVER", &config.server_path)
             .env(
-                "WAKU_COMPUTER_USE_PROCESS_DIRECTORY",
+                "ANASTASIA_COMPUTER_USE_PROCESS_DIRECTORY",
                 &config.process_directory,
             )
             .arg("-c")
@@ -166,12 +166,12 @@ fn configure_computer_use_command(command: &mut Command, config: Option<&CodexCo
             .arg("mcp_servers.waku_js_repl.args=[]")
             .arg("-c")
             .arg(format!(
-                "mcp_servers.waku_js_repl.env.WAKU_COMPUTER_USE_SERVER={}",
+                "mcp_servers.waku_js_repl.env.ANASTASIA_COMPUTER_USE_SERVER={}",
                 config.server
             ))
             .arg("-c")
             .arg(format!(
-                "mcp_servers.waku_js_repl.env.WAKU_COMPUTER_USE_PROCESS_DIRECTORY={}",
+                "mcp_servers.waku_js_repl.env.ANASTASIA_COMPUTER_USE_PROCESS_DIRECTORY={}",
                 config.process_directory_config
             ));
     }
@@ -287,7 +287,7 @@ impl CodexDriver {
                     "params": {
                         "clientInfo": {
                             "name": "waku",
-                            "title": "Waku",
+                            "title": "Anastasia",
                             "version": env!("CARGO_PKG_VERSION")
                         },
                         "capabilities": {
@@ -312,14 +312,14 @@ impl CodexDriver {
                 }
 
                 if let Some(computer_use_skill_root) = computer_use_skill_root {
-                    // Register Waku's bundled skill through Codex's discoverable-skill
+                    // Register Anastasia's bundled skill through Codex's discoverable-skill
                     // mechanism. Keep the skill out of developerInstructions so it is
                     // loaded and displayed like Codex's own bundled skills.
                     if write_json_line(
                         &mut stdin,
                         &json!({
                             "method": "skills/extraRoots/set",
-                            "id": "waku-computer-use-skill",
+                            "id": "anastasia-computer-use-skill",
                             "params": {
                                 "extraRoots": [computer_use_skill_root.display().to_string()]
                             }
@@ -629,7 +629,7 @@ impl CodexDriver {
                             let Some(thread_id) = wait_for_thread_id(&writer_thread_id) else {
                                 continue;
                             };
-                            // Update Waku even if persisting the name back to
+                            // Update Anastasia even if persisting the name back to
                             // Codex fails; the app-server notification will
                             // echo the same value when the write succeeds.
                             let _ = writer_events
@@ -831,7 +831,7 @@ fn turn_start_params(
         "approvalPolicy": approval_policy,
         "approvalsReviewer": approvals_reviewer,
         "sandboxPolicy": codex_sandbox_policy(sandbox),
-        // Some current models default reasoning summaries to `none`. Waku has
+        // Some current models default reasoning summaries to `none`. Anastasia has
         // a native reasoning disclosure, so explicitly request readable text.
         "summary": "auto"
     })
@@ -1041,7 +1041,7 @@ fn generate_codex_title(binary: &Path, cwd: &Path, prompt: &str) -> anyhow::Resu
                 "params": {
                     "clientInfo": {
                         "name": "waku-title",
-                        "title": "Waku Title",
+                        "title": "Anastasia Title",
                         "version": env!("CARGO_PKG_VERSION")
                     },
                     "capabilities": {"experimentalApi": true}
@@ -1473,8 +1473,8 @@ fn handle_codex_message(
     stream_state: &mut CodexStreamState,
 ) {
     // JSON-RPC IDs are scoped to each peer, so an app-server request may use
-    // the same numeric ID as one of Waku's earlier requests. Only messages
-    // without a method are responses to Waku-originated requests.
+    // the same numeric ID as one of Anastasia's earlier requests. Only messages
+    // without a method are responses to Anastasia-originated requests.
     let is_response = value.get("method").is_none();
     let pending_background = is_response
         .then(|| value.get("id").and_then(Value::as_u64))
@@ -2454,16 +2454,16 @@ mod tests {
         assert!(
             disabled
                 .get_envs()
-                .all(|(name, _)| { !name.to_string_lossy().starts_with("WAKU_COMPUTER_USE_") })
+                .all(|(name, _)| { !name.to_string_lossy().starts_with("ANASTASIA_COMPUTER_USE_") })
         );
 
         let config = CodexComputerUseConfig {
-            server_path: PathBuf::from("/tmp/waku-computer-use-server"),
-            server: toml_string("/tmp/waku-computer-use-server"),
+            server_path: PathBuf::from("/tmp/anastasia-computer-use-server"),
+            server: toml_string("/tmp/anastasia-computer-use-server"),
             repl: toml_string("/tmp/waku"),
-            skill_root: PathBuf::from("/tmp/waku-computer-use-skill"),
-            process_directory: PathBuf::from("/tmp/waku-computer-use-processes"),
-            process_directory_config: toml_string("/tmp/waku-computer-use-processes"),
+            skill_root: PathBuf::from("/tmp/anastasia-computer-use-skill"),
+            process_directory: PathBuf::from("/tmp/anastasia-computer-use-processes"),
+            process_directory_config: toml_string("/tmp/anastasia-computer-use-processes"),
         };
         let mut enabled = Command::new("/usr/bin/true");
         configure_computer_use_command(&mut enabled, Some(&config));
@@ -2472,7 +2472,7 @@ mod tests {
             .map(|argument| argument.to_string_lossy().into_owned())
             .collect::<Vec<_>>();
         // The raw helper must never be registered as a Codex MCP server: the
-        // Waku REPL owns it and exposes only `sky` inside JavaScript.
+        // Anastasia REPL owns it and exposes only `sky` inside JavaScript.
         assert!(
             !enabled_arguments
                 .iter()
@@ -2511,14 +2511,14 @@ mod tests {
         assert!(
             enabled
                 .get_envs()
-                .any(|(name, _)| { name.to_string_lossy() == "WAKU_COMPUTER_USE_SERVER" })
+                .any(|(name, _)| { name.to_string_lossy() == "ANASTASIA_COMPUTER_USE_SERVER" })
         );
     }
 
     #[test]
     fn computer_use_process_registry_accepts_only_pid_files() {
         let directory = std::env::temp_dir().join(format!(
-            "waku-computer-use-process-test-{}",
+            "anastasia-computer-use-process-test-{}",
             Uuid::new_v4().simple()
         ));
         fs::create_dir_all(directory.join("456")).unwrap();

@@ -39,10 +39,10 @@ Options:
   --force                       Publish even if this version is already in R2
   --output <path>               DMG output path (default: dist/Waku-<version>.dmg)
   --signing-identity <name>     Developer ID Application identity selector
-                                (or WAKU_SIGNING_IDENTITY; required unless --adhoc)
+                                (or ANASTASIA_SIGNING_IDENTITY; required unless --adhoc)
   --notary-profile <name>       notarytool keychain profile
-                                (default: NOTARY; or WAKU_NOTARY_PROFILE)
-  --build-number <number>       CFBundleVersion override (or WAKU_BUILD_NUMBER;
+                                (default: NOTARY; or ANASTASIA_NOTARY_PROFILE)
+  --build-number <number>       CFBundleVersion override (or ANASTASIA_BUILD_NUMBER;
                                 default derives a monotonic number from the
                                 Cargo version)
   --volume-name <name>          Mounted DMG name (default: Waku)
@@ -53,15 +53,15 @@ Options:
   --help                        Show this help
 
 Environment:
-  WAKU_SIGNING_IDENTITY         Developer ID Application identity selector
-  WAKU_ANALYTICS_ENDPOINT       analytics endpoint embedded at build time
-  WAKU_ANALYTICS_WEBSITE_ID     analytics website ID embedded at build time
-  WAKU_R2_REMOTE                rclone remote name (default: r2)
-  WAKU_R2_BUCKET                R2 bucket name (default: waku-releases)
-  WAKU_DOWNLOAD_URL_PREFIX      base URL served by the bucket
+  ANASTASIA_SIGNING_IDENTITY         Developer ID Application identity selector
+  ANASTASIA_ANALYTICS_ENDPOINT       analytics endpoint embedded at build time
+  ANASTASIA_ANALYTICS_WEBSITE_ID     analytics website ID embedded at build time
+  ANASTASIA_R2_REMOTE                rclone remote name (default: r2)
+  ANASTASIA_R2_BUCKET                R2 bucket name (default: waku-releases)
+  ANASTASIA_DOWNLOAD_URL_PREFIX      base URL served by the bucket
                                 (default: ${defaultDownloadUrlPrefix})
-  WAKU_HISTORY_COUNT            prior archives pulled for deltas (default: 15)
-  WAKU_NO_HISTORY=1             skip pulling prior archives (no deltas)
+  ANASTASIA_HISTORY_COUNT            prior archives pulled for deltas (default: 15)
+  ANASTASIA_NO_HISTORY=1             skip pulling prior archives (no deltas)
   SPARKLE_BIN                   Sparkle tools dir (default: the bundle.sh cache
                                 under .waku-cache/sparkle)
   SPARKLE_PRIVATE_KEY           Sparkle EdDSA private key (otherwise keychain)
@@ -137,38 +137,38 @@ function derivedBuildNumber(version: string): string {
 const adhoc = values.adhoc ?? false;
 const skipNotarize = values["skip-notarize"] ?? false;
 const configuredSigningIdentity =
-  values["signing-identity"] ?? process.env.WAKU_SIGNING_IDENTITY;
+  values["signing-identity"] ?? process.env.ANASTASIA_SIGNING_IDENTITY;
 const notaryProfile =
   values["notary-profile"] ??
-  process.env.WAKU_NOTARY_PROFILE ??
+  process.env.ANASTASIA_NOTARY_PROFILE ??
   defaultNotaryProfile;
 const explicitBuildNumber =
-  values["build-number"] ?? process.env.WAKU_BUILD_NUMBER;
-const analyticsEndpoint = process.env.WAKU_ANALYTICS_ENDPOINT?.trim();
-const analyticsWebsiteId = process.env.WAKU_ANALYTICS_WEBSITE_ID?.trim();
+  values["build-number"] ?? process.env.ANASTASIA_BUILD_NUMBER;
+const analyticsEndpoint = process.env.ANASTASIA_ANALYTICS_ENDPOINT?.trim();
+const analyticsWebsiteId = process.env.ANASTASIA_ANALYTICS_WEBSITE_ID?.trim();
 const localOnly = values.local ?? false;
 const force = values.force ?? false;
 // Publishing requires a Developer ID-signed, notarized DMG, so the flags that
 // weaken signing imply --local.
 const publishing = !localOnly && !adhoc && !skipNotarize;
 
-const r2Remote = process.env.WAKU_R2_REMOTE ?? "r2";
-const r2Bucket = process.env.WAKU_R2_BUCKET ?? "waku-releases";
+const r2Remote = process.env.ANASTASIA_R2_REMOTE ?? "r2";
+const r2Bucket = process.env.ANASTASIA_R2_BUCKET ?? "waku-releases";
 const r2Destination = `${r2Remote}:${r2Bucket}`;
 // A bucket-scoped R2 API token cannot create buckets, and rclone otherwise
 // checks/creates one before writing. The bucket must already exist.
 const rcloneFlags = ["--s3-no-check-bucket"];
 const downloadUrlPrefix =
-  process.env.WAKU_DOWNLOAD_URL_PREFIX ?? defaultDownloadUrlPrefix;
-const historyCount = Number(process.env.WAKU_HISTORY_COUNT ?? "15");
-const skipHistory = process.env.WAKU_NO_HISTORY === "1";
+  process.env.ANASTASIA_DOWNLOAD_URL_PREFIX ?? defaultDownloadUrlPrefix;
+const historyCount = Number(process.env.ANASTASIA_HISTORY_COUNT ?? "15");
+const skipHistory = process.env.ANASTASIA_NO_HISTORY === "1";
 
 if (adhoc && values["signing-identity"]) {
   throw new Error("Use either --adhoc or --signing-identity, not both.");
 }
 if (!adhoc && !configuredSigningIdentity) {
   throw new Error(
-    "Set WAKU_SIGNING_IDENTITY or pass --signing-identity (or use --adhoc).",
+    "Set ANASTASIA_SIGNING_IDENTITY or pass --signing-identity (or use --adhoc).",
   );
 }
 if (explicitBuildNumber && !/^\d+(?:\.\d+){0,2}$/.test(explicitBuildNumber)) {
@@ -177,11 +177,11 @@ if (explicitBuildNumber && !/^\d+(?:\.\d+){0,2}$/.test(explicitBuildNumber)) {
   );
 }
 if (!Number.isSafeInteger(historyCount) || historyCount < 0) {
-  throw new Error("WAKU_HISTORY_COUNT must be a non-negative integer.");
+  throw new Error("ANASTASIA_HISTORY_COUNT must be a non-negative integer.");
 }
 if (!values["skip-build"] && (!analyticsEndpoint || !analyticsWebsiteId)) {
   throw new Error(
-    "Set WAKU_ANALYTICS_ENDPOINT and WAKU_ANALYTICS_WEBSITE_ID before building a release.",
+    "Set ANASTASIA_ANALYTICS_ENDPOINT and ANASTASIA_ANALYTICS_WEBSITE_ID before building a release.",
   );
 }
 
@@ -411,7 +411,7 @@ try {
       ? "Assembling the app bundle"
       : "Building and assembling the app bundle",
   );
-  await $`env WAKU_CODESIGN_IDENTITY=${identity} WAKU_ANALYTICS_ENDPOINT=${analyticsEndpoint ?? ""} WAKU_ANALYTICS_WEBSITE_ID=${analyticsWebsiteId ?? ""} WAKU_SKIP_CARGO_BUILD=${values["skip-build"] ? "1" : "0"} ${join(projectRoot, "scripts", "bundle.sh")} release`;
+  await $`env ANASTASIA_CODESIGN_IDENTITY=${identity} ANASTASIA_ANALYTICS_ENDPOINT=${analyticsEndpoint ?? ""} ANASTASIA_ANALYTICS_WEBSITE_ID=${analyticsWebsiteId ?? ""} ANASTASIA_SKIP_CARGO_BUILD=${values["skip-build"] ? "1" : "0"} ${join(projectRoot, "scripts", "bundle.sh")} release`;
   for (const artifact of [
     join(contentsDirectory, "MacOS", executableName),
     bundledDaemonExecutable,

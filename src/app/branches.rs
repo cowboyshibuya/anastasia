@@ -132,7 +132,7 @@ impl Waku {
     /// real `git switch` on the background executor.
     ///
     /// `true` asks the caller to dismiss the picker after this entity update
-    /// ends. Closing sooner runs the toggle observer, which re-enters `Waku`
+    /// ends. Closing sooner runs the toggle observer, which re-enters `Anastasia`
     /// and double-leases the entity.
     pub(super) fn choose_workspace_branch(
         &mut self,
@@ -258,7 +258,7 @@ impl Waku {
     }
 
     /// Apply the keyboard-selected action, returning whether the caller should
-    /// dismiss the picker after releasing its `Waku` update lease.
+    /// dismiss the picker after releasing its `Anastasia` update lease.
     pub(super) fn confirm_branch_picker_action(
         &mut self,
         actions: &[BranchPickerAction],

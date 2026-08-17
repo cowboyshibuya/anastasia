@@ -189,9 +189,9 @@ jobs:
 
       - name: Release
         env:
-          WAKU_SIGNING_IDENTITY: ${{ secrets.WAKU_SIGNING_IDENTITY }}
-          WAKU_ANALYTICS_ENDPOINT: ${{ secrets.WAKU_ANALYTICS_ENDPOINT }}
-          WAKU_ANALYTICS_WEBSITE_ID: ${{ secrets.WAKU_ANALYTICS_WEBSITE_ID }}
+          ANASTASIA_SIGNING_IDENTITY: ${{ secrets.ANASTASIA_SIGNING_IDENTITY }}
+          ANASTASIA_ANALYTICS_ENDPOINT: ${{ secrets.ANASTASIA_ANALYTICS_ENDPOINT }}
+          ANASTASIA_ANALYTICS_WEBSITE_ID: ${{ secrets.ANASTASIA_ANALYTICS_WEBSITE_ID }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: bun run release --local
 

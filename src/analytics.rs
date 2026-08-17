@@ -19,14 +19,15 @@ use uuid::Uuid;
 const EVENT_QUEUE_CAPACITY: usize = 128;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
-#[cfg(not(debug_assertions))]
-const ENDPOINT: Option<&str> = option_env!("WAKU_ANALYTICS_ENDPOINT");
-#[cfg(debug_assertions)]
+// Anastasia ships no telemetry. Upstream read these from the environment at
+// compile time; hardcoding None means `analytics_available()` is false in every
+// build, the worker thread is never spawned, and no build flag can turn
+// collection back on by accident.
+//
+// ponytail: the module and its ~20 call sites stay, inert — deleting them is a
+// large diff across runtime.rs for zero behavior change. Rip it out for real if
+// the call sites ever get in the way.
 const ENDPOINT: Option<&str> = None;
-
-#[cfg(not(debug_assertions))]
-const WEBSITE_ID: Option<&str> = option_env!("WAKU_ANALYTICS_WEBSITE_ID");
-#[cfg(debug_assertions)]
 const WEBSITE_ID: Option<&str> = None;
 
 /// A cheap handle to the background analytics worker.
@@ -38,9 +39,8 @@ pub struct Analytics {
 }
 
 impl Analytics {
-    /// Starts analytics only for release builds with configuration embedded
-    /// at compile time. Any build can opt out with
-    /// `WAKU_DISABLE_ANALYTICS=1`.
+    /// Always constructs a disabled handle: [`analytics_available`] is false in
+    /// every Anastasia build because no endpoint is compiled in.
     pub fn new(language: &'static str, distinct_id: Uuid, sharing_enabled: bool) -> Self {
         let (events, receiver) = sync_channel(EVENT_QUEUE_CAPACITY);
         let available = analytics_available();
@@ -241,7 +241,7 @@ impl Event {
 
 fn analytics_available() -> bool {
     !cfg!(debug_assertions)
-        && !env_flag("WAKU_DISABLE_ANALYTICS")
+        && !env_flag("ANASTASIA_DISABLE_ANALYTICS")
         && ENDPOINT.is_some_and(|value| !value.trim().is_empty())
         && WEBSITE_ID.is_some_and(|value| !value.trim().is_empty())
 }
@@ -280,13 +280,13 @@ fn run(
                 Context::new()
                     .hostname("waku.sh")
                     .url("/desktop")
-                    .title("Waku")
+                    .title("Anastasia")
                     .language(language)
                     .os(std::env::consts::OS)
                     .device("desktop"),
             )
             .user_agent(format!(
-                "Waku/{} ({}; {})",
+                "Anastasia/{} ({}; {})",
                 env!("CARGO_PKG_VERSION"),
                 std::env::consts::OS,
                 std::env::consts::ARCH

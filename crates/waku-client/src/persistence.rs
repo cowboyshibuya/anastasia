@@ -106,7 +106,7 @@ impl ComposerDraftStore {
                 Ok(drafts)
             }
             _ => Err(io::Error::other(
-                "Waku daemon returned an invalid composer-drafts response",
+                "Anastasia daemon returned an invalid composer-drafts response",
             )),
         }
     }
@@ -140,7 +140,7 @@ impl ComposerDraftStore {
                 Ok(())
             }
             _ => Err(io::Error::other(
-                "Waku daemon returned an invalid composer-drafts save response",
+                "Anastasia daemon returned an invalid composer-drafts save response",
             )),
         }
     }
@@ -601,7 +601,7 @@ impl PersistedState {
 fn configuration_directory() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(std::env::temp_dir)
-        .join(".waku")
+        .join(".anastasia")
 }
 
 fn default_app_settings_path() -> PathBuf {
@@ -746,7 +746,7 @@ impl StateStore {
         {
             ResponsePayload::SessionMessageMatches { matches } => Ok(matches),
             _ => Err(io::Error::other(
-                "Waku daemon returned an invalid message-search response",
+                "Anastasia daemon returned an invalid message-search response",
             )),
         }
     }
@@ -801,7 +801,7 @@ impl StateStore {
             }
             _ => {
                 return Err(io::Error::other(
-                    "Waku daemon returned an invalid task-state response",
+                    "Anastasia daemon returned an invalid task-state response",
                 ));
             }
         };
@@ -933,7 +933,7 @@ pub fn hydrate_session(
     {
         ResponsePayload::Session { session } => Ok(session),
         _ => Err(io::Error::other(
-            "Waku daemon returned an invalid session-hydration response",
+            "Anastasia daemon returned an invalid session-hydration response",
         )),
     }
 }

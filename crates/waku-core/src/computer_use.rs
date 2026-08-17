@@ -188,18 +188,18 @@ fn helper_app_path() -> anyhow::Result<PathBuf> {
     let executable = host_executable_path()?;
     let macos = executable
         .parent()
-        .ok_or_else(|| anyhow!("Waku executable has no parent directory"))?;
+        .ok_or_else(|| anyhow!("Anastasia executable has no parent directory"))?;
     let contents = macos
         .parent()
-        .ok_or_else(|| anyhow!("Waku app bundle is malformed"))?;
+        .ok_or_else(|| anyhow!("Anastasia app bundle is malformed"))?;
     let app_name = executable
         .file_name()
         .and_then(|name| name.to_str())
-        .ok_or_else(|| anyhow!("Waku executable name is invalid"))?;
+        .ok_or_else(|| anyhow!("Anastasia executable name is invalid"))?;
     let helper_name = format!("{app_name} Computer Use");
     let path = contents.join("Helpers").join(format!("{helper_name}.app"));
     if !path.is_dir() {
-        bail!("Computer Use helper is missing from this Waku build")
+        bail!("Computer Use helper is missing from this Anastasia build")
     }
     Ok(path)
 }
@@ -212,7 +212,7 @@ pub fn helper_display_name() -> String {
                 .map(|name| name.to_string_lossy().into_owned())
         })
         .map(|app_name| format!("{app_name} Computer Use"))
-        .unwrap_or_else(|| "Waku Computer Use".into())
+        .unwrap_or_else(|| "Anastasia Computer Use".into())
 }
 
 pub fn mcp_server_command() -> anyhow::Result<PathBuf> {
@@ -228,13 +228,13 @@ pub fn js_repl_server_path() -> anyhow::Result<PathBuf> {
     let executable = host_executable_path()?;
     let macos = executable
         .parent()
-        .ok_or_else(|| anyhow!("Waku executable has no parent directory"))?;
+        .ok_or_else(|| anyhow!("Anastasia executable has no parent directory"))?;
     let contents = macos
         .parent()
-        .ok_or_else(|| anyhow!("Waku app bundle is malformed"))?;
+        .ok_or_else(|| anyhow!("Anastasia app bundle is malformed"))?;
     let path = contents.join("Resources").join("waku_js_repl");
     if !path.is_file() {
-        bail!("Waku JavaScript REPL is missing from this Waku build")
+        bail!("Anastasia JavaScript REPL is missing from this Anastasia build")
     }
     Ok(path)
 }
@@ -243,16 +243,16 @@ pub fn pi_extension_path() -> anyhow::Result<PathBuf> {
     let executable = host_executable_path()?;
     let macos = executable
         .parent()
-        .ok_or_else(|| anyhow!("Waku executable has no parent directory"))?;
+        .ok_or_else(|| anyhow!("Anastasia executable has no parent directory"))?;
     let contents = macos
         .parent()
-        .ok_or_else(|| anyhow!("Waku app bundle is malformed"))?;
+        .ok_or_else(|| anyhow!("Anastasia app bundle is malformed"))?;
     let path = contents
         .join("Resources")
         .join("computer-use")
         .join("pi-extension.ts");
     if !path.is_file() {
-        bail!("Waku Pi Computer Use extension is missing from this Waku build")
+        bail!("Anastasia Pi Computer Use extension is missing from this Anastasia build")
     }
     Ok(path)
 }
@@ -260,15 +260,15 @@ pub fn pi_extension_path() -> anyhow::Result<PathBuf> {
 /// Install the bundled helper as an independent, stable runtime service.
 ///
 /// Screen Recording differs from Accessibility on macOS: it follows the
-/// responsible application. A helper launched from inside Waku's bundle is
-/// therefore attributed to Waku even though the capture API runs in the
+/// responsible application. A helper launched from inside Anastasia's bundle is
+/// therefore attributed to Anastasia even though the capture API runs in the
 /// helper. Launching this standalone copy through Launch Services gives the
 /// helper its own TCC identity while the signed app bundle remains the source
-/// shipped with Waku.
+/// shipped with Anastasia.
 fn install_helper_app(source: &Path) -> anyhow::Result<PathBuf> {
     let application_support =
         dirs::data_dir().ok_or_else(|| anyhow!("Application Support directory is unavailable"))?;
-    let install_root = application_support.join("Waku").join("Computer Use");
+    let install_root = application_support.join("Anastasia").join("Computer Use");
     fs::DirBuilder::new()
         .recursive(true)
         .mode(0o700)
@@ -307,7 +307,7 @@ fn helper_install_matches(source: &Path, destination: &Path) -> anyhow::Result<b
     if !destination.is_dir() {
         return Ok(false);
     }
-    let fingerprint = Path::new("Contents/Resources/.waku-helper-fingerprint");
+    let fingerprint = Path::new("Contents/Resources/.anastasia-helper-fingerprint");
     let source_fingerprint = fs::read(source.join(fingerprint))?;
     let Ok(installed_fingerprint) = fs::read(destination.join(fingerprint)) else {
         return Ok(false);
@@ -343,13 +343,13 @@ pub fn skill_root_path() -> anyhow::Result<PathBuf> {
     let executable = host_executable_path()?;
     let macos = executable
         .parent()
-        .ok_or_else(|| anyhow!("Waku executable has no parent directory"))?;
+        .ok_or_else(|| anyhow!("Anastasia executable has no parent directory"))?;
     let contents = macos
         .parent()
-        .ok_or_else(|| anyhow!("Waku app bundle is malformed"))?;
+        .ok_or_else(|| anyhow!("Anastasia app bundle is malformed"))?;
     let path = contents.join("Resources").join("skills");
-    if !path.join("waku-computer-use").join("SKILL.md").is_file() {
-        bail!("Waku Computer Use skill is missing from this Waku build")
+    if !path.join("anastasia-computer-use").join("SKILL.md").is_file() {
+        bail!("Anastasia Computer Use skill is missing from this Anastasia build")
     }
     Ok(path)
 }
@@ -359,7 +359,7 @@ fn host_executable_path() -> anyhow::Result<PathBuf> {
         .filter(|path| !path.is_empty())
         .map(PathBuf::from)
         .map(Ok)
-        .unwrap_or_else(|| std::env::current_exe().context("Waku executable path is unavailable"))
+        .unwrap_or_else(|| std::env::current_exe().context("Anastasia executable path is unavailable"))
 }
 
 #[cfg(test)]

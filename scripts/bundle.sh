@@ -3,10 +3,10 @@ set -eu
 
 profile="${1:-debug}"
 cargo_target_dir="${CARGO_TARGET_DIR:-target}"
-debug_identity_cache=".waku-cache/codesign/debug-identity"
+debug_identity_cache=".anastasia-cache/codesign/debug-identity"
 codesign_identity_from_environment=0
-if [ -n "${WAKU_CODESIGN_IDENTITY:-}" ]; then
-  codesign_identity="$WAKU_CODESIGN_IDENTITY"
+if [ -n "${ANASTASIA_CODESIGN_IDENTITY:-}" ]; then
+  codesign_identity="$ANASTASIA_CODESIGN_IDENTITY"
   codesign_identity_from_environment=1
 else
   if [ "$profile" = "debug" ]; then
@@ -38,15 +38,15 @@ else
 fi
 case "$profile" in
   debug)
-    app_name="Waku Debug"
-    helper_name="Waku Debug Computer Use"
-    bundle_identifier="sh.waku.dev"
+    app_name="Anastasia Debug"
+    helper_name="Anastasia Debug Computer Use"
+    bundle_identifier="app.anastasia.debug"
     icon_file="AppIconDev.icns"
     ;;
   release)
-    app_name="Waku"
-    helper_name="Waku Computer Use"
-    bundle_identifier="sh.waku"
+    app_name="Anastasia"
+    helper_name="Anastasia Computer Use"
+    bundle_identifier="app.anastasia"
     icon_file="AppIcon.icns"
     ;;
   *)
@@ -59,7 +59,7 @@ if [ "$profile" = "debug" ] && [ "$codesign_identity_from_environment" = "0" ] &
   printf '%s\n' "$codesign_identity" > "$debug_identity_cache"
 fi
 debug_adhoc_requirement="=designated => identifier \"$bundle_identifier\""
-if [ "${WAKU_SKIP_CARGO_BUILD:-0}" != "1" ]; then
+if [ "${ANASTASIA_SKIP_CARGO_BUILD:-0}" != "1" ]; then
   if [ "$profile" = "release" ]; then
     cargo build --release --package waku --bin waku --bin waku_js_repl --package waku-daemon --bin waku-daemon
   else
@@ -85,7 +85,7 @@ helper_fingerprint="$({
   printf '%s\n' "standalone-service-v2" "$helper_name" "$bundle_identifier.computer-use" "$codesign_identity" "$(uname -m)-apple-macos13.0"
   xcrun swiftc -version
 } | shasum -a 256 | awk '{ print $1 }')"
-helper_cache_root=".waku-cache/computer-use/$profile"
+helper_cache_root=".anastasia-cache/computer-use/$profile"
 helper_cache_entry="$helper_cache_root/$helper_fingerprint"
 cached_helper_bundle="$helper_cache_entry/$helper_name.app"
 
@@ -104,7 +104,7 @@ if [ ! -d "$cached_helper_bundle" ]; then
   mkdir -p "$cached_helper_contents/MacOS" "$cached_helper_contents/Resources" "$swift_module_cache"
   cp resources/computer-use/Info.plist "$cached_helper_contents/Info.plist"
   cp "$menu_bar_cursor_resource" "$overlay_cursor_resource" "$cached_helper_contents/Resources/"
-  printf '%s\n' "$helper_fingerprint" > "$cached_helper_contents/Resources/.waku-helper-fingerprint"
+  printf '%s\n' "$helper_fingerprint" > "$cached_helper_contents/Resources/.anastasia-helper-fingerprint"
   plutil -replace CFBundleDisplayName -string "$helper_name" "$cached_helper_contents/Info.plist"
   plutil -replace CFBundleExecutable -string "$helper_name" "$cached_helper_contents/Info.plist"
   plutil -replace CFBundleIdentifier -string "$bundle_identifier.computer-use" "$cached_helper_contents/Info.plist"
@@ -133,7 +133,7 @@ fi
 # `cargo clean` cannot evict it. Bump the version and checksum together.
 sparkle_version="2.9.4"
 sparkle_sha256="ce89daf967db1e1893ed3ebd67575ed82d3902563e3191ca92aaec9164fbdef9"
-sparkle_cache_root=".waku-cache/sparkle"
+sparkle_cache_root=".anastasia-cache/sparkle"
 sparkle_cache_entry="$sparkle_cache_root/$sparkle_version"
 sparkle_framework_source="$sparkle_cache_entry/Sparkle.framework"
 
@@ -151,7 +151,7 @@ if [ ! -d "$sparkle_framework_source" ]; then
 fi
 
 rm -rf "$bundle"
-mkdir -p "$contents/MacOS" "$contents/Resources/computer-use" "$contents/Resources/skills/waku-computer-use" "$contents/Helpers"
+mkdir -p "$contents/MacOS" "$contents/Resources/computer-use" "$contents/Resources/skills/anastasia-computer-use" "$contents/Helpers"
 cp "$cargo_target_dir/$profile/waku" "$contents/MacOS/$app_name"
 cp "$cargo_target_dir/$profile/waku_js_repl" "$repl_executable"
 chmod 755 "$repl_executable"
@@ -162,7 +162,7 @@ fi
 cp resources/Info.plist "$contents/Info.plist"
 cp "resources/$icon_file" "$contents/Resources/AppIcon.icns"
 cp resources/computer-use/pi-extension.ts "$contents/Resources/computer-use/pi-extension.ts"
-cp resources/computer-use/SKILL.md "$contents/Resources/skills/waku-computer-use/SKILL.md"
+cp resources/computer-use/SKILL.md "$contents/Resources/skills/anastasia-computer-use/SKILL.md"
 frameworks_directory="$contents/Frameworks"
 sparkle_framework="$frameworks_directory/Sparkle.framework"
 mkdir -p "$frameworks_directory"

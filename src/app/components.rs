@@ -355,7 +355,7 @@ pub(super) struct MessageRender<'a> {
     pub(super) attachment_menus: Vec<ContextMenuHandle>,
     pub(super) attachment_images: Vec<Option<Arc<gpui::Image>>>,
     /// Captured from the selected daemon before the virtualized row is built.
-    /// A row is laid out while the root `Waku` entity is already updating, so
+    /// A row is laid out while the root `Anastasia` entity is already updating, so
     /// it must not read that entity again just to decide whether Finder reveal
     /// is available.
     pub(super) attachments_can_reveal: bool,
@@ -1800,10 +1800,10 @@ mod message_time_tests {
             None,
             true,
         )
-        .with_arguments(Some(serde_json::json!({"query": "Waku GPUI"}).to_string()));
+        .with_arguments(Some(serde_json::json!({"query": "Anastasia GPUI"}).to_string()));
         assert_eq!(
             activity_display_title(&web_search),
-            "Searched the web for Waku GPUI"
+            "Searched the web for Anastasia GPUI"
         );
 
         let plan = ActivityItem::new(

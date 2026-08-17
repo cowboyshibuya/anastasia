@@ -467,7 +467,7 @@ pub fn serve(
 ) -> anyhow::Result<()> {
     listener
         .set_nonblocking(true)
-        .context("could not configure Waku daemon listener")?;
+        .context("could not configure Anastasia daemon listener")?;
     let hub = Arc::new(Hub::default());
     let dispatcher = Arc::new(RequestDispatcher::new(backend.clone(), hub.clone()));
     let options = Arc::new(options);
@@ -499,13 +499,13 @@ pub fn serve(
                             eprintln!("waku-daemon connection ended: {error:#}");
                         }
                     })
-                    .context("could not start Waku daemon connection thread")?;
+                    .context("could not start Anastasia daemon connection thread")?;
             }
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                 std::thread::sleep(ACCEPT_POLL_INTERVAL);
             }
             Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-            Err(error) => return Err(error).context("Waku daemon listener failed"),
+            Err(error) => return Err(error).context("Anastasia daemon listener failed"),
         }
     }
     backend.shutdown();
@@ -625,7 +625,7 @@ fn handle_connection(
             Ok(_) => {}
             Err(tungstenite::Error::Io(error)) if retryable_io(&error) => {}
             Err(tungstenite::Error::ConnectionClosed | tungstenite::Error::AlreadyClosed) => break,
-            Err(error) => return Err(error).context("Waku daemon WebSocket failed"),
+            Err(error) => return Err(error).context("Anastasia daemon WebSocket failed"),
         }
     }
     hub.unsubscribe(subscriber_id);
@@ -1046,7 +1046,7 @@ mod tests {
                     projects: Vec::new(),
                     sessions: self.sessions.lock().clone(),
                     default_cwd: PathBuf::from("/tmp"),
-                    projectless_root: Some(PathBuf::from("/tmp/.waku/projects")),
+                    projectless_root: Some(PathBuf::from("/tmp/.anastasia/projects")),
                 }),
                 _ => Ok(ResponsePayload::Ack),
             }

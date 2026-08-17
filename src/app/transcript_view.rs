@@ -10,7 +10,7 @@ const CHANGED_FILES_EXPANDED_LIMIT: usize = 12;
 #[derive(Clone, Debug)]
 struct ConversationNavigationRailSnapshot {
     visible: bool,
-    /// Shared with the `Waku` cache: the turns only change when the row-kinds
+    /// Shared with the `Anastasia` cache: the turns only change when the row-kinds
     /// fingerprint moves, so the per-frame equality check here is a pointer
     /// comparison rather than a walk over every turn's snippets.
     turns: Rc<Vec<TranscriptNavigationTurn>>,

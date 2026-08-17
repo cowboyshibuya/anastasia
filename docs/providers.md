@@ -1,6 +1,6 @@
 # Provider integrations
 
-How Waku talks to each coding agent: the process it launches, the wire protocol
+How Anastasia talks to each coding agent: the process it launches, the wire protocol
 it speaks, how long that process lives, and what has to be emulated because the
 CLI does not offer it.
 
@@ -58,7 +58,7 @@ tool name.
 
 A driver is created lazily per session by `ensure_driver`
 ([src/app/runtime.rs:927](../src/app/runtime.rs#L1016)) and stored in
-`Waku::runtimes` keyed by session id. Runtimes are per session, not per view:
+`Anastasia::runtimes` keyed by session id. Runtimes are per session, not per view:
 switching sessions in the sidebar does not touch them, so a background session
 keeps streaming into its transcript.
 
@@ -72,7 +72,7 @@ A runtime — and with it that session's provider process — is dropped when:
 | A rewind or branch leaves the driver on a stale native session | [src/app/runtime.rs](../src/app/runtime.rs) |
 | The driver reports `ProcessExited` (the handler returns `false`, so the runtime is not reinserted) | [src/app/streaming.rs:352](../src/app/streaming.rs#L352) |
 | Nobody has touched the session for 30 minutes | `reap_idle_sessions`, [src/app/runtime.rs](../src/app/runtime.rs) |
-| Waku quits | `cx.quit()` |
+| Anastasia quits | `cx.quit()` |
 
 Stop drops the runtime for Codex, whose app-server owns the Computer Use process
 tree, and for Amp, which offers no interrupt on its stream — for both, stopping
@@ -131,7 +131,7 @@ of the app — which Pi did until it was given one.
 
 **The OpenCode server is different**: it has no stdin to close, so
 `OpenCodeServer`'s own `Drop` kills and waits on it
-([src/opencode_session.rs](../src/opencode_session.rs)). Waku quitting without
+([src/opencode_session.rs](../src/opencode_session.rs)). Anastasia quitting without
 running `Drop` is the one case that could orphan it, where the stdio drivers get
 cleanup from the OS for free.
 
@@ -170,7 +170,7 @@ turned out to already serve a session protocol; nobody had looked.
 overrides when Computer Use is on.
 
 **Protocol** — newline-delimited JSON-RPC over stdio, genuinely bidirectional:
-Codex can send Waku requests (approvals) and Waku answers them by id. Three
+Codex can send Anastasia requests (approvals) and Anastasia answers them by id. Three
 threads: writer (owns stdin and the command queue), reader (parses stdout),
 stderr collector; a fourth waits on the process and emits `ProcessExited`.
 
@@ -184,7 +184,7 @@ its stdin, never by a signal. See
 
 1. `initialize` (id `0`) with `clientInfo` and `capabilities.experimentalApi`.
 2. `initialized`.
-3. `skills/extraRoots/set` when Computer Use is on, so Waku's bundled skill is
+3. `skills/extraRoots/set` when Computer Use is on, so Anastasia's bundled skill is
    discovered like Codex's own skills rather than injected as instructions.
 4. `thread/start` or `thread/resume` (id `1`) with `cwd`, `approvalPolicy`,
    `sandbox`, `approvalsReviewer`, and optional `model` / `serviceTier`.
@@ -213,7 +213,7 @@ retained because `thread/fork` needs a `lastTurnId`.
 request becomes a `Permission` event with `accept` / `acceptForSession` /
 `decline`, and the answer is written back as a JSON-RPC *response*:
 `{"id": <original>, "result": {"decision": …}}`. Because JSON-RPC ids are
-per-peer, the reader only treats method-less messages as replies to Waku's own
+per-peer, the reader only treats method-less messages as replies to Anastasia's own
 requests ([src/driver/codex.rs:779](../src/driver/codex.rs#L809)).
 
 **Cancel** — `turn/interrupt {threadId, turnId}`.
@@ -237,9 +237,9 @@ unknown markers are dropped. Private control markers never reach the transcript
 **Models** — a throwaway app-server, `model/list` paged via `nextCursor`, up to
 32 pages ([src/model_catalog.rs:367](../src/model_catalog.rs#L367)).
 
-**Computer Use** — `-c mcp_servers.waku_js_repl.command=…` registers Waku's
+**Computer Use** — `-c mcp_servers.waku_js_repl.command=…` registers Anastasia's
 QuickJS MCP server, with several `-c` flags disabling Codex's own external
-computer-use plugin/MCP/skill so only Waku's `js` / `js_reset` surface is
+computer-use plugin/MCP/skill so only Anastasia's `js` / `js_reset` surface is
 visible.
 
 ---
@@ -250,7 +250,7 @@ visible.
 ([src/driver/pi.rs:107](../src/driver/pi.rs#L107)).
 
 **Protocol** — NDJSON over stdio, but request/response rather than JSON-RPC:
-Waku stamps each request with a string id (`waku-<n>`) and Pi answers with
+Anastasia stamps each request with a string id (`waku-<n>`) and Pi answers with
 `{"type": "response", "id", "success", "data"}`. Everything else on the stream
 is an unsolicited event. Requests are issued synchronously by the writer thread
 with a 10 s timeout ([src/driver/pi.rs:415](../src/driver/pi.rs#L507)); events
@@ -277,7 +277,7 @@ both go into the cursor, and resume needs the **file path**, not just the id.
 | `tool_execution_start` / `_update` / `_end` | `RichActivity` |
 | `auto_retry_end` | clears or sets the failure flag |
 | `agent_settled` | `TurnFinished`, then resets stream state |
-| `extension_ui_request` | auto-cancelled — Waku has no UI for extension prompts |
+| `extension_ui_request` | auto-cancelled — Anastasia has no UI for extension prompts |
 
 **Access modes** — Build + Full access only; `--approve` means Pi never asks.
 
@@ -336,13 +336,13 @@ as newline-delimited user messages on stdin.
 | `stream_event` → `text_delta`, `thinking_delta` | `TextDelta`, `ReasoningDelta` |
 | `assistant` content blocks | `tool_use` → `RichActivity`; text and thinking only as a fallback when no delta of that kind streamed |
 | `user` with `tool_result` | completes the matching activity |
-| `user` with `isReplay: true` | ignored — Waku's own prompt echoed by `--replay-user-messages` |
+| `user` with `isReplay: true` | ignored — Anastasia's own prompt echoed by `--replay-user-messages` |
 | `result` | `TurnFinished` |
 | `system` status/thinking-token notices, `rate_limit_event` | ignored |
 
 **Approvals** — `control_request` / `subtype: "can_use_tool"` carries the tool
 name, input, `tool_use_id`, the `blocked_path` that tripped the check, and
-`permission_suggestions`. Waku answers with a `control_response` whose result is
+`permission_suggestions`. Anastasia answers with a `control_response` whose result is
 `{"behavior":"allow"}` or `{"behavior":"deny","message":…}`. Outside Supervised it
 answers allow itself.
 
@@ -360,7 +360,7 @@ was probed the same way and behaves differently — see its section.
 models keeps the session. The permission posture is a launch flag and still
 restarts.
 
-**Native checkpoints** — after each turn Waku reads Claude's own transcript at
+**Native checkpoints** — after each turn Anastasia reads Claude's own transcript at
 `$CLAUDE_CONFIG_DIR/projects/**/<session>.jsonl`, walks the `parentUuid` chain to
 find the active branch, and records the latest message uuid as the turn's
 `provider_resume_at` ([src/claude_session.rs](../src/claude_session.rs)). That
@@ -370,7 +370,7 @@ does.
 
 **Rewind and branch** — `claude_session::fork_session_at` rewrites the JSONL
 transcript into a *new* session file, truncated at the checkpoint and re-keyed
-with fresh uuids; the returned id map is applied to Waku's retained turns.
+with fresh uuids; the returned id map is applied to Anastasia's retained turns.
 Rewinding to turn zero clears the cursor and starts clean. The CLI also exposes
 `--fork-session` (with `--resume`), which likely replaces this hand-rolled
 rewrite — unverified, and the reason it is still hand-rolled is that the flag was
@@ -410,7 +410,7 @@ otherwise. Amp's "models" are agent modes, and the fast service tier is `--fast`
 All three are launch arguments, so changing any of them restarts.
 
 **Approvals** — none. Amp is the one long-lived provider that exposes no
-permission request on its stream; its rules live in `amp permissions`, so Waku
+permission request on its stream; its rules live in `amp permissions`, so Anastasia
 still decides the posture at launch with `--dangerously-allow-all`.
 
 **Cancel** — no stream interrupt exists, so Stop ends the process. The thread
@@ -425,10 +425,10 @@ it and one `end_turn` settles everything. Both behaviors probed against the
 real CLI — the plain-message probe is why an unmarked write must never be
 used as a steer.
 
-**Branch** — `amp threads export <id>` dumps the thread, Waku keeps the retained
+**Branch** — `amp threads export <id>` dumps the thread, Anastasia keeps the retained
 prefix, `amp threads new` creates an empty thread, and the retained history is
 replayed as a length-delimited envelope prepended to the first prompt
-(`WAKU_AMP_BRANCH_CONTEXT_V1`). Forking a thread that was itself seeded this way
+(`ANASTASIA_AMP_BRANCH_CONTEXT_V1`). Forking a thread that was itself seeded this way
 re-expands the nested envelope first, so branches of branches stay flat
 ([src/amp_session.rs](../src/amp_session.rs)).
 
@@ -437,7 +437,7 @@ re-expands the nested envelope first, so branches of branches stay flat
 ## OpenCode server
 
 **Launch** — `opencode serve --hostname 127.0.0.1 --port <ephemeral>`
-([src/driver/opencode.rs](../src/driver/opencode.rs)). Waku already started this
+([src/driver/opencode.rs](../src/driver/opencode.rs)). Anastasia already started this
 server to fork a session; it now runs the conversation too.
 
 **Protocol** — OpenCode's own HTTP API plus a server-sent event stream. Routes
@@ -466,7 +466,7 @@ real server by injecting an instruction while a bash `sleep` ran: one idle,
 one reply, honoring both messages.
 
 **Inbound stream** — `GET /event`, server-wide. The per-session route exists
-only under `/api`, and since this server is Waku's alone, filtering by
+only under `/api`, and since this server is Anastasia's alone, filtering by
 `properties.sessionID` is enough — and necessary, so one task's traffic cannot
 reach another's transcript.
 
@@ -508,14 +508,14 @@ received them.
 **Protocol** — newline-delimited JSON-RPC over stdio, bidirectional. One agent
 process serves the whole conversation, streams `session/update` notifications,
 and asks the client for tool permission with a real request it expects an answer
-to. Alongside Codex's app-server, this is the only transport where Waku's
+to. Alongside Codex's app-server, this is the only transport where Anastasia's
 Supervised mode means what it says.
 
 **Lifetime** — long-lived, like Codex and Pi. Both providers previously spawned a
 process per turn.
 
 **Handshake** — `initialize` (advertising **no** `fs` or `terminal` client
-capability, since Waku does not proxy the agent's file or terminal access — an
+capability, since Anastasia does not proxy the agent's file or terminal access — an
 advertised capability the client cannot honor strands the agent mid-tool-call) →
 `session/resume` when resuming and the agent advertises it (so history is not
 replayed), otherwise a replay-suppressed `session/load` when it reports
@@ -547,17 +547,17 @@ options come straight from the agent, with `kind` (`allow_once`, `allow_always`,
 `reject_once`, `reject_always`) deciding which read as allow. The detail line is
 the agent's own explanation from `toolCall.content` ("Not in allowlist: cat,
 pwd") rather than a sentence synthesized from the tool kind — that reason is the
-whole basis for the user's decision. Outside Supervised, Waku answers for the
+whole basis for the user's decision. Outside Supervised, Anastasia answers for the
 user and prefers the durable allow so the agent stops asking about the same tool.
 
 **Why the client advertises no `fs` or `terminal` capability.** Those declare
-services *Waku offers the agent*, not permissions the agent needs. `fs` exists so
+services *Anastasia offers the agent*, not permissions the agent needs. `fs` exists so
 an editor can serve unsaved buffer contents in place of what is on disk, and
-`terminal` lets the agent run commands through the client's own terminal. Waku
+`terminal` lets the agent run commands through the client's own terminal. Anastasia
 provides neither, so the agent uses its own read and shell tools and reaches the
 filesystem exactly as before — verified against `cursor-agent acp` with both
 declined: it read a file, ran a shell command, and ended the turn normally.
-Advertising a capability Waku cannot service is the harmful choice, because the
+Advertising a capability Anastasia cannot service is the harmful choice, because the
 agent would call `fs/read_text_file` and wait forever for a reply.
 
 T3 Code lands in the same place: its `AcpSessionRuntime` defaults to
@@ -566,7 +566,7 @@ passes no override, and Cursor's is only `_meta.parameterizedModelPicker`. The
 handler registration points in its `packages/effect-acp` belong to a
 general-purpose ACP library, not to the app that drives these two providers.
 
-The one case that would justify serving `fs/read_text_file` is Waku's own file
+The one case that would justify serving `fs/read_text_file` is Anastasia's own file
 editor, which tracks unsaved buffers
 ([src/app/right_panel.rs:1004](../src/app/right_panel.rs#L1004)): an agent
 reading a file the user has unsaved edits in currently gets the disk copy. That
@@ -606,11 +606,11 @@ which its `--print` transport did not emit at all.
 
 ## Access modes across providers
 
-Waku's `InteractionMode` (Build / Plan) and `RuntimeMode` (Supervised /
+Anastasia's `InteractionMode` (Build / Plan) and `RuntimeMode` (Supervised /
 Auto-accept edits / Auto / Full access) collapse into each CLI's own vocabulary.
 Plan always wins over the access mode.
 
-| Waku | Codex (`approvalPolicy` / `sandbox` / reviewer) | Claude `--permission-mode` | Cursor | OpenCode | Grok |
+| Anastasia | Codex (`approvalPolicy` / `sandbox` / reviewer) | Claude `--permission-mode` | Cursor | OpenCode | Grok |
 | --- | --- | --- | --- | --- | --- |
 | Plan | `never` / `read-only` / `user` | `plan` | `session/set_mode` → `plan` | `agent: plan` | `session/set_mode` → `plan` |
 | Supervised | `untrusted` / `read-only` / `user` | `default` + `can_use_tool` reaches the user | `session/request_permission` reaches the user | permission requests reach the user | `session/request_permission` reaches the user |
@@ -630,7 +630,7 @@ because it runs with `--approve`.
 ## Resume cursors
 
 `ProviderResumeCursor` ([src/model.rs:121](../src/model.rs#L121)) is persisted
-with the session and is what makes a Waku task outlive its process:
+with the session and is what makes a Anastasia task outlive its process:
 
 | Provider | Cursor fields | Why |
 | --- | --- | --- |
@@ -655,7 +655,7 @@ own `docs/internals/providers.md`.
 **Its one structural difference: no provider is a per-turn process.** All five
 hold a long-lived session; the transport differs, the lifetime does not.
 
-| Provider | T3 Code transport | Waku transport |
+| Provider | T3 Code transport | Anastasia transport |
 | --- | --- | --- |
 | Codex | `codex app-server` JSON-RPC (`packages/effect-codex-app-server`) | same |
 | Claude | `@anthropic-ai/claude-agent-sdk` `query()` with an `AsyncIterable` prompt queue | same protocol, spoken directly — the SDK is a wrapper around these flags |
@@ -665,15 +665,15 @@ hold a long-lived session; the transport differs, the lifetime does not.
 
 **All five now match**, and Claude reaches the same place without the SDK: there
 is no Rust Agent SDK, but the SDK is a wrapper around the `claude` CLI's own
-streaming-input protocol, which Waku speaks directly. No Node sidecar and no npm
+streaming-input protocol, which Anastasia speaks directly. No Node sidecar and no npm
 dependency.
 
-Waku goes one further than the comparison: Amp and Pi, which T3 Code does not
+Anastasia goes one further than the comparison: Amp and Pi, which T3 Code does not
 support, are long-lived here too. Every provider holds a session.
 
-What the long-lived session buys, and what Waku pays for not having it:
+What the long-lived session buys, and what Anastasia pays for not having it:
 
-| Capability | T3 Code | Waku |
+| Capability | T3 Code | Anastasia |
 | --- | --- | --- |
 | Interactive approvals | Every provider: Claude via the SDK's `canUseTool` (including `AskUserQuestion` and `ExitPlanMode`), Cursor/Grok via ACP `session/request_permission`, Codex via `*requestApproval*` | Every provider except Amp and Pi, neither of which exposes a request to answer |
 | Interrupt | `session/cancel`, `query.interrupt()` (plus `stopTask()` for runaway subagents) | Protocol interrupt everywhere except Amp, which has none and is stopped outright |
@@ -686,12 +686,12 @@ The adapter contract itself is wider than `DriverControl`:
 `startSession` / `sendTurn` / `interruptTurn` / `respondToRequest` /
 `respondToUserInput` / `stopSession` / `listSessions` / `hasSession` /
 `readThread` / `rollbackThread` / `stopAll` / `streamEvents`, plus a declared
-`capabilities` record. Waku's equivalent surface is split between
+`capabilities` record. Anastasia's equivalent surface is split between
 `DriverControl` and the out-of-band `*_session.rs` helpers, which is why
 capabilities like "can this provider fork?" live on `ProviderKind` rather than on
 the driver that would have to implement them.
 
-Note the parts that are *not* a gap. Waku's Codex path is the same app-server
+Note the parts that are *not* a gap. Anastasia's Codex path is the same app-server
 protocol against the same methods. Both projects normalize provider events into
 one canonical activity/event stream that the UI consumes provider-agnostically.
 Both keep a per-session resume cursor and both had to special-case Claude's

@@ -13,7 +13,7 @@
 // Env overrides:
 //   SPARKLE_BIN                dir containing the Sparkle tools
 //   SPARKLE_PRIVATE_KEY        EdDSA private key (CI; otherwise the keychain)
-//   WAKU_DOWNLOAD_URL_PREFIX   base URL for enclosure links
+//   ANASTASIA_DOWNLOAD_URL_PREFIX   base URL for enclosure links
 import { $ } from "bun";
 import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -87,6 +87,6 @@ if (import.meta.main) {
     process.exit(1);
   }
   const prefix =
-    process.env.WAKU_DOWNLOAD_URL_PREFIX ?? defaultDownloadUrlPrefix;
+    process.env.ANASTASIA_DOWNLOAD_URL_PREFIX ?? defaultDownloadUrlPrefix;
   await generateAppcast(updatesDir, prefix);
 }

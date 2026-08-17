@@ -1937,7 +1937,7 @@ impl Waku {
     }
 
     /// Stage the clipboard's primary image/file representation. On-disk paths
-    /// reuse drop handling immediately; raw image bytes are copied into Waku's
+    /// reuse drop handling immediately; raw image bytes are copied into Anastasia's
     /// durable blob store on the background executor before their chip appears.
     pub(super) fn stage_pasted_attachments(
         &mut self,

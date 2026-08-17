@@ -6,7 +6,7 @@
 //!
 //! - Geometry: the surface's content area syncs the native frame from element
 //!   layout every frame, deduplicated so an unchanged frame costs nothing.
-//! - Visibility: GPUI cannot paint over the native view, so [`Waku`] recomputes
+//! - Visibility: GPUI cannot paint over the native view, so [`Anastasia`] recomputes
 //!   "should the webview be on screen" once per frame — panel visible, Browser
 //!   tab active, no settings page, no open menu — and pushes it down here.
 //!   While a menu or popover is open the live view swaps for a snapshot so
@@ -21,7 +21,7 @@
 //! adds an overlay plane above native views; once it lands in the pinned GPUI,
 //! `Window::enable_scene_overlay` replaces everything snapshot-related here.
 //!
-//! [`Waku`]: crate::app::Waku
+//! [`Anastasia`]: crate::app::Anastasia
 
 use std::rc::Rc;
 

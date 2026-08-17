@@ -1,6 +1,6 @@
-# Contributing to Waku
+# Contributing to Anastasia
 
-Thanks for helping improve Waku. Bug reports, focused fixes, tests, and
+Thanks for helping improve Anastasia. Bug reports, focused fixes, tests, and
 well-scoped features are welcome.
 
 ## Development setup
@@ -32,7 +32,7 @@ bun install
 bun run dev
 ```
 
-On macOS the watcher builds and signs `target/debug/Waku Debug.app`; on Linux
+On macOS the watcher builds and signs `target/debug/Anastasia Debug.app`; on Linux
 it builds `target/debug/waku`. In both cases the provider daemon remains an
 external `target/debug/waku-debug-daemon`: provider-only edits rebuild and
 hot-swap that process without relaunching the app, while desktop edits rebuild

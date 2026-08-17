@@ -186,7 +186,7 @@ impl WakuApplicationExt for Application {
 
 pub fn run() {
     let daemon = crate::daemon::start_process()
-        .unwrap_or_else(|error| panic!("failed to start Waku daemon: {error:#}"));
+        .unwrap_or_else(|error| panic!("failed to start Anastasia daemon: {error:#}"));
     gpui_platform::application()
         .with_assets(crate::assets::Assets)
         .with_main_window_reopen()
@@ -209,7 +209,7 @@ pub fn run() {
             crate::platform::init_reduce_motion(cx);
 
             // Sparkle only runs from a bundled release build (or when forced
-            // via WAKU_FORCE_UPDATER=1); everywhere else the menu item is
+            // via ANASTASIA_FORCE_UPDATER=1); everywhere else the menu item is
             // omitted along with the updater itself.
             let updater = crate::updater::Updater::init();
             let updater_available = updater.is_some();
@@ -232,21 +232,21 @@ pub fn run() {
                 KeyBinding::new("secondary-shift-b", ToggleRightPanel, None),
                 KeyBinding::new("secondary-k", ToggleCommandPalette, None),
                 KeyBinding::new("secondary-alt-shift-f", ToggleFpsCounter, None),
-                KeyBinding::new("secondary-[", NavigateBack, Some("Waku")),
-                KeyBinding::new("secondary-]", NavigateForward, Some("Waku")),
+                KeyBinding::new("secondary-[", NavigateBack, Some("Anastasia")),
+                KeyBinding::new("secondary-]", NavigateForward, Some("Anastasia")),
                 KeyBinding::new("secondary-l", FocusComposer, None),
                 KeyBinding::new("secondary-/", ToggleModelPicker, None),
                 KeyBinding::new("secondary-u", ToggleUsagePanel, None),
                 KeyBinding::new("secondary-s", SaveFile, None),
-                KeyBinding::new("escape", CancelTurn, Some("Waku")),
-                KeyBinding::new("secondary-c", CopySelection, Some("Waku")),
+                KeyBinding::new("escape", CancelTurn, Some("Anastasia")),
+                KeyBinding::new("secondary-c", CopySelection, Some("Anastasia")),
                 // Find and replace in the right panel's file editor, on the
                 // conventional VS Code bindings. The primary shortcut + G cycles matches from
                 // the editor without moving focus to the bar.
-                KeyBinding::new("secondary-f", OpenFind, Some("Waku")),
-                KeyBinding::new("secondary-alt-f", OpenFindReplace, Some("Waku")),
-                KeyBinding::new("secondary-g", FindNext, Some("Waku")),
-                KeyBinding::new("secondary-shift-g", FindPrevious, Some("Waku")),
+                KeyBinding::new("secondary-f", OpenFind, Some("Anastasia")),
+                KeyBinding::new("secondary-alt-f", OpenFindReplace, Some("Anastasia")),
+                KeyBinding::new("secondary-g", FindNext, Some("Anastasia")),
+                KeyBinding::new("secondary-shift-g", FindPrevious, Some("Anastasia")),
                 // Scoped to the editor pane: escape closes the bar there and
                 // falls through to CancelTurn anywhere else.
                 KeyBinding::new("escape", CloseFind, Some("FileEditorPane")),
@@ -263,7 +263,7 @@ pub fn run() {
                 KeyBinding::new("secondary-alt-r", ToggleFindRegex, Some("FileEditorPane")),
                 KeyBinding::new("shift-enter", FindPrevious, Some("FindBar")),
                 KeyBinding::new("secondary-alt-enter", ReplaceAllMatches, Some("FindBar")),
-                // Browser surface. Deeper than "Waku", so while focus is on the
+                // Browser surface. Deeper than "Anastasia", so while focus is on the
                 // page or its address bar the browser reads the platform's
                 // conventional navigation shortcuts; the same keys elsewhere
                 // keep their app meanings. The clipboard trio is rebound
@@ -306,7 +306,7 @@ pub fn run() {
                             traffic_light_position: cfg!(target_os = "macos")
                                 .then(|| point(px(16.0), px(17.0))),
                         }),
-                        // Waku moves its custom macOS titlebar explicitly. Keep
+                        // Anastasia moves its custom macOS titlebar explicitly. Keep
                         // the NSWindow movable so native controls and Window-menu
                         // tiling remain enabled.
                         is_movable: true,
@@ -319,7 +319,7 @@ pub fn run() {
                         app_id: Some(APP_ID.to_owned()),
                         // GPUI defaults to compositor/server decorations. If a
                         // Wayland compositor declines them, it reports the
-                        // client fallback and Waku renders that frame itself.
+                        // client fallback and Anastasia renders that frame itself.
                         #[cfg(target_os = "linux")]
                         icon: crate::platform::linux_app_icon(),
                         window_bounds: Some(window_bounds),
@@ -338,7 +338,7 @@ pub fn run() {
                         waku
                     },
                 )
-                .expect("failed to open Waku window");
+                .expect("failed to open Anastasia window");
 
             cx.on_system_notification_response({
                 let window = window;

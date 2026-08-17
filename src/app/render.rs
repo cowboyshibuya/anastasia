@@ -178,7 +178,7 @@ impl Render for Waku {
         });
         let (sidebar_width, right_panel_width) = self.effective_panel_widths(window);
         let content = div()
-            .key_context("Waku")
+            .key_context("Anastasia")
             .on_action(cx.listener(Self::close_window_or_right_panel_tab_action))
             .on_action(cx.listener(Self::new_session_action))
             .on_action(cx.listener(Self::new_project_action))
@@ -387,7 +387,7 @@ impl Waku {
                     .child(dismiss)
                     .child(self.toast_selection_input()),
             )
-            // Keep the toast top-centered just beneath Waku's 48px header.
+            // Keep the toast top-centered just beneath Anastasia's 48px header.
             // GPUI's animation path honors the system reduce-motion preference
             // and resolves immediately.
             .with_animation(
