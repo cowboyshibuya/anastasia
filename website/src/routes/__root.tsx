@@ -29,16 +29,7 @@ export const Route = createRootRouteWithContext<{
       { property: 'og:url', content: SITE_URL },
       { property: 'og:image', content: `${SITE_URL}/og-icon.png` },
       { name: 'twitter:card', content: 'summary_large_image' },
-      {
-        name: 'theme-color',
-        media: '(prefers-color-scheme: light)',
-        content: '#ffffff',
-      },
-      {
-        name: 'theme-color',
-        media: '(prefers-color-scheme: dark)',
-        content: '#090a0f',
-      },
+      { name: 'theme-color', content: '#090a0f' },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
@@ -46,10 +37,6 @@ export const Route = createRootRouteWithContext<{
       { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
     ],
     scripts: [
-      {
-        // Dark mode preference with localStorage support, defaulting to dark.
-        children: `try{var t=localStorage.getItem('anastasia-theme');if(t==='light'){document.documentElement.classList.remove('dark')}else if(t==='dark'||!t){document.documentElement.classList.add('dark')}else{var m=window.matchMedia('(prefers-color-scheme: dark)');document.documentElement.classList.toggle('dark',m.matches)}}catch(e){document.documentElement.classList.add('dark')}`,
-      },
       // Analytics, production builds only.
       ...(import.meta.env.PROD
         ? [

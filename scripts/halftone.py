@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Sample the Anastasia logo into the halftone dot grid the boot splash draws.
+"""Sample an image into the halftone dot grid the boot splash draws.
 
-One-shot generator: run it when the logo changes, commit the result.
+One-shot generator: run it when the source art changes, commit the result.
 
     python3 scripts/halftone.py ~/Desktop/anastasia-logo-3.png
 
@@ -13,19 +13,24 @@ Writes `assets/hero-dots.txt` — one digit per cell, `0` (empty) to
 `9` (solid), rows top to bottom. The mark is cropped to its ink bounds first,
 so every cell in the grid carries signal.
 
+The website draws the same grids from wide illustrations rather than a
+silhouette, where the whole frame is the composition and there is nothing to
+crop to:
+
+    python3 scripts/halftone.py ~/Desktop/anastasia-background.png \\
+      --cols 168 --rows 97 --no-crop --out website/src/art/hero-bird.txt
+
 ponytail: shells out to `sips` for decoding instead of taking a Pillow
 dependency for a script that runs about once a year. macOS only; port to
 Pillow if this ever needs to run in CI.
 """
 
+import argparse
 import struct
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
-COLS = 46
-ROWS = 46
 # Ink threshold, 0..255. The logo is a white mark on near-black, so anything
 # above this is glyph.
 INK = 40
@@ -62,32 +67,49 @@ def ink_bounds(width, height, rows):
 
 
 def main():
-    src = Path(sys.argv[1] if len(sys.argv) > 1 else
-               Path.home() / "Desktop/anastasia-logo-rounded.png").expanduser()
-    out = Path(__file__).resolve().parent.parent / "assets/hero-dots.txt"
+    repo = Path(__file__).resolve().parent.parent
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("source", nargs="?",
+                        default=Path.home() / "Desktop/anastasia-logo-rounded.png")
+    parser.add_argument("--cols", type=int, default=46)
+    parser.add_argument("--rows", type=int, default=46)
+    parser.add_argument("--no-crop", action="store_true",
+                        help="sample the full frame instead of the ink bounds")
+    parser.add_argument("--out", type=Path, default=repo / "assets/hero-dots.txt")
+    args = parser.parse_args()
+
+    cols, rows_out = args.cols, args.rows
+    src = Path(args.source).expanduser()
+    out = args.out
 
     with tempfile.TemporaryDirectory() as tmp:
         bmp = Path(tmp) / "logo.bmp"
+        # ponytail: no pre-downscale. load_bmp decodes pixel by pixel in
+        # Python, but a couple of megapixels is a few seconds and resampling
+        # first visibly coarsens the box average at these grid sizes.
         subprocess.run(
             ["sips", "-s", "format", "bmp", str(src), "--out", str(bmp)],
             check=True, stdout=subprocess.DEVNULL,
         )
         width, height, rows = load_bmp(bmp)
 
-    x0, y0, x1, y1 = ink_bounds(width, height, rows)
+    if args.no_crop:
+        x0, y0, x1, y1 = 0, 0, width, height
+    else:
+        x0, y0, x1, y1 = ink_bounds(width, height, rows)
     box_w, box_h = x1 - x0, y1 - y0
 
     grid = []
-    for gy in range(ROWS):
+    for gy in range(rows_out):
         grid_row = []
-        for gx in range(COLS):
+        for gx in range(cols):
             # Box-average the source pixels under this cell: partial coverage
             # at the glyph's edges becomes a partial dot, which is what makes
             # the halftone read as a smooth shape rather than a staircase.
-            sx0 = x0 + box_w * gx // COLS
-            sx1 = max(sx0 + 1, x0 + box_w * (gx + 1) // COLS)
-            sy0 = y0 + box_h * gy // ROWS
-            sy1 = max(sy0 + 1, y0 + box_h * (gy + 1) // ROWS)
+            sx0 = x0 + box_w * gx // cols
+            sx1 = min(x1, max(sx0 + 1, x0 + box_w * (gx + 1) // cols))
+            sy0 = y0 + box_h * gy // rows_out
+            sy1 = min(y1, max(sy0 + 1, y0 + box_h * (gy + 1) // rows_out))
             total = sum(rows[y][x] for y in range(sy0, sy1) for x in range(sx0, sx1))
             mean = total / ((sy1 - sy0) * (sx1 - sx0))
             grid_row.append(mean)
@@ -99,8 +121,9 @@ def main():
         for r in grid
     ]
 
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n")
-    print(f"wrote {out} ({COLS}x{ROWS} from {src.name} ink box {box_w}x{box_h})")
+    print(f"wrote {out} ({cols}x{rows_out} from {src.name} box {box_w}x{box_h})")
 
 
 

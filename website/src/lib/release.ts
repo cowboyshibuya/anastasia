@@ -7,35 +7,52 @@ export interface LatestRelease {
   pubDate: string | null
 }
 
-const RELEASES_BASE = 'https://releases.waku.sh'
+export const FALLBACK_VERSION = '0.3.1'
+export const FALLBACK_DOWNLOAD_URL = `https://github.com/cowboyshibuya/anastasia/releases/download/v${FALLBACK_VERSION}/Anastasia-${FALLBACK_VERSION}.zip`
 
-// Versioned artifact names are a stable contract and old archives stay in R2
-// (see RELEASING.md), so a known-published version is a safe fallback while
-// the appcast query is pending or unreachable.
-export const FALLBACK_DOWNLOAD_URL = `${RELEASES_BASE}/Waku-0.0.1.dmg`
+const APPCAST_URL =
+  'https://github.com/cowboyshibuya/anastasia/releases/latest/download/appcast.xml'
 
 // The Sparkle appcast has no CORS headers, so resolve it on the server.
 const fetchLatestRelease = createServerFn({ method: 'GET' }).handler(
   async (): Promise<LatestRelease | null> => {
     try {
-      const res = await fetch(`${RELEASES_BASE}/appcast.xml`, {
-        signal: AbortSignal.timeout(2500),
+      const res = await fetch(APPCAST_URL, {
+        signal: AbortSignal.timeout(3500),
+        headers: {
+          'User-Agent': 'Anastasia-Website',
+        },
       })
-      if (!res.ok) return null
+      if (!res.ok) {
+        return {
+          version: FALLBACK_VERSION,
+          url: FALLBACK_DOWNLOAD_URL,
+          pubDate: null,
+        }
+      }
       const xml = await res.text()
-      // generate_appcast writes the newest release first.
       const version =
         xml.match(/sparkle:shortVersionString="([^"]+)"/)?.[1] ??
-        xml.match(/<sparkle:shortVersionString>([^<]+)</)?.[1]
-      if (!version) return null
+        xml.match(/<sparkle:shortVersionString>([^<]+)<\/sparkle:shortVersionString>/)?.[1] ??
+        FALLBACK_VERSION
+
+      const enclosureUrl =
+        xml.match(/<enclosure[^>]+url="([^"]+)"/)?.[1] ??
+        `https://github.com/cowboyshibuya/anastasia/releases/download/v${version}/Anastasia-${version}.zip`
+
       const pubDate = xml.match(/<pubDate>([^<]+)<\/pubDate>/)?.[1] ?? null
+
       return {
         version,
-        url: `${RELEASES_BASE}/Waku-${version}.dmg`,
+        url: enclosureUrl,
         pubDate,
       }
     } catch {
-      return null
+      return {
+        version: FALLBACK_VERSION,
+        url: FALLBACK_DOWNLOAD_URL,
+        pubDate: null,
+      }
     }
   },
 )
