@@ -85,6 +85,17 @@ const CONTENT_MAX_WIDTH: f32 = 720.0;
 const MODEL_PICKER_MENU_ID: &str = "provider-model-picker";
 const BRANCH_PICKER_MENU_ID: &str = "workspace-branch-picker";
 const BRANCH_PICKER_ROW_HEIGHT: f32 = 26.0;
+/// Composer type. Larger than the app's other fields, and paired with a
+/// generous line height — this is prose, not a search box.
+const COMPOSER_TEXT_SIZE: f32 = 15.0;
+const COMPOSER_LINE_HEIGHT: f32 = 24.0;
+/// The empty composer's typing area. Tall enough that the card reads as an
+/// invitation to write rather than a one-line input.
+const COMPOSER_INPUT_MIN_HEIGHT: f32 = 64.0;
+/// Corner radius of the composer card.
+const COMPOSER_RADIUS: f32 = 26.0;
+/// Diameter of the send / stop button.
+const COMPOSER_ACTION_SIZE: f32 = 32.0;
 const SIDEBAR_MIN_WIDTH: f32 = 180.0;
 const SIDEBAR_MAX_WIDTH: f32 = 420.0;
 const UPDATER_BUTTON_COLLAPSED_WIDTH: f32 = 20.0;
@@ -1848,7 +1859,11 @@ impl Waku {
                 .count(),
         });
 
-        let composer = cx.new(|cx| ComposerInput::new(window, cx));
+        let composer = cx.new(|cx| {
+            // The main composer reads a size up from every other field in the
+            // app: it is the one the user types paragraphs into.
+            ComposerInput::new(window, cx).text_metrics(COMPOSER_TEXT_SIZE, COMPOSER_LINE_HEIGHT)
+        });
         let user_input_answer = cx.new(|cx| {
             ComposerInput::new(window, cx)
                 .search_field()

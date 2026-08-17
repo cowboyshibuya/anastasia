@@ -519,6 +519,9 @@ pub enum FieldMode {
 pub struct ComposerInput {
     focus_handle: FocusHandle,
     mode: FieldMode,
+    /// `(text_size, line_height)` overriding the shared composer-mode metrics.
+    /// See [`ComposerInput::text_metrics`].
+    text_metrics: Option<(f32, f32)>,
     read_only: bool,
     /// The focusing click selects the whole content on release, the way a
     /// browser address bar arms its URL for retyping.
@@ -599,6 +602,7 @@ impl ComposerInput {
         Self {
             focus_handle,
             mode: FieldMode::Composer,
+            text_metrics: None,
             read_only: false,
             select_all_on_focus_click: false,
             focus_click_select_all: false,
@@ -715,6 +719,15 @@ impl ComposerInput {
     /// "find next" keeps the query, and pasted line breaks become spaces.
     pub fn search_field(mut self) -> Self {
         self.mode = FieldMode::Search;
+        self
+    }
+
+    /// Enlarge this field's type. Composer-mode metrics are shared by every
+    /// small field in the app — session rename, branch search, the settings
+    /// query — so the one composer that wants the roomier scale opts into it
+    /// rather than everything else being dragged along.
+    pub fn text_metrics(mut self, text_size: f32, line_height: f32) -> Self {
+        self.text_metrics = Some((text_size, line_height));
         self
     }
 
@@ -2249,10 +2262,11 @@ impl Render for ComposerInput {
             // A composer owns its own metrics; a code editor inherits the
             // caller's, so a gutter beside it can rely on the same line height.
             .when(self.mode == FieldMode::Composer, |field| {
+                let (text_size, line_height) = self.text_metrics.unwrap_or((13.5, 22.0));
                 field
-                    .min_h(px(24.0))
-                    .line_height(px(22.0))
-                    .text_size(px(13.5))
+                    .min_h(px(line_height + 2.0))
+                    .line_height(px(line_height))
+                    .text_size(px(text_size))
             })
             // A search-mode field is visually one line: the text never wraps,
             // and the overlong remainder slides horizontally under this

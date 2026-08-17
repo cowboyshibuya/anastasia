@@ -2544,11 +2544,13 @@ impl Waku {
                 .w_full()
                 .max_w(px(CONTENT_MAX_WIDTH))
                 .mx_auto()
-                .rounded(px(13.0))
+                .rounded(px(COMPOSER_RADIUS))
                 .border_1()
                 .border_color(theme.border)
                 .bg(theme.composer)
-                .p(px(10.0))
+                .px(px(16.0))
+                .pt(px(14.0))
+                .pb(px(10.0))
                 .drag_over::<ExternalPaths>(move |style, _, _, _| {
                     style.bg(drop_wash).border_color(drop_ring)
                 })
@@ -2583,15 +2585,20 @@ impl Waku {
                 .when(!self.composer_attachments.is_empty(), |card| {
                     card.child(self.render_composer_attachments(cx))
                 })
-                .child(div().px(px(4.0)).pt(px(2.0)).child(self.composer.clone()))
                 .child(
                     div()
-                        .mt(px(8.0))
+                        .px(px(2.0))
+                        .min_h(px(COMPOSER_INPUT_MIN_HEIGHT))
+                        .child(self.composer.clone()),
+                )
+                .child(
+                    div()
+                        .mt(px(10.0))
                         .flex()
                         .items_center()
                         .gap(px(4.0))
-                        .text_size(px(11.5))
-                        .line_height(px(14.0))
+                        .text_size(px(12.0))
+                        .line_height(px(15.0))
                         .child(self.render_provider_model_control(cx))
                         .children(self.render_model_traits_control(cx))
                         .children(self.render_agent_preset_control(cx))
@@ -2601,8 +2608,8 @@ impl Waku {
                         .child(match submit_action {
                             ComposerSubmitAction::Preparing => div()
                                 .id("send-or-stop")
-                                .w(px(26.0))
-                                .h(px(26.0))
+                                .w(px(COMPOSER_ACTION_SIZE))
+                                .h(px(COMPOSER_ACTION_SIZE))
                                 .rounded_full()
                                 .flex()
                                 .items_center()
@@ -2611,7 +2618,7 @@ impl Waku {
                                 .bg(theme.overlay_strong)
                                 .child(motion::spin(icon(
                                     "icons/loader-circle.svg",
-                                    15.0,
+                                    16.0,
                                     theme.text_secondary,
                                 )))
                                 .tooltip(Tooltip::text(tr!("composer.preparing_task"))),
@@ -2623,8 +2630,8 @@ impl Waku {
                                 .child(
                                     div()
                                         .id("send-or-stop")
-                                        .w(px(26.0))
-                                        .h(px(26.0))
+                                        .w(px(COMPOSER_ACTION_SIZE))
+                                        .h(px(COMPOSER_ACTION_SIZE))
                                         .rounded_full()
                                         .flex()
                                         .items_center()
@@ -2643,7 +2650,7 @@ impl Waku {
                                             )
                                         })
                                         .when(!escape_stop_armed, |element| {
-                                            element.child(icon("icons/stop.svg", 18.0, theme.text))
+                                            element.child(icon("icons/stop.svg", 15.0, theme.text))
                                         })
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.cancel_turn(cx);
@@ -2653,8 +2660,8 @@ impl Waku {
                                     element.child(
                                         div()
                                             .id("queue-follow-up")
-                                            .w(px(26.0))
-                                            .h(px(26.0))
+                                            .w(px(COMPOSER_ACTION_SIZE))
+                                            .h(px(COMPOSER_ACTION_SIZE))
                                             .rounded_full()
                                             .flex()
                                             .items_center()
@@ -2665,7 +2672,7 @@ impl Waku {
                                             .active(|element| element.opacity(0.8))
                                             .child(icon(
                                                 "icons/arrow-up.svg",
-                                                16.0,
+                                                17.0,
                                                 theme.on_inverse,
                                             ))
                                             .tooltip(Tooltip::text(tr!("composer.queue_followup")))
@@ -2684,8 +2691,8 @@ impl Waku {
                                 }),
                             ComposerSubmitAction::Send => div()
                                 .id("send-or-stop")
-                                .w(px(26.0))
-                                .h(px(26.0))
+                                .w(px(COMPOSER_ACTION_SIZE))
+                                .h(px(COMPOSER_ACTION_SIZE))
                                 .rounded_full()
                                 .flex()
                                 .items_center()
@@ -2703,7 +2710,7 @@ impl Waku {
                                 })
                                 .child(icon(
                                     "icons/arrow-up.svg",
-                                    16.0,
+                                    17.0,
                                     if has_draft {
                                         theme.on_inverse
                                     } else {
