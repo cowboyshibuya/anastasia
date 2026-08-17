@@ -278,7 +278,7 @@ fn run(
         Client::builder(endpoint, website_id)
             .default_context(
                 Context::new()
-                    .hostname("waku.sh")
+                    .hostname("anastasia.invalid")
                     .url("/desktop")
                     .title("Anastasia")
                     .language(language)
