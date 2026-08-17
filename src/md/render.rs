@@ -99,11 +99,17 @@ impl Metrics {
     };
 }
 
-pub const SANS_FAMILY: &str = ".SystemUIFont";
+/// The bundled interface face. Bundling it rather than naming the platform's
+/// UI font keeps Anastasia looking the same on macOS and Linux.
+pub const SANS_FAMILY: &str = "Geist";
 /// The bundled mono face. "SF Mono" only exists on machines that installed it
 /// with Xcode or Terminal, and silently falls back to the sans face when it
 /// does not — which reads as proportional code.
-pub const MONO_FAMILY: &str = "JetBrains Mono";
+pub const MONO_FAMILY: &str = "Geist Mono";
+/// The terminal emulator's face, kept separate from [`MONO_FAMILY`]: it needs
+/// the Powerline and nerd-font coverage Geist Mono does not have, and pairs
+/// with the symbols fallback in [`crate::assets::SYMBOLS_FONT_FAMILY`].
+pub const TERMINAL_FAMILY: &str = "JetBrains Mono";
 
 /// Inline-code wash geometry. Paint-only: the box overhangs the glyphs
 /// horizontally and insets vertically inside the line box.

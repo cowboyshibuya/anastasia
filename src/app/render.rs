@@ -211,7 +211,7 @@ impl Render for Waku {
             .relative()
             .flex()
             .text_color(theme.text)
-            .font_family(".SystemUIFont")
+            .font_family(crate::md::render::SANS_FAMILY)
             .when(self.sidebar_visible, |root| {
                 root.child(self.sidebar_pane.clone().cached(
                     StyleRefinement::default()

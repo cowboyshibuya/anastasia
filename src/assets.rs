@@ -200,7 +200,26 @@ const ICONS: &[(&str, &[u8])] = icons![
     "zap",
 ];
 
+/// Geist and Geist Mono (variable), © Vercel Inc., SIL Open Font License 1.1.
+/// Geist is the interface family ([`crate::md::render::SANS_FAMILY`]); Geist
+/// Mono covers code, shortcut chips and other monospaced UI
+/// ([`crate::md::render::MONO_FAMILY`]).
+///
+/// The static Geist weights ship alongside the variable file because gpui's
+/// cosmic-text path (Linux) rasterizes variable fonts at their default instance
+/// only — it never applies `wght` coordinates — so medium/semibold/bold text
+/// would silently paint at 400 with just the variable TTF registered. The
+/// statics give the face matcher real 500/600/700 faces; macOS/CoreText applies
+/// the variable axis natively and never falls through to them.
+///
+/// JetBrains Mono stays registered for the terminal emulator, whose nerd-font
+/// glyph coverage Geist Mono does not replace — see [`crate::terminal`].
 const TEXT_FONTS: &[&[u8]] = &[
+    include_bytes!("../assets/fonts/Geist.ttf"),
+    include_bytes!("../assets/fonts/Geist-Medium.ttf"),
+    include_bytes!("../assets/fonts/Geist-SemiBold.ttf"),
+    include_bytes!("../assets/fonts/Geist-Bold.ttf"),
+    include_bytes!("../assets/fonts/GeistMono.ttf"),
     include_bytes!("../assets/fonts/JetBrainsMono-Regular.ttf"),
     include_bytes!("../assets/fonts/JetBrainsMono-Bold.ttf"),
     include_bytes!("../assets/fonts/JetBrainsMono-Italic.ttf"),

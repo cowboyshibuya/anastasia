@@ -120,7 +120,7 @@ impl Waku {
             .flex()
             .bg(theme.canvas)
             .text_color(theme.text)
-            .font_family(".SystemUIFont")
+            .font_family(crate::md::render::SANS_FAMILY)
             .child(self.render_settings_sidebar(window, cx))
             .child(self.render_settings_content(window, cx))
             .into_any_element()
@@ -1127,7 +1127,7 @@ impl Waku {
                                         .flex_1()
                                         .min_w_0()
                                         .truncate()
-                                        .font_family(".SystemUIFontMonospaced")
+                                        .font_family(crate::md::render::MONO_FAMILY)
                                         .text_size(px(11.0))
                                         .text_color(theme.text)
                                         .child(SharedString::from(format!(
@@ -1158,7 +1158,7 @@ impl Waku {
                                         .flex_1()
                                         .min_w_0()
                                         .truncate()
-                                        .font_family(".SystemUIFontMonospaced")
+                                        .font_family(crate::md::render::MONO_FAMILY)
                                         .text_size(px(11.0))
                                         .text_color(theme.text)
                                         .child(SharedString::from(if token_revealed {
