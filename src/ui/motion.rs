@@ -14,8 +14,8 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use gpui::{
-    AnyElement, App, EntityId, Global, IntoElement, RenderOnce, Svg, Transformation, Window,
-    percentage,
+    Animation, AnyElement, App, EntityId, Global, IntoElement, RenderOnce, Svg, Transformation,
+    Window, percentage,
 };
 
 // ---------------------------------------------------------------------------
@@ -136,6 +136,14 @@ impl MotionSpec {
     /// Wall-clock span of the whole timeline (delay + duration).
     pub fn total(&self) -> Duration {
         Duration::from_millis(self.delay_ms + self.duration_ms)
+    }
+
+    /// A oneshot gpui [`Animation`] for this spec, delay folded in and the
+    /// wall-clock span scaled by [`speed_scale`].
+    pub fn animation(&self) -> Animation {
+        let spec = *self;
+        Animation::new(spec.total().mul_f32(speed_scale()))
+            .with_easing(move |delta| spec.progress(delta))
     }
 
     /// Eased progress (0..1) for a raw timeline delta (0..1 across

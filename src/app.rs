@@ -61,6 +61,7 @@ use crate::review_diff::{Snapshot as ReviewDiffSnapshot, Source as ReviewDiffSou
 use crate::terminal::TerminalView;
 use crate::theme::{Theme, ThemePreference};
 use crate::ui::motion::WidthTween;
+use crate::ui::splash::SplashPhase;
 use crate::ui::text_field::TextField;
 use crate::ui::{
     MenuChip, ProjectNameSelector, activity_icon, activity_noun, contain_scroll, file_icon, icon,
@@ -1267,6 +1268,10 @@ pub struct Waku {
     right_panel_width: f32,
     /// In-flight width glides for the two panes. `None` is the settled state:
     /// the pane paints its target width directly. See [`crate::ui::motion::WidthTween`].
+    /// Boot overlay lifecycle; see [`crate::ui::splash`].
+    splash: SplashPhase,
+    /// Advances [`Self::splash`] from Visible through FadingOut to Gone.
+    splash_task: Option<Task<()>>,
     /// Each session's status as of the last announcement pass, so a chime
     /// fires on the transition rather than on every drain that reports the
     /// same state. See [`notifications`].
@@ -2695,6 +2700,8 @@ impl Waku {
                 sidebar_width,
                 right_panel_visible,
                 right_panel_width,
+                splash: SplashPhase::Visible,
+                splash_task: None,
                 announced_statuses: HashMap::new(),
                 recording_shortcut: None,
                 shortcut_rejection: None,

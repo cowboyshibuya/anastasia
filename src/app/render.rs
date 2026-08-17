@@ -199,8 +199,42 @@ impl Waku {
     }
 }
 
+impl Waku {
+    /// Start the boot overlay's exit on the first frame, and retire it once the
+    /// lift has played. Reduce-motion skips straight past both: the splash is
+    /// decoration, and decoration must not delay anyone who asked for less of
+    /// it.
+    fn tick_splash(&mut self, cx: &mut Context<Self>) {
+        if self.splash == SplashPhase::Gone || self.splash_task.is_some() {
+            return;
+        }
+        if cx.reduce_motion() {
+            self.splash = SplashPhase::Gone;
+            return;
+        }
+        self.splash_task = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor()
+                .timer(crate::ui::splash::SPLASH_HOLD)
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.splash = SplashPhase::FadingOut;
+                cx.notify();
+            });
+            cx.background_executor()
+                .timer(crate::ui::motion::SPLASH_OUT.total())
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.splash = SplashPhase::Gone;
+                cx.notify();
+            });
+        }));
+    }
+}
+
 impl Render for Waku {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.tick_splash(cx);
+        let splash = crate::ui::splash::splash_overlay(&Theme::current(cx), self.splash);
         // Before anything can early-return (the settings page below), settle
         // whether each native browser webview belongs on screen this frame —
         // it floats above everything GPUI paints.
@@ -220,6 +254,7 @@ impl Render for Waku {
                 .children(command_palette)
                 .children(commit_dialog)
                 .children(image_preview)
+                .children(splash)
                 .into_any_element();
             return self.render_window_frame(content, window, cx);
         }
@@ -357,6 +392,7 @@ impl Render for Waku {
             .children(command_palette)
             .children(commit_dialog)
             .children(image_preview)
+            .children(splash)
             .into_any_element();
 
         // A manually driven tween is mid-flight: keep frames coming, which is
