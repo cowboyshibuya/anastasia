@@ -160,43 +160,57 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-rust-1.96.0-release-
 
+      # The two Apple secrets are stored in DIFFERENT formats, which is easy
+      # to get wrong: MACOS_CERT_P12 is base64, AC_API_KEY_P8 is the raw .p8
+      # text. Decoding the key as base64 yields `invalidPrivateKeyContents`.
       - name: Import Apple Developer Certificate
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
-          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
-          echo "$MACOS_CERT_P12" | base64 --decode > certificate.p12
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-          security find-identity -v -p codesigning build.keychain
-          rm certificate.p12
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          pass="$(openssl rand -hex 16)"
+          security create-keychain -p "$pass" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$pass" "$keychain"
+          printf '%s' "$MACOS_CERT_P12" | base64 -d >"$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # Let codesign use the imported key without a UI prompt.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$pass" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          # The identity is read off the certificate rather than kept as its
+          # own secret, so there is one less credential to drift out of sync.
+          identity="$(security find-identity -v -p codesigning "$keychain" \
+            | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
+          [ -n "$identity" ] || { echo "::error::p12 contains no Developer ID Application identity"; exit 1; }
+          echo "ANASTASIA_SIGNING_IDENTITY=$identity" >>"$GITHUB_ENV"
 
       # App Store Connect API key rather than an Apple ID + app-specific
-      # password: it is the credential this repository actually holds, and it
-      # carries no personal account.
+      # password: it is the credential this repository holds, and it carries no
+      # personal account.
       - name: Store notary credentials
         env:
           AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
           AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
           AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
         run: |
-          echo "$AC_API_KEY_P8" | base64 --decode > notary-key.p8
+          set -euo pipefail
+          # Raw .p8 contents — no base64 decode, unlike the certificate above.
+          printf '%s' "$AC_API_KEY_P8" >"$RUNNER_TEMP/ac_api_key.p8"
           xcrun notarytool store-credentials NOTARY \
-            --key notary-key.p8 \
+            --key "$RUNNER_TEMP/ac_api_key.p8" \
             --key-id "$AC_API_KEY_ID" \
             --issuer "$AC_API_ISSUER_ID"
-          rm notary-key.p8
+          rm -f "$RUNNER_TEMP/ac_api_key.p8"
 
       - name: Release
-        env:
-          # Anastasia compiles in no analytics and ships no Sparkle feed, so
-          # neither an analytics endpoint nor a Sparkle key is passed here.
-          ANASTASIA_SIGNING_IDENTITY: ${{ secrets.ANASTASIA_SIGNING_IDENTITY }}
+        # ANASTASIA_SIGNING_IDENTITY comes from the certificate import above.
+        # Anastasia compiles in no analytics and ships no Sparkle feed, so
+        # neither an analytics endpoint nor a Sparkle key is passed here.
         run: bun run release --local
 
       - uses: actions/upload-artifact@v4
@@ -246,9 +260,10 @@ jobs:
           name: ${{ github.ref_name }}
           body_path: release-notes.md
           fail_on_unmatched_files: true
+          # No appcast.xml: the app ships no update feed, so release.ts skips
+          # generating one and fail_on_unmatched_files would fail the job.
           files: |
             artifacts/*.tar.gz
             artifacts/*.dmg
             artifacts/*.md
             artifacts/*.zip
-            artifacts/appcast.xml

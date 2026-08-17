@@ -54,8 +54,6 @@ Options:
 
 Environment:
   ANASTASIA_SIGNING_IDENTITY         Developer ID Application identity selector
-  ANASTASIA_ANALYTICS_ENDPOINT       analytics endpoint embedded at build time
-  ANASTASIA_ANALYTICS_WEBSITE_ID     analytics website ID embedded at build time
   ANASTASIA_R2_REMOTE                rclone remote name (default: r2)
   ANASTASIA_R2_BUCKET                R2 bucket name (default: anastasia-releases)
   ANASTASIA_DOWNLOAD_URL_PREFIX      base URL served by the bucket
@@ -144,8 +142,6 @@ const notaryProfile =
   defaultNotaryProfile;
 const explicitBuildNumber =
   values["build-number"] ?? process.env.ANASTASIA_BUILD_NUMBER;
-const analyticsEndpoint = process.env.ANASTASIA_ANALYTICS_ENDPOINT?.trim();
-const analyticsWebsiteId = process.env.ANASTASIA_ANALYTICS_WEBSITE_ID?.trim();
 const localOnly = values.local ?? false;
 const force = values.force ?? false;
 // Publishing requires a Developer ID-signed, notarized DMG, so the flags that
@@ -179,11 +175,10 @@ if (explicitBuildNumber && !/^\d+(?:\.\d+){0,2}$/.test(explicitBuildNumber)) {
 if (!Number.isSafeInteger(historyCount) || historyCount < 0) {
   throw new Error("ANASTASIA_HISTORY_COUNT must be a non-negative integer.");
 }
-if (!values["skip-build"] && (!analyticsEndpoint || !analyticsWebsiteId)) {
-  throw new Error(
-    "Set ANASTASIA_ANALYTICS_ENDPOINT and ANASTASIA_ANALYTICS_WEBSITE_ID before building a release.",
-  );
-}
+// Upstream refused to build a release without analytics credentials.
+// Anastasia compiles in no analytics at all (src/analytics.rs hardcodes the
+// endpoint to None), so requiring them would block every release for the sake
+// of values nothing reads.
 
 for (const tool of [
   "cargo",
@@ -411,7 +406,7 @@ try {
       ? "Assembling the app bundle"
       : "Building and assembling the app bundle",
   );
-  await $`env ANASTASIA_CODESIGN_IDENTITY=${identity} ANASTASIA_ANALYTICS_ENDPOINT=${analyticsEndpoint ?? ""} ANASTASIA_ANALYTICS_WEBSITE_ID=${analyticsWebsiteId ?? ""} ANASTASIA_SKIP_CARGO_BUILD=${values["skip-build"] ? "1" : "0"} ${join(projectRoot, "scripts", "bundle.sh")} release`;
+  await $`env ANASTASIA_CODESIGN_IDENTITY=${identity} ANASTASIA_SKIP_CARGO_BUILD=${values["skip-build"] ? "1" : "0"} ${join(projectRoot, "scripts", "bundle.sh")} release`;
   for (const artifact of [
     join(contentsDirectory, "MacOS", executableName),
     bundledDaemonExecutable,
