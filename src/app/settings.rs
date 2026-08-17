@@ -23,7 +23,7 @@ const SETTINGS_SEARCH_CONTEXT: &str = "SettingsSidebar > ComposerInput";
 
 /// The sidebar's rows in display order, each with the keyword haystack the
 /// search field filters against.
-const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 8] = [
+const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 9] = [
     (
         SettingsPage::General,
         "settings.general",
@@ -35,6 +35,12 @@ const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 8] = [
         "settings.appearance",
         "icons/appearance.svg",
         "settings.appearance_keywords",
+    ),
+    (
+        SettingsPage::Notifications,
+        "settings.notifications",
+        "icons/bell.svg",
+        "settings.notifications_keywords",
     ),
     (
         SettingsPage::Shortcuts,
@@ -379,6 +385,7 @@ impl Waku {
                         SettingsPage::Daemon => tr!("settings.daemon"),
                         SettingsPage::ComputerUse => tr!("settings.computer_use"),
                         SettingsPage::Appearance => tr!("settings.appearance"),
+                        SettingsPage::Notifications => tr!("settings.notifications"),
                         SettingsPage::Shortcuts => tr!("settings.shortcuts"),
                     }),
             )
@@ -390,6 +397,7 @@ impl Waku {
                 SettingsPage::Daemon => self.render_daemon_settings(cx),
                 SettingsPage::ComputerUse => self.render_computer_use_settings(cx),
                 SettingsPage::Appearance => self.render_appearance_settings(cx),
+                SettingsPage::Notifications => self.render_notifications_settings(cx),
                 SettingsPage::Shortcuts => self.render_shortcuts_settings(cx),
             });
 

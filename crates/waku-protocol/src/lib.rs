@@ -38,6 +38,7 @@ pub mod identity;
 pub mod keymap;
 pub mod model;
 pub mod model_catalog;
+pub mod notifications;
 pub mod persistence;
 pub mod projectless;
 pub mod provider_session;

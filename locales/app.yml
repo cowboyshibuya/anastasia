@@ -122,6 +122,24 @@ settings.computer_use:
   en: Computer Use
 settings.general_keywords:
   en: general local projects conversations privacy analytics telemetry anonymous sharing updates automatic sparkle version
+settings.notifications:
+  en: Notifications
+settings.notifications_keywords:
+  en: notifications sound chime alert banner desktop background focus attention
+notifications.sound:
+  en: Sound
+notifications.sound_description:
+  en: Play a chime when a run finishes or the agent asks a question.
+notifications.banners:
+  en: Desktop notifications
+notifications.banners_description:
+  en: Post a system banner when a run finishes.
+notifications.background_only:
+  en: Only when Anastasia is in the background
+notifications.background_only_description:
+  en: While the app is in front, the transcript is already telling you.
+notifications.footnote:
+  en: Failures are never announced — the transcript reports them where you can act on them.
 settings.shortcuts:
   en: Shortcuts
 settings.shortcuts_keywords:

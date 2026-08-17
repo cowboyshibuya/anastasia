@@ -1815,12 +1815,13 @@ mod tests {
             None
         );
 
-        let term = parse_terminal(b"x\x1b]8;;https://waku.gg\x1b\\Anastasia\x1b]8;;\x1b\\ y");
+        // "x" then the 9-cell label "Anastasia", so the link covers columns 1..=9.
+        let term = parse_terminal(b"x\x1b]8;;https://example.com\x1b\\Anastasia\x1b]8;;\x1b\\ y");
         let (value, bounds) = hyperlink_at(&term, TerminalPoint::new(Line(0), Column(2))).unwrap();
-        assert_eq!(value, "https://waku.gg");
+        assert_eq!(value, "https://example.com");
         assert_eq!(
             bounds,
-            TerminalPoint::new(Line(0), Column(1))..=TerminalPoint::new(Line(0), Column(4))
+            TerminalPoint::new(Line(0), Column(1))..=TerminalPoint::new(Line(0), Column(9))
         );
     }
 

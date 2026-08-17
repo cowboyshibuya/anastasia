@@ -220,6 +220,7 @@ enum SettingsPage {
     Daemon,
     ComputerUse,
     Appearance,
+    Notifications,
     Shortcuts,
 }
 
@@ -1266,6 +1267,10 @@ pub struct Waku {
     right_panel_width: f32,
     /// In-flight width glides for the two panes. `None` is the settled state:
     /// the pane paints its target width directly. See [`crate::ui::motion::WidthTween`].
+    /// Each session's status as of the last announcement pass, so a chime
+    /// fires on the transition rather than on every drain that reports the
+    /// same state. See [`notifications`].
+    announced_statuses: HashMap<Uuid, SessionStatus>,
     /// The Settings → Shortcuts row currently listening for a keystroke.
     recording_shortcut: Option<waku_protocol::keymap::ShortcutId>,
     /// Why the last recorded keystroke was refused, shown on the recording row.
@@ -1501,11 +1506,13 @@ mod composer;
 mod drafts;
 mod file_search;
 mod image_preview;
+mod notifications;
 mod render;
 mod right_panel;
 mod runtime;
 mod sessions;
 mod settings;
+mod settings_notifications;
 mod settings_shortcuts;
 mod sidebar;
 mod skills_page;
@@ -2688,6 +2695,7 @@ impl Waku {
                 sidebar_width,
                 right_panel_visible,
                 right_panel_width,
+                announced_statuses: HashMap::new(),
                 recording_shortcut: None,
                 shortcut_rejection: None,
                 shortcut_rejection_task: None,

@@ -502,7 +502,12 @@ impl Waku {
                 {
                     return true;
                 }
-                let task_notification = cx.active_window().is_none().then(|| {
+                // Banners were unconditionally background-only; both halves of
+                // that are now the user's call.
+                let notifications = self.state.notifications;
+                let wanted = notifications.banners_enabled
+                    && notifications.should_announce(cx.active_window().is_some());
+                let task_notification = wanted.then(|| {
                     self.state
                         .sessions
                         .iter()

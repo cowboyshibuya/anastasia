@@ -20,6 +20,7 @@ use waku_protocol::i18n::AppLanguage;
 use waku_protocol::identity::DATA_DIRECTORY_NAME;
 use waku_protocol::keymap::KeymapConfig;
 use waku_protocol::model::{AgentSession, FavoriteModel, Project, ProviderKind};
+use waku_protocol::notifications::NotificationSettings;
 use waku_protocol::theme::ThemePreference;
 
 pub use waku_protocol::persistence::{
@@ -218,6 +219,7 @@ pub struct AppSettings {
     pub language: AppLanguage,
     pub daemon_exposure: DaemonExposureSettings,
     pub keymap: KeymapConfig,
+    pub notifications: NotificationSettings,
 }
 
 impl Default for AppSettings {
@@ -229,6 +231,7 @@ impl Default for AppSettings {
             language: AppLanguage::default(),
             daemon_exposure: DaemonExposureSettings::default(),
             keymap: KeymapConfig::default(),
+            notifications: NotificationSettings::default(),
         }
     }
 }
@@ -298,6 +301,8 @@ pub struct PersistedState {
     pub daemon_exposure: DaemonExposureSettings,
     #[serde(default)]
     pub keymap: KeymapConfig,
+    #[serde(default)]
+    pub notifications: NotificationSettings,
     #[serde(default = "default_sidebar_visibility")]
     pub sidebar_visible: bool,
     #[serde(default = "default_right_panel_visibility")]
@@ -358,6 +363,7 @@ impl PersistedState {
             language: AppLanguage::default(),
             daemon_exposure: DaemonExposureSettings::default(),
             keymap: KeymapConfig::default(),
+            notifications: NotificationSettings::default(),
             sidebar_visible: true,
             right_panel_visible: false,
             sidebar_width: DEFAULT_SIDEBAR_WIDTH,
@@ -475,6 +481,7 @@ impl PersistedState {
             language: self.language,
             daemon_exposure: self.daemon_exposure.clone(),
             keymap: self.keymap.clone(),
+            notifications: self.notifications,
         }
     }
 
@@ -505,6 +512,7 @@ impl PersistedState {
         self.language = settings.language;
         self.daemon_exposure = settings.daemon_exposure;
         self.keymap = settings.keymap;
+        self.notifications = settings.notifications;
     }
 
     fn apply_app_state(&mut self, app_state: AppState) {

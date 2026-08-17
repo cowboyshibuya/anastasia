@@ -3354,6 +3354,8 @@ impl Waku {
             changed = true;
         }
 
+        self.announce_status_transitions(cx);
+
         if persisted_state_changed {
             self.stream_state_dirty = true;
         }
