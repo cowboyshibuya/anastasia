@@ -639,18 +639,26 @@ impl Waku {
                     .id("open-settings")
                     .tab_index(0)
                     .focus_visible(|style| style.border_1().border_color(theme.accent))
-                    .w(px(26.0))
                     .h(px(26.0))
+                    .pl(px(6.0))
+                    .pr(px(9.0))
                     .flex_none()
                     .rounded(px(6.0))
                     .flex()
                     .items_center()
-                    .justify_center()
+                    .gap(px(7.0))
                     .cursor_default()
                     .hover(|element| element.bg(theme.overlay))
                     .active(|element| element.bg(theme.overlay_strong))
-                    .tooltip(Tooltip::text(tr_cow!("common.settings")))
                     .child(icon("icons/settings.svg", 14.0, theme.text_tertiary))
+                    // The glyph alone needed a tooltip to be legible; with the
+                    // word beside it the tooltip would only repeat itself.
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(theme.text_secondary)
+                            .child(tr_cow!("common.settings")),
+                    )
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.open_settings_action(&OpenSettings, window, cx);
                     })),

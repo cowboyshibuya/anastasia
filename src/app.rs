@@ -13,8 +13,8 @@ use gpui::{
     Entity, ExternalPaths, FocusHandle, Focusable, FontWeight, Hsla, IntoElement, KeyDownEvent,
     ListAlignment, ListOffset, ListState, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, NavigationDirection, ObjectFit, PathPromptOptions, Pixels, Render, ScrollHandle,
-    SharedString, Stateful, StyleRefinement, TextRun, WeakEntity, Window, WindowBounds, canvas,
-    div, ease_out_quint, fill, font, img, linear_color_stop, linear_gradient, list, point,
+    SharedString, Stateful, StyleRefinement, Task, TextRun, WeakEntity, Window, WindowBounds,
+    canvas, div, ease_out_quint, fill, font, img, linear_color_stop, linear_gradient, list, point,
     prelude::*, pulsating_between, px, rgb,
 };
 use uuid::Uuid;
@@ -70,8 +70,8 @@ use crate::{
     CancelTurn, CloseFind, CloseWindow, CopySelection, FindNext, FindPrevious, FocusComposer,
     NavigateBack, NavigateForward, NewProject, NewSession, OpenFind, OpenFindReplace, OpenSettings,
     ReplaceAllMatches, SaveFile, ToggleCommandPalette, ToggleFindCaseSensitive, ToggleFindRegex,
-    ToggleFindWholeWord, ToggleFpsCounter, ToggleModelPicker, ToggleRightPanel, ToggleSidebar,
-    ToggleUsagePanel,
+    ToggleFindWholeWord, ToggleFpsCounter, ToggleInteractionMode, ToggleModelPicker,
+    ToggleRightPanel, ToggleSidebar, ToggleTerminal, ToggleUsagePanel,
 };
 
 #[cfg(target_os = "macos")]
@@ -220,6 +220,7 @@ enum SettingsPage {
     Daemon,
     ComputerUse,
     Appearance,
+    Shortcuts,
 }
 
 impl SettingsPage {
@@ -1265,6 +1266,12 @@ pub struct Waku {
     right_panel_width: f32,
     /// In-flight width glides for the two panes. `None` is the settled state:
     /// the pane paints its target width directly. See [`crate::ui::motion::WidthTween`].
+    /// The Settings → Shortcuts row currently listening for a keystroke.
+    recording_shortcut: Option<waku_protocol::keymap::ShortcutId>,
+    /// Why the last recorded keystroke was refused, shown on the recording row.
+    shortcut_rejection: Option<settings_shortcuts::ShortcutRejection>,
+    /// Clears [`Self::shortcut_rejection`] after it has been readable a while.
+    shortcut_rejection_task: Option<Task<()>>,
     sidebar_tween: Option<WidthTween>,
     right_panel_tween: Option<WidthTween>,
     /// Set during render whenever a tween painted an intermediate width, so the
@@ -1499,6 +1506,7 @@ mod right_panel;
 mod runtime;
 mod sessions;
 mod settings;
+mod settings_shortcuts;
 mod sidebar;
 mod skills_page;
 mod streaming;
@@ -2680,6 +2688,9 @@ impl Waku {
                 sidebar_width,
                 right_panel_visible,
                 right_panel_width,
+                recording_shortcut: None,
+                shortcut_rejection: None,
+                shortcut_rejection_task: None,
                 sidebar_tween: None,
                 right_panel_tween: None,
                 motion_active: Cell::new(false),

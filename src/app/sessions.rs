@@ -1004,6 +1004,32 @@ impl Waku {
         }
     }
 
+    /// Shift-Tab flips the selected session between Plan and Build, matching
+    /// the composer's mode chip. Sessions that cannot mount a plan capability
+    /// (a Minimal DeepSeek preset) may still be switched *back* to Build, but
+    /// never into Plan — the same rule the chip enforces.
+    pub(super) fn toggle_interaction_mode_action(
+        &mut self,
+        _: &ToggleInteractionMode,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = self.selected_session() else {
+            return;
+        };
+        let next = if session.interaction_mode == InteractionMode::Plan {
+            InteractionMode::Build
+        } else {
+            let supports_plan = session.provider != ProviderKind::DeepSeek
+                || self.agent_preset_for_session(session).as_deref() != Some("minimal");
+            if !supports_plan {
+                return;
+            }
+            InteractionMode::Plan
+        };
+        self.set_interaction_mode(next, cx);
+    }
+
     pub(super) fn set_interaction_mode(&mut self, mode: InteractionMode, cx: &mut Context<Self>) {
         if let Some(session) = self.selected_session_mut()
             && session.interaction_mode != mode

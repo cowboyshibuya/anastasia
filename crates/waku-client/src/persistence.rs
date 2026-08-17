@@ -18,6 +18,7 @@ use crate::{Command, DaemonExposureSettings, DaemonSettings, DaemonSupervisor, R
 use waku_protocol::computer_use::ComputerAppGrant;
 use waku_protocol::i18n::AppLanguage;
 use waku_protocol::identity::DATA_DIRECTORY_NAME;
+use waku_protocol::keymap::KeymapConfig;
 use waku_protocol::model::{AgentSession, FavoriteModel, Project, ProviderKind};
 use waku_protocol::theme::ThemePreference;
 
@@ -216,6 +217,7 @@ pub struct AppSettings {
     pub theme: ThemePreference,
     pub language: AppLanguage,
     pub daemon_exposure: DaemonExposureSettings,
+    pub keymap: KeymapConfig,
 }
 
 impl Default for AppSettings {
@@ -226,6 +228,7 @@ impl Default for AppSettings {
             theme: ThemePreference::System,
             language: AppLanguage::default(),
             daemon_exposure: DaemonExposureSettings::default(),
+            keymap: KeymapConfig::default(),
         }
     }
 }
@@ -293,6 +296,8 @@ pub struct PersistedState {
     pub language: AppLanguage,
     #[serde(default)]
     pub daemon_exposure: DaemonExposureSettings,
+    #[serde(default)]
+    pub keymap: KeymapConfig,
     #[serde(default = "default_sidebar_visibility")]
     pub sidebar_visible: bool,
     #[serde(default = "default_right_panel_visibility")]
@@ -352,6 +357,7 @@ impl PersistedState {
             theme: ThemePreference::System,
             language: AppLanguage::default(),
             daemon_exposure: DaemonExposureSettings::default(),
+            keymap: KeymapConfig::default(),
             sidebar_visible: true,
             right_panel_visible: false,
             sidebar_width: DEFAULT_SIDEBAR_WIDTH,
@@ -468,6 +474,7 @@ impl PersistedState {
             theme: self.theme,
             language: self.language,
             daemon_exposure: self.daemon_exposure.clone(),
+            keymap: self.keymap.clone(),
         }
     }
 
@@ -497,6 +504,7 @@ impl PersistedState {
         self.theme = settings.theme;
         self.language = settings.language;
         self.daemon_exposure = settings.daemon_exposure;
+        self.keymap = settings.keymap;
     }
 
     fn apply_app_state(&mut self, app_state: AppState) {

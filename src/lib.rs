@@ -36,6 +36,7 @@ mod computer_use;
 pub mod daemon;
 mod driver;
 mod input;
+mod keymap;
 mod md;
 mod platform;
 mod query;
@@ -51,8 +52,8 @@ pub use waku_client::{
 };
 
 use gpui::{
-    App, Application, Bounds, KeyBinding, Menu, MenuItem, TitlebarOptions,
-    WindowBackgroundAppearance, WindowBounds, WindowOptions, actions, point, px, size,
+    App, Application, Bounds, Menu, MenuItem, TitlebarOptions, WindowBackgroundAppearance,
+    WindowBounds, WindowOptions, actions, point, px, size,
 };
 
 use crate::app::Waku;
@@ -69,6 +70,8 @@ actions!(
         CheckForUpdates,
         ToggleSidebar,
         ToggleRightPanel,
+        ToggleTerminal,
+        ToggleInteractionMode,
         ToggleCommandPalette,
         ToggleFpsCounter,
         NavigateBack,
@@ -187,6 +190,10 @@ impl WakuApplicationExt for Application {
 pub fn run() {
     let daemon = crate::daemon::start_process()
         .unwrap_or_else(|error| panic!("failed to start Anastasia daemon: {error:#}"));
+    // Key bindings are installed before the window exists, so the keymap is
+    // read here rather than from the UI's own state load. A second read of the
+    // same small file at launch; a failure just means default shortcuts.
+    let launch_settings = crate::persistence::load_or_create_app_settings().unwrap_or_default();
     gpui_platform::application()
         .with_assets(crate::assets::Assets)
         .with_main_window_reopen()
@@ -221,67 +228,10 @@ pub fn run() {
             });
             cx.on_action(|_: &About, _| crate::platform::show_about_panel());
 
-            cx.bind_keys([
-                // `secondary` is Command on macOS and Control elsewhere.
-                KeyBinding::new("secondary-q", Quit, None),
-                KeyBinding::new("secondary-w", CloseWindow, None),
-                KeyBinding::new("secondary-n", NewSession, None),
-                KeyBinding::new("secondary-o", NewProject, None),
-                KeyBinding::new("secondary-,", OpenSettings, None),
-                KeyBinding::new("secondary-b", ToggleSidebar, None),
-                KeyBinding::new("secondary-shift-b", ToggleRightPanel, None),
-                KeyBinding::new("secondary-k", ToggleCommandPalette, None),
-                KeyBinding::new("secondary-alt-shift-f", ToggleFpsCounter, None),
-                KeyBinding::new("secondary-[", NavigateBack, Some("Anastasia")),
-                KeyBinding::new("secondary-]", NavigateForward, Some("Anastasia")),
-                KeyBinding::new("secondary-l", FocusComposer, None),
-                KeyBinding::new("secondary-/", ToggleModelPicker, None),
-                KeyBinding::new("secondary-u", ToggleUsagePanel, None),
-                KeyBinding::new("secondary-s", SaveFile, None),
-                KeyBinding::new("escape", CancelTurn, Some("Anastasia")),
-                KeyBinding::new("secondary-c", CopySelection, Some("Anastasia")),
-                // Find and replace in the right panel's file editor, on the
-                // conventional VS Code bindings. The primary shortcut + G cycles matches from
-                // the editor without moving focus to the bar.
-                KeyBinding::new("secondary-f", OpenFind, Some("Anastasia")),
-                KeyBinding::new("secondary-alt-f", OpenFindReplace, Some("Anastasia")),
-                KeyBinding::new("secondary-g", FindNext, Some("Anastasia")),
-                KeyBinding::new("secondary-shift-g", FindPrevious, Some("Anastasia")),
-                // Scoped to the editor pane: escape closes the bar there and
-                // falls through to CancelTurn anywhere else.
-                KeyBinding::new("escape", CloseFind, Some("FileEditorPane")),
-                KeyBinding::new(
-                    "secondary-alt-c",
-                    ToggleFindCaseSensitive,
-                    Some("FileEditorPane"),
-                ),
-                KeyBinding::new(
-                    "secondary-alt-w",
-                    ToggleFindWholeWord,
-                    Some("FileEditorPane"),
-                ),
-                KeyBinding::new("secondary-alt-r", ToggleFindRegex, Some("FileEditorPane")),
-                KeyBinding::new("shift-enter", FindPrevious, Some("FindBar")),
-                KeyBinding::new("secondary-alt-enter", ReplaceAllMatches, Some("FindBar")),
-                // Browser surface. Deeper than "Anastasia", so while focus is on the
-                // page or its address bar the browser reads the platform's
-                // conventional navigation shortcuts; the same keys elsewhere
-                // keep their app meanings. The clipboard trio is rebound
-                // because GPUI's window view claims key equivalents before
-                // AppKit can walk the responder chain into the webview.
-                KeyBinding::new("secondary-l", FocusBrowserAddress, Some("Browser")),
-                KeyBinding::new("secondary-r", BrowserReload, Some("Browser")),
-                KeyBinding::new("secondary-shift-r", BrowserHardReload, Some("Browser")),
-                KeyBinding::new("secondary-[", BrowserBack, Some("Browser")),
-                KeyBinding::new("secondary-]", BrowserForward, Some("Browser")),
-                KeyBinding::new("escape", BrowserStop, Some("Browser")),
-                KeyBinding::new("secondary-alt-i", BrowserDevtools, Some("Browser")),
-                KeyBinding::new("secondary-c", WebviewCopy, Some("Browser")),
-                KeyBinding::new("secondary-x", WebviewCut, Some("Browser")),
-                KeyBinding::new("secondary-v", WebviewPaste, Some("Browser")),
-                KeyBinding::new("secondary-a", WebviewSelectAll, Some("Browser")),
-                KeyBinding::new("escape", BrowserAddressCancel, Some("BrowserAddress")),
-            ]);
+            // Every binding in the app is declared in `crate::keymap`, so a
+            // shortcut edit can re-apply the whole map at once — GPUI only
+            // supports clear-and-rebind, never removing one binding.
+            crate::keymap::bind(cx, &launch_settings.keymap);
 
             cx.on_action(|_: &Quit, cx| cx.quit());
 

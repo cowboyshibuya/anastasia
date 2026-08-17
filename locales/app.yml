@@ -122,6 +122,50 @@ settings.computer_use:
   en: Computer Use
 settings.general_keywords:
   en: general local projects conversations privacy analytics telemetry anonymous sharing updates automatic sparkle version
+settings.shortcuts:
+  en: Shortcuts
+settings.shortcuts_keywords:
+  en: shortcuts keyboard keys keybindings bindings hotkeys command
+shortcuts.description:
+  en: Click a shortcut to record a new one. Press escape to cancel, or delete to leave it unbound.
+shortcuts.press_keys:
+  en: Press keys
+shortcuts.unbound:
+  en: Not set
+shortcuts.reset:
+  en: Reset
+shortcuts.reset_all:
+  en: Restore defaults
+shortcuts.needs_modifier:
+  en: Add a modifier — that key on its own would be typed into the composer.
+shortcuts.already_taken:
+  en: "Already used by %{name}"
+shortcut.open_settings:
+  en: Settings
+shortcut.toggle_sidebar:
+  en: Toggle left sidebar
+shortcut.toggle_right_panel:
+  en: Toggle right panel
+shortcut.toggle_terminal:
+  en: Toggle terminal
+shortcut.new_session:
+  en: New session
+shortcut.new_project:
+  en: New project
+shortcut.toggle_command_palette:
+  en: Command palette
+shortcut.focus_composer:
+  en: Focus composer
+shortcut.toggle_model_picker:
+  en: Model picker
+shortcut.toggle_usage_panel:
+  en: Usage
+shortcut.toggle_interaction_mode:
+  en: Switch Plan and Build
+shortcut.navigate_back:
+  en: Back
+shortcut.navigate_forward:
+  en: Forward
 settings.appearance_keywords:
   en: appearance theme system light dark language english chinese simplified
 settings.providers_keywords:

@@ -1711,6 +1711,42 @@ impl Waku {
         cx.notify();
     }
 
+    /// Terminal shortcut: reveal the terminal, or put it away.
+    ///
+    /// Pressing it opens the session's terminal, creating one the first time.
+    /// Pressing it again while that terminal is the surface you are looking at
+    /// closes the panel — so one key both summons and dismisses, rather than
+    /// only ever piling on another tab.
+    pub(super) fn toggle_terminal_action(
+        &mut self,
+        _: &ToggleTerminal,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let existing = self
+            .right_panel_surfaces
+            .iter()
+            .position(|surface| matches!(surface, RightPanelSurface::Terminal(_)));
+
+        if let Some(index) = existing {
+            let showing_this_terminal =
+                self.right_panel_visible && self.right_panel_active_surface == Some(index);
+            if showing_this_terminal {
+                self.set_right_panel_visible(false, cx);
+                cx.notify();
+                return;
+            }
+            self.right_panel_active_surface = Some(index);
+            self.reveal_right_panel_tab(index);
+            self.request_active_terminal_focus();
+            self.set_right_panel_visible(true, cx);
+            cx.notify();
+            return;
+        }
+
+        self.open_right_panel_surface(RightPanelSurface::new_terminal(), cx);
+    }
+
     pub(super) fn open_turn_diff(&mut self, turn_id: Uuid, cx: &mut Context<Self>) {
         let Some((session_id, turn_count)) = self.selected_session().and_then(|session| {
             session
