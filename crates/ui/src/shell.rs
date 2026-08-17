@@ -176,11 +176,13 @@ pub enum SettingsSection {
 }
 
 impl SettingsSection {
+    /// Sidebar order: the two surfaces people open settings *for* (how it
+    /// looks, which agents it talks to) lead, then the rest.
     pub const ALL: [SettingsSection; 7] = [
-        SettingsSection::Devices,
+        SettingsSection::Appearance,
         SettingsSection::Harnesses,
         SettingsSection::Agents,
-        SettingsSection::Appearance,
+        SettingsSection::Devices,
         SettingsSection::Notifications,
         SettingsSection::Shortcuts,
         SettingsSection::Archived,
@@ -191,13 +193,60 @@ impl SettingsSection {
     pub fn label(self) -> &'static str {
         match self {
             SettingsSection::Devices => "Devices",
-            SettingsSection::Harnesses => "Agents",
+            SettingsSection::Harnesses => "Providers",
             SettingsSection::Agents => "Accounts",
             SettingsSection::Appearance => "Appearance",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Shortcuts => "Shortcuts",
             SettingsSection::Archived => "Archived sessions",
         }
+    }
+
+    /// Extra terms the settings search matches beyond the label — the words
+    /// people actually reach for ("dark mode", "keyboard", "sound") rather
+    /// than the name we happened to pick for the page.
+    pub fn keywords(self) -> &'static str {
+        match self {
+            SettingsSection::Devices => "devices sync linked machines pairing daemon engine",
+            SettingsSection::Harnesses => {
+                "providers harnesses agents claude codex gemini models cli"
+            }
+            SettingsSection::Agents => {
+                "accounts login sign in auth api keys credentials usage billing"
+            }
+            SettingsSection::Appearance => "appearance theme dark light mode colors font display",
+            SettingsSection::Notifications => "notifications sound chime banners alerts desktop",
+            SettingsSection::Shortcuts => "shortcuts keyboard keys keymap bindings hotkeys",
+            SettingsSection::Archived => "archived sessions history deleted trash restore",
+        }
+    }
+}
+
+/// The sidebar rows a query leaves visible, in display order. `query` must be
+/// trimmed and lowercased; an empty query matches everything.
+///
+/// Every whitespace-separated term has to hit, so "dark mode" narrows to
+/// Appearance even though its haystack spells those words apart.
+pub fn visible_settings_sections(query: &str) -> Vec<SettingsSection> {
+    SettingsSection::ALL
+        .into_iter()
+        .filter(|section| {
+            let haystack = format!("{} {}", section.label().to_lowercase(), section.keywords());
+            query.split_whitespace().all(|term| haystack.contains(term))
+        })
+        .collect()
+}
+
+/// Step a wrapping highlight through `len` rows. `None` when there is nothing
+/// to land on; entering from either end depends on the key.
+pub fn next_settings_row(current: Option<usize>, len: usize, key: &str) -> Option<usize> {
+    if len == 0 {
+        return None;
+    }
+    match key {
+        "down" => Some(current.map_or(0, |i| (i + 1) % len)),
+        "up" => Some(current.map_or(len - 1, |i| (i + len - 1) % len)),
+        _ => None,
     }
 }
 
@@ -812,6 +861,11 @@ pub struct Shell {
     harnesses_page: Option<Entity<HarnessesPage>>,
     shortcuts_sub: Option<Subscription>,
     notifications_sub: Option<Subscription>,
+    /// Settings sidebar filter field, built on first use. `PaletteSearch`
+    /// context, so ↑/↓ stay unbound in the input and bubble to the sidebar's
+    /// key handler while the field keeps focus.
+    settings_search: Option<Entity<ComposerInput>>,
+    settings_search_sub: Option<Subscription>,
     /// Session-row context menu: (chat id, window position).
     chat_menu: popover::Popup<(String, Point<Pixels>)>,
     rename_dialog: Option<RenameChatDialog>,
@@ -1047,6 +1101,8 @@ impl Shell {
             harnesses_page: None,
             shortcuts_sub: None,
             notifications_sub: None,
+            settings_search: None,
+            settings_search_sub: None,
             chat_menu: popover::Popup::default(),
             rename_dialog: None,
             delete_confirm: None,
@@ -2888,9 +2944,66 @@ impl Shell {
         )
     }
 
-    /// Settings-mode sidebar (anastasia settings-sidebar.tsx): window-control
-    /// strip, "Settings" heading, icon section rows styled like session rows,
-    /// and a Back row pinned to the bottom.
+    /// The settings sidebar's filter field, built on first use. `PaletteSearch`
+    /// leaves ↑/↓/⏎ unbound in the input so they bubble to the sidebar.
+    fn ensure_settings_search(&mut self, cx: &mut Context<Self>) -> Entity<ComposerInput> {
+        if self.settings_search.is_none() {
+            let input =
+                cx.new(|cx| ComposerInput::with_context("Search settings…", "PaletteSearch", cx));
+            self.settings_search_sub = Some(cx.subscribe(
+                &input,
+                |_, _, event: &ComposerInputEvent, cx| {
+                    if matches!(event, ComposerInputEvent::Edited) {
+                        cx.notify();
+                    }
+                },
+            ));
+            self.settings_search = Some(input);
+        }
+        self.settings_search.clone().expect("just built")
+    }
+
+    /// Keyboard on the settings sidebar while the filter field holds focus:
+    /// ↑/↓ walk the rows the query left visible (wrapping), Escape clears a
+    /// non-empty query and otherwise falls through to close settings.
+    fn settings_search_key(
+        &mut self,
+        event: &gpui::KeyDownEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Route::Settings(current) = self.route else {
+            return;
+        };
+        let key = event.keystroke.key.as_str();
+        if key == "escape" {
+            let Some(search) = self.settings_search.clone() else {
+                return;
+            };
+            if search.read(cx).is_empty() {
+                cx.propagate();
+                return;
+            }
+            search.update(cx, |input, cx| input.set_text("", cx));
+            cx.notify();
+            return;
+        }
+        let query = self
+            .settings_search
+            .as_ref()
+            .map(|s| s.read(cx).text().trim().to_lowercase())
+            .unwrap_or_default();
+        let visible = visible_settings_sections(&query);
+        let at = visible.iter().position(|s| *s == current);
+        let Some(next) = next_settings_row(at, visible.len(), key) else {
+            return;
+        };
+        self.open_settings(visible[next], cx);
+    }
+
+    /// Settings-mode sidebar (waku settings sidebar): Back row on top, then a
+    /// filter field, then icon section rows styled like session rows. Typing
+    /// narrows the list; ↑/↓ walk what's left without leaving the field.
     fn render_settings_nav(
         &mut self,
         section: SettingsSection,
@@ -2906,6 +3019,10 @@ impl Shell {
             SettingsSection::Shortcuts => icons::KEYBOARD,
             SettingsSection::Archived => icons::ARCHIVE_MINIMALISTIC,
         };
+        let search = self.ensure_settings_search(cx);
+        let query = search.read(cx).text().trim().to_lowercase();
+        let visible = visible_settings_sections(&query);
+        let focus = search.focus_handle(cx);
         // Match the user's dragged sidebar width — the pane container clips to
         // it, so a hardcoded default here left hover washes stopping short of
         // the sidebar's right edge (user-reported). Device identity lives on
@@ -2915,63 +3032,14 @@ impl Shell {
             .h_full()
             .flex()
             .flex_col()
+            // ↑/↓ walk the filtered rows while the field keeps focus; they are
+            // unbound inside a `PaletteSearch` input, so they arrive here.
+            .track_focus(&focus)
+            .on_key_down(cx.listener(Self::settings_search_key))
+            // Back first (waku settings sidebar): the way out of settings sits
+            // where the eye lands, not buried under the last row.
             .child(
-                div()
-                    .flex_1()
-                    .px(px(Theme::SPACE_SM))
-                    .flex()
-                    .flex_col()
-                    .child(
-                        div()
-                            .px(px(Theme::SPACE_SM))
-                            .pt(px(12.0))
-                            .pb(px(4.0))
-                            .text_size(px(11.0))
-                            .font_weight(gpui::FontWeight::MEDIUM)
-                            .text_color(theme.text_muted.opacity(0.6))
-                            .child(SharedString::from("Settings")),
-                    )
-                    .child(div().flex().flex_col().gap(px(2.0)).children(
-                        SettingsSection::ALL.into_iter().map(|item| {
-                            let selected = item == section;
-                            div()
-                                .id(SharedString::from(format!("settings-nav-{}", item.label())))
-                                .flex()
-                                .flex_row()
-                                .items_center()
-                                .gap(px(8.0))
-                                .rounded(px(8.0))
-                                .px(px(Theme::SPACE_SM))
-                                .py(px(6.0))
-                                .text_size(px(13.0))
-                                .when(selected, |el| {
-                                    // Same tokens as the main sidebar's session
-                                    // rows — the two sidebars must feel alike.
-                                    el.bg(crate::theme::glass_selected_bg())
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                })
-                                .text_color(if selected {
-                                    theme.text
-                                } else {
-                                    theme.text_muted
-                                })
-                                .cursor_pointer()
-                                .hover(|s| s.bg(theme.glass_hover()).text_color(theme.text))
-                                .on_click(
-                                    cx.listener(move |this, _, _, cx| this.open_settings(item, cx)),
-                                )
-                                .child(
-                                    icon(section_icon(item))
-                                        .size(px(16.0))
-                                        .text_color(theme.text_muted),
-                                )
-                                .child(SharedString::from(item.label()))
-                        }),
-                    )),
-            )
-            // Back pinned to the bottom (anastasia settings-sidebar.tsx).
-            .child(
-                div().px(px(Theme::SPACE_SM)).pb(px(12.0)).child(
+                div().px(px(Theme::SPACE_SM)).pt(px(8.0)).child(
                     div()
                         .id("settings-back")
                         .flex()
@@ -2995,6 +3063,83 @@ impl Shell {
                         )
                         .child(SharedString::from("Back")),
                 ),
+            )
+            .child(
+                div()
+                    .px(px(Theme::SPACE_SM))
+                    .pt(px(8.0))
+                    .pb(px(10.0))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(6.0))
+                            .px(px(8.0))
+                            .py(px(6.0))
+                            .rounded(px(8.0))
+                            .bg(crate::theme::ink(0.04))
+                            .text_size(px(13.0))
+                            .child(
+                                icon(icons::MAGNIFER)
+                                    .size(px(13.0))
+                                    .text_color(theme.text_faint),
+                            )
+                            .child(div().flex_1().min_w_0().child(search.clone())),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .px(px(Theme::SPACE_SM))
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(2.0))
+                            .children(visible.into_iter().map(|item| {
+                                let selected = item == section;
+                                div()
+                                    .id(SharedString::from(format!(
+                                        "settings-nav-{}",
+                                        item.label()
+                                    )))
+                                    .flex()
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(10.0))
+                                    .rounded(px(8.0))
+                                    .px(px(Theme::SPACE_SM))
+                                    .h(px(36.0))
+                                    .text_size(px(13.0))
+                                    .when(selected, |el| {
+                                        // Same tokens as the main sidebar's session
+                                        // rows — the two sidebars must feel alike.
+                                        el.bg(crate::theme::glass_selected_bg())
+                                            .font_weight(gpui::FontWeight::MEDIUM)
+                                    })
+                                    .text_color(if selected {
+                                        theme.text
+                                    } else {
+                                        theme.text_muted
+                                    })
+                                    .cursor_pointer()
+                                    .hover(|s| s.bg(theme.glass_hover()).text_color(theme.text))
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.open_settings(item, cx)
+                                    }))
+                                    .child(icon(section_icon(item)).size(px(15.0)).text_color(
+                                        if selected {
+                                            theme.text_muted
+                                        } else {
+                                            theme.text_faint
+                                        },
+                                    ))
+                                    .child(SharedString::from(item.label()))
+                            })),
+                    ),
             )
             .into_any_element()
     }
@@ -6440,11 +6585,11 @@ impl Render for Shell {
         let root = match self.splash {
             SplashPhase::Visible => {
                 let theme = Theme::of(cx).clone();
-                root.child(loaders::splash_overlay(&theme, false))
+                root.child(loaders::splash_overlay(&theme, false, cx.entity_id(), cx))
             }
             SplashPhase::FadingOut => {
                 let theme = Theme::of(cx).clone();
-                root.child(loaders::splash_overlay(&theme, true))
+                root.child(loaders::splash_overlay(&theme, true, cx.entity_id(), cx))
             }
             SplashPhase::Gone => root,
         };
@@ -6475,6 +6620,47 @@ impl Render for Shell {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn settings_search_filters_by_label_and_keywords() {
+        // Empty query shows every row, in sidebar order.
+        assert_eq!(visible_settings_sections(""), SettingsSection::ALL.to_vec());
+        // Label match.
+        assert_eq!(
+            visible_settings_sections("short"),
+            vec![SettingsSection::Shortcuts]
+        );
+        // Keyword match — the word people reach for, not the page name.
+        assert_eq!(
+            visible_settings_sections("dark mode"),
+            vec![SettingsSection::Appearance]
+        );
+        assert_eq!(
+            visible_settings_sections("keyboard"),
+            vec![SettingsSection::Shortcuts]
+        );
+        assert_eq!(
+            visible_settings_sections("chime"),
+            vec![SettingsSection::Notifications]
+        );
+        // A query nothing matches empties the list (and `next_settings_row`
+        // then has nowhere to go — see below).
+        assert!(visible_settings_sections("zzzz").is_empty());
+    }
+
+    #[test]
+    fn settings_rows_step_with_wraparound() {
+        // Fresh entry lands at the near end for the key's direction.
+        assert_eq!(next_settings_row(None, 3, "down"), Some(0));
+        assert_eq!(next_settings_row(None, 3, "up"), Some(2));
+        // …then walks and wraps at both ends.
+        assert_eq!(next_settings_row(Some(0), 3, "down"), Some(1));
+        assert_eq!(next_settings_row(Some(2), 3, "down"), Some(0));
+        assert_eq!(next_settings_row(Some(0), 3, "up"), Some(2));
+        // Nothing to land on, or a key that isn't navigation: no move.
+        assert_eq!(next_settings_row(None, 0, "down"), None);
+        assert_eq!(next_settings_row(Some(0), 3, "left"), None);
+    }
 
     #[tokio::test]
     async fn remote_shutdown_waits_for_ipc_release() {

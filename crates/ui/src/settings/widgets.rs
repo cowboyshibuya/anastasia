@@ -7,11 +7,12 @@ use gpui::{AnyElement, SharedString, div, prelude::*, px};
 
 use crate::theme::{Theme, ink};
 
-/// Centered page column: `mx-auto w-full max-w-3xl px-6 pb-16 pt-8`.
+/// Centered page column: `mx-auto w-full max-w-[760px] px-6 pb-16 pt-8` — the
+/// waku settings measure, a hair under the 3xl the cards were drawn at.
 pub fn page_column() -> gpui::Div {
     div()
         .w_full()
-        .max_w(px(768.0))
+        .max_w(px(760.0))
         .mx_auto()
         .px(px(24.0))
         .pt(px(32.0))
@@ -20,8 +21,8 @@ pub fn page_column() -> gpui::Div {
         .flex_col()
 }
 
-/// Page headline row: `flex items-baseline gap-2.5` — `text-base font-semibold`
-/// title + `text-[13px]` count sharing a baseline (anastasia settings.devices.tsx).
+/// Page headline row: `flex items-baseline gap-2.5` — an 18px medium title
+/// (the waku settings page title) + `text-[13px]` count sharing a baseline.
 pub fn page_header(theme: &Theme, title: &str, count: Option<usize>) -> gpui::Div {
     div()
         .flex()
@@ -30,8 +31,8 @@ pub fn page_header(theme: &Theme, title: &str, count: Option<usize>) -> gpui::Di
         .gap(px(10.0))
         .child(
             div()
-                .text_size(px(16.0))
-                .font_weight(gpui::FontWeight::SEMIBOLD)
+                .text_size(px(18.0))
+                .font_weight(gpui::FontWeight::MEDIUM)
                 .text_color(theme.text)
                 .child(SharedString::from(title.to_string())),
         )

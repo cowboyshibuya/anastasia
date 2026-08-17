@@ -43,34 +43,33 @@ actions!(composer, [TogglePlanMode]);
 // Constants + pure decision logic
 // ---------------------------------------------------------------------------
 
-/// Expanded-mode textarea vertical padding: `pt-4 pb-1` (anastasia composer.tsx
-/// line 578) = 16 + 4.
-pub const TEXTAREA_PAD_V: f32 = 20.0;
+/// Expanded-mode textarea vertical padding: `pt-5 pb-1` = 20 + 4. The roomier
+/// top pad is what gives the card its airy feel.
+pub const TEXTAREA_PAD_V: f32 = 24.0;
 /// The expanded textarea BOX (content + padding) is clamped by the original's
 /// auto-grow effect: `ta.style.height = Math.min(Math.max(scrollHeight, 76),
 /// 260)` (anastasia composer.tsx line 235). The 76px floor applies even when
 /// empty — it's what makes the always-expanded new-chat composer tall.
 pub const TEXTAREA_MIN: f32 = 76.0;
 pub const TEXTAREA_MAX: f32 = 260.0;
-/// Expanded actions row: `pt-1` (4) + h-8 picker chips (32 — the tallest
-/// children; composer/styles.tsx pickerChip) + `pb-2.5` (10) — anastasia
-/// composer-actions.tsx line 60.
-pub const ACTIONS_ROW_HEIGHT: f32 = 46.0;
-/// The pill's 1px hairline, top + bottom (`rounded-[26px] border`).
+/// Expanded actions row: `pt-1.5` (6) + h-8 picker chips (32 — the tallest
+/// children; composer/styles.tsx pickerChip) + `pb-3` (12).
+pub const ACTIONS_ROW_HEIGHT: f32 = 50.0;
+/// The pill's 1px hairline, top + bottom (`rounded-[28px] border`).
 pub const PILL_BORDER_V: f32 = 2.0;
-/// Expanded composer bounds, border-box: 76 + 46 + 2 = 124 when empty (the
-/// new-chat canvas), 260 + 46 + 2 = 308 at the content cap.
+/// Expanded composer bounds, border-box: 76 + 50 + 2 = 128 when empty (the
+/// new-chat canvas), 260 + 50 + 2 = 312 at the content cap.
 pub const COMPOSER_MIN_HEIGHT: f32 = TEXTAREA_MIN + ACTIONS_ROW_HEIGHT + PILL_BORDER_V;
 pub const COMPOSER_MAX_HEIGHT: f32 = TEXTAREA_MAX + ACTIONS_ROW_HEIGHT + PILL_BORDER_V;
-/// Compact pill, border-box: one-line textarea `py-3` (24) + one 22.75px line
-/// (scrollHeight rounds to 47 in the original) + the 2px hairline = 49. The
-/// compact cluster (`py-1.5` + h-8 = 44) is shorter, so the textarea wins.
-pub const COMPACT_TOTAL_HEIGHT: f32 = 49.0;
+/// Compact pill, border-box: one-line textarea `py-3` (24) + one 24px line +
+/// the 2px hairline = 50. The compact cluster (`py-1.5` + h-8 = 44) is
+/// shorter, so the textarea wins.
+pub const COMPACT_TOTAL_HEIGHT: f32 = 50.0;
 /// Below this pill input width the composer always expands.
 pub const MIN_COMPACT_INPUT_WIDTH: f32 = 200.0;
-/// Input text metrics: `text-[14px] leading-relaxed` = 14 × 1.625 = 22.75.
-pub const INPUT_LINE_HEIGHT: f32 = 22.75;
-pub const INPUT_TEXT_SIZE: f32 = 14.0;
+/// Input text metrics: `text-[15px] leading-relaxed` = 15 × 1.6 = 24.
+pub const INPUT_LINE_HEIGHT: f32 = 24.0;
+pub const INPUT_TEXT_SIZE: f32 = 15.0;
 /// Single-select questions auto-advance after this long.
 pub const AUTO_ADVANCE_MS: u64 = 220;
 /// Drag-selection autoscroll runs at the display-friendly 60fps cadence.
@@ -296,19 +295,19 @@ pub fn morph_cluster_inset(expanded: bool, progress: f32) -> f32 {
 }
 
 /// Expanded text top padding across the morph: starts at the compact resting
-/// inset (12 ≈ `py-3`) and eases to `pt-4` (16) — the first line glides with
+/// inset (12 ≈ `py-3`) and eases to `pt-5` (20) — the first line glides with
 /// the rising top edge instead of jumping at the commit.
 pub fn morph_text_pad(progress: f32) -> f32 {
-    motion::lerp(12.0, 16.0, progress)
+    motion::lerp(12.0, TEXTAREA_PAD_V - 4.0, progress)
 }
 
 /// Collapse-morph text glide: the committed compact row is bottom-anchored
-/// (text resting top = 36px above the pill's outer bottom: 49 − 1 hairline −
-/// 12 centering inset), while at the commit instant the text sat 17px below
-/// the expanded pill's top (1 hairline + 16 `pt-4`) — i.e. `from − 17` above
+/// (text resting top = 37px above the pill's outer bottom: 50 − 1 hairline −
+/// 12 centering inset), while at the commit instant the text sat 21px below
+/// the expanded pill's top (1 hairline + 20 `pt-5`) — i.e. `from − 21` above
 /// the bottom. The decaying relative offset walks it down smoothly.
 pub fn collapse_text_glide(from: f32, progress: f32) -> f32 {
-    (from - 53.0).max(0.0) * (1.0 - progress)
+    (from - 58.0).max(0.0) * (1.0 - progress)
 }
 
 /// The decaying [`CLUSTER_Y_DELTA`] offset for the in-flight morph.
@@ -4938,7 +4937,7 @@ impl Composer {
     // ---- render pieces ----
 
     /// The agent-asked-a-question panel (anastasia question-panel.tsx), rendered in
-    /// place of the composer: the same floating-pill chrome (`rounded-[26px]
+    /// place of the composer: the same floating-pill chrome (`rounded-[28px]
     /// border-white/[0.08] bg-white/[0.03] shadow-xl`), uppercase header +
     /// "1/3" counter chip, option rows with number kbd chips, a free-text
     /// override over a hairline, and Back / Next-Submit footer.
@@ -5033,7 +5032,7 @@ impl Composer {
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 this.on_wizard_key(event, window, cx)
             }))
-            .rounded(px(26.0))
+            .rounded(px(28.0))
             .border_1()
             .border_color(theme.border)
             .bg(theme.input_glass_bg())
@@ -5480,7 +5479,7 @@ impl Render for Composer {
         // the input inside the pill in both modes.
         let strip = self.render_attachment_strip(&theme, cx);
 
-        // The pill chrome (anastasia composer.tsx): `rounded-[26px] border
+        // The pill chrome (anastasia composer.tsx): `rounded-[28px] border
         // border-white/[0.08] bg-white/[0.03] shadow-xl` — a floating pill with
         // a hairline over a faint wash, never a solid grey box. Picker chips,
         // attach, and the send circle all live INSIDE the pill.
@@ -5489,7 +5488,7 @@ impl Render for Composer {
         // shows through as an inner glow (theme.rs's card_selected_shadows
         // lesson; user report).
         let pill = div()
-            .rounded(px(26.0))
+            .rounded(px(28.0))
             .bg(pill_bg)
             .border_1()
             .border_color(theme.border)
@@ -5502,7 +5501,7 @@ impl Render for Composer {
         let cluster_dy = morph_cluster_dy(morph_t);
         let body = if expanded {
             // Expanded: textarea on top (`px-4 pb-1 pt-4`), actions row
-            // (`px-3 pb-2.5 pt-1`, h-8 chips → 46px) ABSOLUTE at the pill's
+            // (`px-3 pb-3 pt-1.5`, h-8 chips → 50px) ABSOLUTE at the pill's
             // stationary bottom — constant screen-y through the morph, with
             // the 2.5px compact↔expanded centering delta gliding out. The
             // text container is laid out at TARGET size (committed layout
@@ -5544,14 +5543,14 @@ impl Render for Composer {
                         .gap(px(4.0))
                         .pl(px(12.0))
                         .pr(px(morph_cluster_inset(true, morph_t)))
-                        .pt(px(4.0))
-                        .pb(px(10.0))
+                        .pt(px(6.0))
+                        .pb(px(12.0))
                         .child(div().flex_1().min_w_0().child(self.pickers.clone()))
                         .child(attach)
                         .child(send_button),
                 )
         } else {
-            // Compact pill: input and the actions cluster on one 47px line
+            // Compact pill: input and the actions cluster on one 48px line
             // (`py-3 pl-4 pr-2` textarea, `gap-2 py-1.5 pl-1 pr-2` cluster;
             // the 22.75px line centers to the same 12px inset as `py-3`).
             // The row is BOTTOM-justified: during the collapse morph the pill
@@ -5612,7 +5611,7 @@ impl Render for Composer {
         // Frosted: the pill backdrop-blurs the transcript scrolling under it
         // (the popover glass treatment; radius matches the pill's rounding).
         let container = container.child(crate::frost::frosted(
-            26.0,
+            28.0,
             16.0,
             motion::fade_quick("composer-input", body),
         ));
@@ -6001,9 +6000,9 @@ mod tests {
     #[test]
     fn auto_grow_math() {
         // The source heights (anastasia composer.tsx line 235 clamp, composer-
-        // actions.tsx row, 1px hairlines): 76+46+2 empty … 260+46+2 capped.
-        assert_eq!(COMPOSER_MIN_HEIGHT, 124.0);
-        assert_eq!(COMPOSER_MAX_HEIGHT, 308.0);
+        // actions.tsx row, 1px hairlines): 76+50+2 empty … 260+50+2 capped.
+        assert_eq!(COMPOSER_MIN_HEIGHT, 128.0);
+        assert_eq!(COMPOSER_MAX_HEIGHT, 312.0);
         // One line sits at the floor: the textarea BOX (content + `pt-4 pb-1`)
         // clamps UP to 76 exactly like `Math.max(scrollHeight, 76)` — this is
         // what makes the always-expanded new-chat composer 124px tall.
@@ -6181,20 +6180,20 @@ mod tests {
     fn morph_anchoring_holds_controls_and_glides_text() {
         // Steady state (progress 1): no offsets, everything at rest.
         assert_eq!(morph_cluster_dy(1.0), 0.0);
-        assert_eq!(morph_text_pad(1.0), 16.0);
-        assert_eq!(collapse_text_glide(124.0, 1.0), 0.0);
+        assert_eq!(morph_text_pad(1.0), 20.0);
+        assert_eq!(collapse_text_glide(COMPOSER_MIN_HEIGHT, 1.0), 0.0);
         // At the commit instant the pieces start from the OLD mode's resting
         // geometry: text pad at the compact 12px inset, cluster displaced by
         // exactly the 2.5px centering delta.
         assert_eq!(morph_text_pad(0.0), 12.0);
         assert_eq!(morph_cluster_dy(0.0), CLUSTER_Y_DELTA);
-        // Collapse glide: starts where the expanded text sat (17px below the
-        // committed pill top → `from − 53` above the compact resting spot)…
-        assert_eq!(collapse_text_glide(124.0, 0.0), 71.0);
+        // Collapse glide: starts where the expanded text sat (21px below the
+        // committed pill top → `from − 58` above the compact resting spot)…
+        assert_eq!(collapse_text_glide(COMPOSER_MIN_HEIGHT, 0.0), 70.0);
         // …decays monotonically to zero…
-        let mut prev = collapse_text_glide(124.0, 0.0);
+        let mut prev = collapse_text_glide(COMPOSER_MIN_HEIGHT, 0.0);
         for step in 1..=10 {
-            let g = collapse_text_glide(124.0, step as f32 / 10.0);
+            let g = collapse_text_glide(COMPOSER_MIN_HEIGHT, step as f32 / 10.0);
             assert!(g <= prev, "glide regressed at {step}");
             prev = g;
         }

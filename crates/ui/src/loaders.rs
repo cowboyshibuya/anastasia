@@ -188,7 +188,7 @@ pub fn mini_gradient_spinner(
 /// (`h-16`) over the app background with an uppercase tracked "Loading" line.
 /// While `fading` it plays `splash-out` (150ms hold, then 0.5s fade + 6px
 /// lift); the shell removes it once [`SPLASH_OUT`] has run its course.
-pub fn splash_overlay(theme: &Theme, fading: bool) -> AnyElement {
+pub fn splash_overlay(theme: &Theme, fading: bool, view: EntityId, cx: &mut App) -> AnyElement {
     let content = div()
         .absolute()
         .inset_0()
@@ -202,7 +202,7 @@ pub fn splash_overlay(theme: &Theme, fading: bool) -> AnyElement {
         .items_center()
         .justify_center()
         .gap(px(28.0))
-        .child(hero_ascii(theme))
+        .child(hero_dots(theme, view, cx))
         .child(loading_word(theme));
     if fading {
         motion::splash_out("boot-splash-out", content).into_any_element()
@@ -211,51 +211,76 @@ pub fn splash_overlay(theme: &Theme, fading: bool) -> AnyElement {
     }
 }
 
-/// The landing page's hero comet, monochrome (user request: white instead of
-/// the site's purple gradient). One div per row — gpui has no `white-space:
-/// pre`, and the art's leading/interior spaces carry the shading.
+/// Grid pitch and dot geometry for [`hero_dots`]. The pitch sets the mark's
+/// footprint (46 × 8 ≈ 368px square) — comfortably inside a narrow window.
+const DOT_PITCH: f32 = 8.0;
+/// The largest a dot grows, as a fraction of the pitch. Below 1.0 so even
+/// solid cells keep the gaps that make the field read as a halftone.
+const DOT_MAX: f32 = 0.72;
+/// Fraction of the pulse cycle the light sweep occupies as it crosses the
+/// grid's diagonal — the same idea as [`MARK_SPREAD`], on both axes.
+const SWEEP_SPREAD: f32 = 0.55;
+/// Rest opacity of a solid cell; the sweep lifts it to full.
+const DOT_DIM: f32 = 0.28;
+
+/// The Anastasia mark as a halftone dot field, with a light sweep crossing it
+/// on the diagonal.
 ///
-/// The site masks the rectangle behind a radial gradient; here the same
-/// softening comes from an [`crate::edge_fade`] scope on all four edges, so
-/// the block dissolves into the frost instead of ending on a hard edge.
-fn hero_ascii(theme: &Theme) -> AnyElement {
-    /// Glyph cell: the site runs 7.6px/1.25; a hair smaller keeps the 110-col
-    /// art inside a narrow window.
-    const FONT: f32 = 7.0;
-    const LINE: f32 = 8.75;
+/// The grid comes from `assets/hero-dots.txt` (see `scripts/halftone.py`):
+/// one digit per cell, `0`–`9`, sampled from the logo's ink coverage. Cell
+/// density drives BOTH dot diameter and opacity, so the glyph's edges fade
+/// into the surrounding field instead of ending on a staircase — and the dim
+/// background cells stay visible as the field the mark sits in.
+///
+/// `crate::edge_fade` on all four edges dissolves the block into the frost,
+/// standing in for the radial mask the landing page uses.
+///
+/// ponytail: 46×46 = 2116 elements, rebuilt each frame at the 60ms pulse tick.
+/// That is fine for a boot overlay; halve the grid in `halftone.py` if it ever
+/// shows up in a frame budget.
+fn hero_dots(theme: &Theme, view: EntityId, cx: &mut App) -> AnyElement {
     const FADE_BAND: f32 = 72.0;
+    let color = theme.text;
+    let delta = motion::pulse_delta(&ANASTASIA_PULSE, view, cx);
+    let rows: Vec<&str> = HERO_DOTS.lines().collect();
+    let span = (rows.len() + rows.first().map_or(0, |r| r.len())) as f32;
     let art = div()
         .flex()
         .flex_col()
-        .font_family(theme.font_mono.clone())
-        // Ligatures OFF, like the terminal grid and the landing page's own
-        // `.hero-ascii` rule: the art is a character grid full of `--`/`::`
-        // runs, and a contextual substitution would collapse cells and bend
-        // the picture (the `codex --yolo` bug, in still life).
-        .font_features(gpui::FontFeatures(std::sync::Arc::new(vec![
-            ("liga".into(), 0),
-            ("calt".into(), 0),
-            ("dlig".into(), 0),
-        ])))
-        .text_size(px(FONT))
-        .line_height(px(LINE))
-        // `theme.text` IS near-white on dark; on light it flips to the ink
-        // tone rather than painting an invisible white block.
-        .text_color(theme.text.opacity(0.55))
-        .children(
-            HERO_ASCII
-                .lines()
-                .map(|line| div().child(SharedString::from(line.to_string()))),
-        );
+        .children(rows.iter().enumerate().map(|(y, line)| {
+            div()
+                .flex()
+                .flex_row()
+                .children(line.bytes().enumerate().map(move |(x, cell)| {
+                    // Ink coverage, 0.0..=1.0.
+                    let ink = f32::from(cell.saturating_sub(b'0').min(9)) / 9.0;
+                    // The sweep leads at the top-left corner and trails at the
+                    // bottom-right, so the light crosses the mark diagonally.
+                    let phase = (x + y) as f32 / span * SWEEP_SPREAD;
+                    let dot = DOT_PITCH * DOT_MAX * ink;
+                    div()
+                        .size(px(DOT_PITCH))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            div()
+                                .size(px(dot))
+                                .rounded(px(dot / 2.0))
+                                .bg(color)
+                                .opacity(ink * motion::gspin_opacity(delta + phase, DOT_DIM)),
+                        )
+                }))
+        }));
     crate::edge_fade::edge_faded(FADE_BAND, true, true, art)
         .fade_left(true)
         .fade_right(true)
         .into_any_element()
 }
 
-/// The landing page's hero comet (apps/landing/public/index.html
-/// `.hero-ascii`), kept as an asset so both surfaces render the same art.
-const HERO_ASCII: &str = include_str!("../assets/hero.txt");
+/// The Anastasia mark's halftone grid, generated by `scripts/halftone.py` from
+/// `anastasia-logo-rounded.png`. Regenerate it whenever the logo changes.
+const HERO_DOTS: &str = include_str!("../assets/hero-dots.txt");
 
 /// "L O A D I N G" — `text-[11px] uppercase tracking-[0.32em]
 /// text-muted-foreground/70`; tracking approximated with thin spaces (gpui has
