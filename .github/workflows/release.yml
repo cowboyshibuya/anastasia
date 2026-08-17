@@ -2,8 +2,16 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+    paths-ignore:
+      - "website/**"
+      - "docs/**"
+      - "*.md"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,21 +24,60 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  plan-release:
+    name: Plan release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Calculate release version
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          else
+            LATEST_TAG=$(gh release view --json tagName --jq .tagName 2>/dev/null || git tag -l "v*" --sort=-v:refname | head -1 || true)
+            CARGO_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+            VERSION=$(bun scripts/next-release-version.ts "$LATEST_TAG" "$CARGO_VERSION")
+            TAG="v$VERSION"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Calculated release: $TAG (version: $VERSION)"
+
   linux-x86_64:
     name: Linux x86_64
+    needs: plan-release
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
 
-      - name: Check tag matches Cargo.toml
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Sync version
+        env:
+          RELEASE_VERSION: ${{ needs.plan-release.outputs.version }}
         run: |
-          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          tag="${GITHUB_REF_NAME#v}"
-          if [ "$tag" != "$version" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${version}"
-            exit 1
-          fi
+          bun -e '
+            import { readFile, writeFile } from "node:fs/promises";
+            const version = process.env.RELEASE_VERSION;
+            let content = await readFile("Cargo.toml", "utf8");
+            content = content.replace(/^version = ".*"/m, `version = "${version}"`);
+            await writeFile("Cargo.toml", content, "utf8");
+          '
 
       - name: Install Rust
         run: |
@@ -72,19 +119,25 @@ jobs:
 
   linux-arm64:
     name: Linux arm64
+    needs: plan-release
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
 
-      - name: Check tag matches Cargo.toml
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Sync version
+        env:
+          RELEASE_VERSION: ${{ needs.plan-release.outputs.version }}
         run: |
-          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          tag="${GITHUB_REF_NAME#v}"
-          if [ "$tag" != "$version" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${version}"
-            exit 1
-          fi
+          bun -e '
+            import { readFile, writeFile } from "node:fs/promises";
+            const version = process.env.RELEASE_VERSION;
+            let content = await readFile("Cargo.toml", "utf8");
+            content = content.replace(/^version = ".*"/m, `version = "${version}"`);
+            await writeFile("Cargo.toml", content, "utf8");
+          '
 
       - name: Install Rust
         run: |
@@ -126,26 +179,30 @@ jobs:
 
   macos:
     name: macOS
+    needs: plan-release
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
 
-      - name: Check tag matches Cargo.toml
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Sync version
+        env:
+          RELEASE_VERSION: ${{ needs.plan-release.outputs.version }}
         run: |
-          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          tag="${GITHUB_REF_NAME#v}"
-          if [ "$tag" != "$version" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${version}"
-            exit 1
-          fi
+          bun -e '
+            import { readFile, writeFile } from "node:fs/promises";
+            const version = process.env.RELEASE_VERSION;
+            let content = await readFile("Cargo.toml", "utf8");
+            content = content.replace(/^version = ".*"/m, `version = "${version}"`);
+            await writeFile("Cargo.toml", content, "utf8");
+          '
 
       - name: Install Rust
         run: |
           rustup toolchain install 1.96.0 --profile minimal
           rustup default 1.96.0
-
-      - uses: oven-sh/setup-bun@v2
 
       - name: Install create-dmg
         run: brew install create-dmg
@@ -213,6 +270,7 @@ jobs:
           # resources/Info.plist; without this the archive ships unsigned and
           # every installed build refuses the update.
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GITHUB_REF_NAME: ${{ needs.plan-release.outputs.tag }}
         # ANASTASIA_SIGNING_IDENTITY comes from the certificate import above.
         run: bun run release --local
 
@@ -226,9 +284,9 @@ jobs:
             dist/appcast.xml
           if-no-files-found: error
 
-  draft-release:
-    name: Draft GitHub release
-    needs: [linux-x86_64, linux-arm64, macos]
+  publish-release:
+    name: Publish GitHub release
+    needs: [plan-release, linux-x86_64, linux-arm64, macos]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -244,24 +302,37 @@ jobs:
           merge-multiple: true
 
       - name: Write release notes
+        env:
+          RELEASE_VERSION: ${{ needs.plan-release.outputs.version }}
         run: |
           bun -e '
             import { extractReleaseNotes } from "./scripts/changelog.ts";
-            const version = process.env.GITHUB_REF_NAME.replace(/^v/i, "");
+            const version = process.env.RELEASE_VERSION;
             const file = Bun.file("CHANGELOG.md");
             const notes = (await file.exists())
               ? extractReleaseNotes(await file.text(), version)
               : null;
             await Bun.write(
               "release-notes.md",
-              `${notes ?? "See CHANGELOG.md for details."}\n`,
+              `${notes ?? `Automated release ${process.env.RELEASE_VERSION}. See CHANGELOG.md for details.`}\n`,
             );
           '
 
+      - name: Ensure git tag exists
+        env:
+          TAG: ${{ needs.plan-release.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "$TAG"
+          git push origin -f "$TAG"
+
       - uses: softprops/action-gh-release@v2
         with:
-          draft: true
-          name: ${{ github.ref_name }}
+          draft: false
+          make_latest: true
+          name: ${{ needs.plan-release.outputs.tag }}
+          tag_name: ${{ needs.plan-release.outputs.tag }}
           body_path: release-notes.md
           fail_on_unmatched_files: true
           # appcast.xml is the update feed itself: installed builds fetch it
