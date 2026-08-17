@@ -251,6 +251,127 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "anastasia"
+version = "0.3.1"
+dependencies = [
+ "alacritty_terminal",
+ "anastasia-client",
+ "anastasia-protocol",
+ "anyhow",
+ "base64",
+ "block2 0.6.2",
+ "chrono",
+ "crossbeam-channel",
+ "dirs",
+ "futures",
+ "futures-lite",
+ "gpui",
+ "gpui_platform",
+ "image",
+ "libc",
+ "nucleo-matcher",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-graphics",
+ "objc2-foundation 0.3.2",
+ "objc2-quartz-core 0.3.2",
+ "objc2-user-notifications",
+ "objc2-web-kit",
+ "parking_lot",
+ "pulldown-cmark",
+ "raw-window-handle",
+ "regex",
+ "ropey",
+ "rquickjs",
+ "rust-i18n",
+ "rust-umami",
+ "serde",
+ "serde_json",
+ "smol",
+ "tokio",
+ "unicode-segmentation",
+ "url",
+ "uuid",
+ "wry",
+]
+
+[[package]]
+name = "anastasia-client"
+version = "0.1.0"
+dependencies = [
+ "anastasia-protocol",
+ "anyhow",
+ "crossbeam-channel",
+ "dirs",
+ "libc",
+ "nucleo-matcher",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "smol",
+ "tungstenite",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-core"
+version = "0.1.0"
+dependencies = [
+ "agent-client-protocol",
+ "alacritty_terminal",
+ "anastasia-client",
+ "anastasia-protocol",
+ "anyhow",
+ "base64",
+ "chrono",
+ "crossbeam-channel",
+ "dirs",
+ "libc",
+ "nucleo-matcher",
+ "objc2-foundation 0.3.2",
+ "parking_lot",
+ "rusqlite",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "smol",
+ "subtle",
+ "toml 0.8.23",
+ "trash",
+ "tungstenite",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "anastasia-daemon"
+version = "0.1.0"
+dependencies = [
+ "anastasia-core",
+ "anastasia-protocol",
+ "anyhow",
+ "libc",
+ "serde_json",
+]
+
+[[package]]
+name = "anastasia-protocol"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "chrono",
+ "dirs",
+ "objc2-foundation 0.3.2",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "ts-rs",
+ "uuid",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8169,127 +8290,6 @@ name = "waker-fn"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "317211a0dc0ceedd78fb2ca9a44aed3d7b9b26f81870d485c07122b4350673b7"
-
-[[package]]
-name = "waku"
-version = "0.3.1"
-dependencies = [
- "alacritty_terminal",
- "anyhow",
- "base64",
- "block2 0.6.2",
- "chrono",
- "crossbeam-channel",
- "dirs",
- "futures",
- "futures-lite",
- "gpui",
- "gpui_platform",
- "image",
- "libc",
- "nucleo-matcher",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
- "objc2-quartz-core 0.3.2",
- "objc2-user-notifications",
- "objc2-web-kit",
- "parking_lot",
- "pulldown-cmark",
- "raw-window-handle",
- "regex",
- "ropey",
- "rquickjs",
- "rust-i18n",
- "rust-umami",
- "serde",
- "serde_json",
- "smol",
- "tokio",
- "unicode-segmentation",
- "url",
- "uuid",
- "waku-client",
- "waku-protocol",
- "wry",
-]
-
-[[package]]
-name = "waku-client"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossbeam-channel",
- "dirs",
- "libc",
- "nucleo-matcher",
- "parking_lot",
- "serde",
- "serde_json",
- "smol",
- "tungstenite",
- "url",
- "uuid",
- "waku-protocol",
-]
-
-[[package]]
-name = "waku-core"
-version = "0.1.0"
-dependencies = [
- "agent-client-protocol",
- "alacritty_terminal",
- "anyhow",
- "base64",
- "chrono",
- "crossbeam-channel",
- "dirs",
- "libc",
- "nucleo-matcher",
- "objc2-foundation 0.3.2",
- "parking_lot",
- "rusqlite",
- "rust-i18n",
- "serde",
- "serde_json",
- "smol",
- "subtle",
- "toml 0.8.23",
- "trash",
- "tungstenite",
- "url",
- "uuid",
- "waku-client",
- "waku-protocol",
-]
-
-[[package]]
-name = "waku-daemon"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "libc",
- "serde_json",
- "waku-core",
- "waku-protocol",
-]
-
-[[package]]
-name = "waku-protocol"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64",
- "chrono",
- "dirs",
- "objc2-foundation 0.3.2",
- "rust-i18n",
- "serde",
- "serde_json",
- "ts-rs",
- "uuid",
-]
 
 [[package]]
 name = "walkdir"

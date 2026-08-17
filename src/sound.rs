@@ -151,7 +151,7 @@ fn run_checked(program: &str, args: &[&str], path: &Path) -> Result<(), String> 
 // Transition mapping (pure)
 // ---------------------------------------------------------------------------
 
-use waku_protocol::model::SessionStatus;
+use anastasia_protocol::model::SessionStatus;
 
 /// Which chime, if any, a session-status transition deserves.
 ///

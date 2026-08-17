@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use uuid::Uuid;
-use waku_protocol::model::SessionStatus;
+use anastasia_protocol::model::SessionStatus;
 
 use super::*;
 

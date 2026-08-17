@@ -10,10 +10,10 @@ const appName = "Anastasia Debug";
 const targetDir = resolve(root, process.env.CARGO_TARGET_DIR || "target");
 const appPath = isMacOS
   ? join(targetDir, "debug/Anastasia Debug.app")
-  : join(targetDir, "debug/waku");
+  : join(targetDir, "debug/anastasia");
 const daemonPath = join(
   targetDir,
-  `debug/waku-debug-daemon${process.platform === "win32" ? ".exe" : ""}`,
+  `debug/anastasia-debug-daemon${process.platform === "win32" ? ".exe" : ""}`,
 );
 const watchedDirectories = ["src", "crates", "assets", "resources", "locales"];
 const watchedFiles = ["Cargo.toml", "Cargo.lock", "build.rs"];
@@ -44,7 +44,7 @@ async function build(target: BuildTarget): Promise<boolean> {
   }
   const result = isMacOS
     ? await $`${join(root, "scripts/bundle.sh")} debug`.nothrow()
-    : await $`cargo build --package waku --bin waku --bin waku_js_repl`.nothrow();
+    : await $`cargo build --package anastasia --bin anastasia --bin anastasia_js_repl`.nothrow();
   if (result.exitCode !== 0) {
     console.error("[anastasia-dev] Build failed; keeping the current app open.");
     return false;
@@ -55,7 +55,7 @@ async function build(target: BuildTarget): Promise<boolean> {
 async function buildDaemon(): Promise<boolean> {
   console.log("[anastasia-dev] Building daemon...");
   const result =
-    await $`cargo build --package waku-daemon --features dev-binary --bin waku-debug-daemon`.nothrow();
+    await $`cargo build --package anastasia-daemon --features dev-binary --bin anastasia-debug-daemon`.nothrow();
   if (result.exitCode !== 0) {
     console.error("[anastasia-dev] Daemon build failed; keeping the current daemon running.");
     return false;
@@ -124,8 +124,8 @@ function targetForChange(directory: string, filename: string | Buffer | null): B
   if (directory !== "crates" || filename === null) return "app";
   const relativePath = filename.toString().replaceAll("\\", "/");
   if (
-    relativePath.startsWith("waku-daemon/") ||
-    relativePath.startsWith("waku-core/")
+    relativePath.startsWith("anastasia-daemon/") ||
+    relativePath.startsWith("anastasia-core/")
   ) {
     return "daemon";
   }

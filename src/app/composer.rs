@@ -1864,9 +1864,9 @@ impl Waku {
                         let response = daemon.client().request(
                             Uuid::nil(),
                             Uuid::nil(),
-                            waku_client::Command::ImportAttachment { name, upload },
+                            anastasia_client::Command::ImportAttachment { name, upload },
                         )?;
-                        let waku_client::ResponsePayload::AttachmentStored { attachment } =
+                        let anastasia_client::ResponsePayload::AttachmentStored { attachment } =
                             response
                         else {
                             anyhow::bail!("the daemon returned an invalid attachment response");
@@ -1980,13 +1980,13 @@ impl Waku {
                                 .request(
                                     Uuid::nil(),
                                     Uuid::nil(),
-                                    waku_client::Command::StoreBlob {
+                                    anastasia_client::Command::StoreBlob {
                                         mime_type: preview_image.format.mime_type().to_owned(),
                                         bytes,
                                     },
                                 )
                                 .map_err(|error| error.to_string())?;
-                            let waku_client::ResponsePayload::BlobStored { reference, path } =
+                            let anastasia_client::ResponsePayload::BlobStored { reference, path } =
                                 response
                             else {
                                 return Err("the daemon returned an invalid blob response".into());
@@ -3355,7 +3355,7 @@ pub(super) fn visible_branch_entries(
 // Base64 keeps the authenticated JSON transport browser-compatible but adds
 // one third of wire overhead. Stay comfortably below tungstenite's default
 // message limit until uploads move to a streaming content endpoint.
-const MAX_ATTACHMENT_BYTES: u64 = waku_client::attachments::MAX_ATTACHMENT_BYTES as u64;
+const MAX_ATTACHMENT_BYTES: u64 = anastasia_client::attachments::MAX_ATTACHMENT_BYTES as u64;
 
 /// Reads a client-local drop into an upload payload. This is the explicit
 /// client/daemon boundary: none of these source paths are persisted or handed
@@ -3364,7 +3364,7 @@ fn attachment_upload_from_path(
     source: &Path,
 ) -> anyhow::Result<(
     String,
-    waku_client::attachments::AttachmentUpload,
+    anastasia_client::attachments::AttachmentUpload,
     Option<Vec<u8>>,
 )> {
     let metadata = std::fs::symlink_metadata(source)
@@ -3390,7 +3390,7 @@ fn attachment_upload_from_path(
         let is_image = is_image_attachment_path(source);
         return Ok((
             name,
-            waku_client::attachments::AttachmentUpload::File {
+            anastasia_client::attachments::AttachmentUpload::File {
                 data_base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
             },
             is_image.then_some(bytes),
@@ -3426,10 +3426,10 @@ fn attachment_upload_from_path(
             if !metadata.is_file() {
                 continue;
             }
-            if entries.len() >= waku_client::attachments::MAX_ATTACHMENT_FILES {
+            if entries.len() >= anastasia_client::attachments::MAX_ATTACHMENT_FILES {
                 anyhow::bail!(
                     "attachment directory contains more than {} files",
-                    waku_client::attachments::MAX_ATTACHMENT_FILES
+                    anastasia_client::attachments::MAX_ATTACHMENT_FILES
                 );
             }
             total_bytes = total_bytes.saturating_add(metadata.len());
@@ -3442,7 +3442,7 @@ fn attachment_upload_from_path(
                 .to_path_buf();
             let bytes = std::fs::read(&path)
                 .with_context(|| format!("could not read attachment {}", path.display()))?;
-            entries.push(waku_client::attachments::AttachmentUploadEntry {
+            entries.push(anastasia_client::attachments::AttachmentUploadEntry {
                 relative_path,
                 data_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
             });
@@ -3450,7 +3450,7 @@ fn attachment_upload_from_path(
     }
     Ok((
         name,
-        waku_client::attachments::AttachmentUpload::Directory { entries },
+        anastasia_client::attachments::AttachmentUpload::Directory { entries },
         None,
     ))
 }

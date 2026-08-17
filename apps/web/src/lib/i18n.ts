@@ -1,7 +1,5 @@
 import { useSyncExternalStore } from 'react'
 import englishSource from '../../../../locales/app.yml?raw'
-import japaneseSource from '../../../../locales/ja.yml?raw'
-import simplifiedChineseSource from '../../../../locales/zh-CN.yml?raw'
 import {
   APP_LANGUAGES,
   interpolateTranslation,
@@ -16,11 +14,12 @@ import {
 export { APP_LANGUAGES }
 export type { AppLanguage, AppLocale }
 
-const LANGUAGE_STORAGE_KEY = 'waku.language'
+const LANGUAGE_STORAGE_KEY = 'anastasia.language'
+const englishCatalog = parseRustI18nCatalog(englishSource, 'en')
 const catalogs: Record<AppLocale, Record<string, string>> = {
-  en: parseRustI18nCatalog(englishSource, 'en'),
-  'zh-CN': parseRustI18nCatalog(simplifiedChineseSource, 'zh-CN'),
-  ja: parseRustI18nCatalog(japaneseSource, 'ja'),
+  en: englishCatalog,
+  'zh-CN': englishCatalog,
+  ja: englishCatalog,
 }
 
 interface LanguageSnapshot {

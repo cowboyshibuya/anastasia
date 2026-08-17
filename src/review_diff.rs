@@ -266,22 +266,22 @@ pub fn parse_collected(
     snapshot
 }
 
-pub fn wire_source(source: Source) -> waku_client::workspace::ReviewDiffSource {
+pub fn wire_source(source: Source) -> anastasia_client::workspace::ReviewDiffSource {
     match source {
         Source::LastTurn {
             session_id,
             turn_id,
             turn_count,
-        } => waku_client::workspace::ReviewDiffSource::LastTurn {
+        } => anastasia_client::workspace::ReviewDiffSource::LastTurn {
             session_id,
             turn_id,
             turn_count,
         },
-        Source::Uncommitted => waku_client::workspace::ReviewDiffSource::Uncommitted,
-        Source::Unstaged => waku_client::workspace::ReviewDiffSource::Unstaged,
-        Source::Staged => waku_client::workspace::ReviewDiffSource::Staged,
-        Source::Committed => waku_client::workspace::ReviewDiffSource::Committed,
-        Source::Branch => waku_client::workspace::ReviewDiffSource::Branch,
+        Source::Uncommitted => anastasia_client::workspace::ReviewDiffSource::Uncommitted,
+        Source::Unstaged => anastasia_client::workspace::ReviewDiffSource::Unstaged,
+        Source::Staged => anastasia_client::workspace::ReviewDiffSource::Staged,
+        Source::Committed => anastasia_client::workspace::ReviewDiffSource::Committed,
+        Source::Branch => anastasia_client::workspace::ReviewDiffSource::Branch,
     }
 }
 

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { WakuIcon } from '@/components/waku-icon'
+import { AnastasiaIcon } from '@/components/anastasia-icon'
 import { useI18n } from '@/lib/i18n'
 import wakuAppIconUrl from '../../../../website/public/app-icon.png'
 
@@ -33,7 +33,7 @@ export function StartupScreen({
             </p>
             {onRetry && (
               <Button className="mt-4 rounded-full px-4" size="sm" type="button" onClick={onRetry}>
-                <WakuIcon name="rotateCw" />
+                <AnastasiaIcon name="rotateCw" />
                 {t('web.try_again')}
               </Button>
             )}

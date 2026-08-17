@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StartupScreen } from '@/components/startup-screen'
-import { WakuIcon } from '@/components/waku-icon'
+import { AnastasiaIcon } from '@/components/anastasia-icon'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { useDaemon } from '@/lib/daemon-context'
 import { useI18n } from '@/lib/i18n'
@@ -94,7 +94,7 @@ export function ConnectionPanel({ title }: { title?: string } = {}) {
                   variant="ghost"
                   onClick={() => setTokenRevealed((revealed) => !revealed)}
                 >
-                  <WakuIcon name={tokenRevealed ? 'eyeOff' : 'eye'} />
+                  <AnastasiaIcon name={tokenRevealed ? 'eyeOff' : 'eye'} />
                 </Button>
               </div>
             </div>
@@ -120,14 +120,14 @@ export function ConnectionPanel({ title }: { title?: string } = {}) {
             <div className="flex justify-end">
               <Button className="rounded-full px-4" type="submit" disabled={phase === 'connecting'}>
                 {phase === 'connecting' ? t('web.connecting') : t('web.connect')}
-                {phase !== 'connecting' && <WakuIcon name="arrowRight" />}
+                {phase !== 'connecting' && <AnastasiaIcon name="arrowRight" />}
               </Button>
             </div>
           </form>
         </section>
 
         <div className="mt-3 flex gap-2 rounded-lg bg-accent px-3 py-2 text-[10.5px] leading-4 text-[var(--text-tertiary)]">
-          <WakuIcon className="mt-0.5 size-3.5 shrink-0" name="lock" />
+          <AnastasiaIcon className="mt-0.5 size-3.5 shrink-0" name="lock" />
           <p>
             {t('web.security_warning')}
           </p>

@@ -16,10 +16,10 @@ import { extractReleaseNotes } from "./changelog";
 
 const appName = "Anastasia";
 const executableName = "Anastasia";
-const jsReplExecutableName = "waku_js_repl";
-const daemonExecutableName = "waku-daemon";
+const jsReplExecutableName = "anastasia_js_repl";
+const daemonExecutableName = "anastasia-daemon";
 const computerUseHelperName = "Anastasia Computer Use";
-const packageName = "waku";
+const packageName = "anastasia";
 const defaultNotaryProfile = "NOTARY";
 const projectRoot = resolve(import.meta.dir, "..");
 
@@ -44,8 +44,8 @@ Options:
                                 default derives a monotonic number from the
                                 Cargo version)
   --volume-name <name>          Mounted DMG name (default: Anastasia)
-  --skip-build                  Reuse target/release/waku, waku_js_repl, and
-                                waku-daemon
+  --skip-build                  Reuse target/release/anastasia, anastasia_js_repl, and
+                                anastasia-daemon
   --skip-notarize               Unnotarized signed DMG (implies --local)
   --adhoc                       Ad-hoc sign, no notarization (implies --local)
   --help                        Show this help

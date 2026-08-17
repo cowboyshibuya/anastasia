@@ -6,7 +6,7 @@
 //! accepted and left broken.
 
 use gpui::KeyDownEvent;
-use waku_protocol::keymap::{self, ShortcutId};
+use anastasia_protocol::keymap::{self, ShortcutId};
 
 use super::*;
 

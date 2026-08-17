@@ -1,4 +1,4 @@
-import type { ActivityItem, AgentSession } from '@waku/client'
+import type { ActivityItem, AgentSession } from '@anastasia/client'
 
 export type AssistantResponseFooter = {
   content: string

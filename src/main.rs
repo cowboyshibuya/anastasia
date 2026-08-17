@@ -1,3 +1,4 @@
 fn main() {
-    waku::run();
+    anastasia::run();
 }
+

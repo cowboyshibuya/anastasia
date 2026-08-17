@@ -7,7 +7,7 @@ import type {
   SequencedEvent,
   TranscriptBlock,
   TurnStatus,
-} from '@waku/client'
+} from '@anastasia/client'
 
 export interface PendingPermission {
   requestId: string

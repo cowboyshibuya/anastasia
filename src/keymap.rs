@@ -7,7 +7,7 @@
 //! ones that are not user-editable, or they would be lost on the first edit.
 
 use gpui::{App, KeyBinding, Keystroke};
-use waku_protocol::keymap::{KeymapConfig, ShortcutId};
+use anastasia_protocol::keymap::{KeymapConfig, ShortcutId};
 
 use crate::{
     BrowserAddressCancel, BrowserBack, BrowserDevtools, BrowserForward, BrowserHardReload,
