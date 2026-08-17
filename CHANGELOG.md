@@ -16,6 +16,25 @@ the original feature bullet instead of adding separate entries for them.
 
 ## [unreleased]
 
+## [0.3.0]
+
+Anastasia is rebuilt on Waku, replacing the previous foundation.
+
+- Dark by default, on a near-black plane the interface is designed for rather
+  than a charcoal the content competes with. One accent colour now marks the
+  active thing; the gauge and resize handle no longer paint their own.
+- Editable keyboard shortcuts in Settings. `⌘,` opens settings, `⌘B` and `⌘I`
+  toggle the sidebars, `⌘J` the terminal, and `⇧⇥` switches Plan and Build.
+  Recording rejects a combination another shortcut owns, and says which.
+- Notification sounds and desktop banners, each with its own switch, announcing
+  only when a run finishes or the agent asks a question — and by default only
+  while Anastasia is in the background.
+- The sidebars glide open and closed instead of snapping, by pointer or by
+  keyboard, and hold still under reduce-motion.
+- A halftone boot mark on launch.
+- A roomier composer with type sized for writing in.
+- English only for now.
+
 ## [0.1.0]
 
 - Add standalone Anastasia daemon and browser client

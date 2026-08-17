@@ -67,7 +67,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-x86_64
-          path: target/release/waku-*-x86_64-unknown-linux-gnu.tar.gz
+          path: target/release/anastasia-*-x86_64-unknown-linux-gnu.tar.gz
           if-no-files-found: error
 
   linux-arm64:
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-arm64
-          path: target/release/waku-*-aarch64-unknown-linux-gnu.tar.gz
+          path: target/release/anastasia-*-aarch64-unknown-linux-gnu.tar.gz
           if-no-files-found: error
 
   macos:
@@ -162,47 +162,50 @@ jobs:
 
       - name: Import Apple Developer Certificate
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
           KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
-          echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
+          echo "$MACOS_CERT_P12" | base64 --decode > certificate.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
           rm certificate.p12
 
+      # App Store Connect API key rather than an Apple ID + app-specific
+      # password: it is the credential this repository actually holds, and it
+      # carries no personal account.
       - name: Store notary credentials
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
         run: |
+          echo "$AC_API_KEY_P8" | base64 --decode > notary-key.p8
           xcrun notarytool store-credentials NOTARY \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID"
+            --key notary-key.p8 \
+            --key-id "$AC_API_KEY_ID" \
+            --issuer "$AC_API_ISSUER_ID"
+          rm notary-key.p8
 
       - name: Release
         env:
+          # Anastasia compiles in no analytics and ships no Sparkle feed, so
+          # neither an analytics endpoint nor a Sparkle key is passed here.
           ANASTASIA_SIGNING_IDENTITY: ${{ secrets.ANASTASIA_SIGNING_IDENTITY }}
-          ANASTASIA_ANALYTICS_ENDPOINT: ${{ secrets.ANASTASIA_ANALYTICS_ENDPOINT }}
-          ANASTASIA_ANALYTICS_WEBSITE_ID: ${{ secrets.ANASTASIA_ANALYTICS_WEBSITE_ID }}
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: bun run release --local
 
       - uses: actions/upload-artifact@v4
         with:
           name: macos
           path: |
-            dist/Waku-*.dmg
-            dist/Waku-*.md
-            dist/Waku-*.zip
-            dist/appcast.xml
+            dist/Anastasia-*.dmg
+            dist/Anastasia-*.md
+            dist/Anastasia-*.zip
           if-no-files-found: error
 
   draft-release:

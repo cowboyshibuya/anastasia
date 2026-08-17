@@ -14,16 +14,16 @@ import { parseArgs } from "node:util";
 import { defaultDownloadUrlPrefix, generateAppcast } from "./appcast";
 import { extractReleaseNotes } from "./changelog";
 
-const appName = "Waku";
-const executableName = "Waku";
+const appName = "Anastasia";
+const executableName = "Anastasia";
 const jsReplExecutableName = "waku_js_repl";
 const daemonExecutableName = "waku-daemon";
-const computerUseHelperName = "Waku Computer Use";
+const computerUseHelperName = "Anastasia Computer Use";
 const packageName = "waku";
 const defaultNotaryProfile = "NOTARY";
 const projectRoot = resolve(import.meta.dir, "..");
 
-const help = `Build, notarize, and publish a production release of Waku.
+const help = `Build, notarize, and publish a production release of Anastasia.
 
 Usage:
   bun run release [options]
@@ -31,13 +31,13 @@ Usage:
 The default run builds a signed, notarized DMG, packages the Sparkle update
 archive, regenerates the signed appcast (with binary deltas against recent
 releases), and uploads everything to Cloudflare R2 — the bucket behind
-https://releases.waku.sh. One-time setup lives in RELEASING.md.
+the configured release endpoint. One-time setup lives in RELEASING.md.
 
 Options:
   --local                       Build, notarize, and write the DMG + zip
                                 without publishing to R2
   --force                       Publish even if this version is already in R2
-  --output <path>               DMG output path (default: dist/Waku-<version>.dmg)
+  --output <path>               DMG output path (default: dist/Anastasia-<version>.dmg)
   --signing-identity <name>     Developer ID Application identity selector
                                 (or ANASTASIA_SIGNING_IDENTITY; required unless --adhoc)
   --notary-profile <name>       notarytool keychain profile
@@ -45,7 +45,7 @@ Options:
   --build-number <number>       CFBundleVersion override (or ANASTASIA_BUILD_NUMBER;
                                 default derives a monotonic number from the
                                 Cargo version)
-  --volume-name <name>          Mounted DMG name (default: Waku)
+  --volume-name <name>          Mounted DMG name (default: Anastasia)
   --skip-build                  Reuse target/release/waku, waku_js_repl, and
                                 waku-daemon
   --skip-notarize               Unnotarized signed DMG (implies --local)
@@ -57,13 +57,13 @@ Environment:
   ANASTASIA_ANALYTICS_ENDPOINT       analytics endpoint embedded at build time
   ANASTASIA_ANALYTICS_WEBSITE_ID     analytics website ID embedded at build time
   ANASTASIA_R2_REMOTE                rclone remote name (default: r2)
-  ANASTASIA_R2_BUCKET                R2 bucket name (default: waku-releases)
+  ANASTASIA_R2_BUCKET                R2 bucket name (default: anastasia-releases)
   ANASTASIA_DOWNLOAD_URL_PREFIX      base URL served by the bucket
                                 (default: ${defaultDownloadUrlPrefix})
   ANASTASIA_HISTORY_COUNT            prior archives pulled for deltas (default: 15)
   ANASTASIA_NO_HISTORY=1             skip pulling prior archives (no deltas)
   SPARKLE_BIN                   Sparkle tools dir (default: the bundle.sh cache
-                                under .waku-cache/sparkle)
+                                under .anastasia-cache/sparkle)
   SPARKLE_PRIVATE_KEY           Sparkle EdDSA private key (otherwise keychain)
 
 Before the first production release:
@@ -153,7 +153,7 @@ const force = values.force ?? false;
 const publishing = !localOnly && !adhoc && !skipNotarize;
 
 const r2Remote = process.env.ANASTASIA_R2_REMOTE ?? "r2";
-const r2Bucket = process.env.ANASTASIA_R2_BUCKET ?? "waku-releases";
+const r2Bucket = process.env.ANASTASIA_R2_BUCKET ?? "anastasia-releases";
 const r2Destination = `${r2Remote}:${r2Bucket}`;
 // A bucket-scoped R2 API token cannot create buckets, and rclone otherwise
 // checks/creates one before writing. The bucket must already exist.
@@ -245,7 +245,7 @@ if (publishing) {
       throw new Error(
         `R2 bucket "${r2Bucket}" does not exist on remote "${r2Remote}". ` +
           "Create it in the Cloudflare dashboard and attach the " +
-          "releases.waku.sh custom domain (see RELEASING.md), then re-run.",
+          "release endpoint's custom domain (see RELEASING.md), then re-run.",
       );
     }
     throw new Error(`Cannot reach ${r2Destination}: ${detail}`);
@@ -291,7 +291,7 @@ const bundledComputerUseSkill = join(
   contentsDirectory,
   "Resources",
   "skills",
-  "waku-computer-use",
+  "anastasia-computer-use",
   "SKILL.md",
 );
 const bundledPiComputerUseExtension = join(
@@ -325,7 +325,7 @@ async function verifyJavaScriptRepl(executable: string): Promise<void> {
       params: {
         protocolVersion: "2025-06-18",
         capabilities: {},
-        clientInfo: { name: "waku-release", version: "1" },
+        clientInfo: { name: "anastasia-release", version: "1" },
       },
     },
     { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
@@ -446,7 +446,7 @@ try {
   }
   await $`codesign --verify --deep --strict --verbose=2 ${appBundle}`;
 
-  temporaryDirectory = await mkdtemp(join(tmpdir(), "waku-dmg-"));
+  temporaryDirectory = await mkdtemp(join(tmpdir(), "anastasia-dmg-"));
   const stagingDirectory = join(temporaryDirectory, "root");
   mountDirectory = join(temporaryDirectory, "mount");
   await mkdir(stagingDirectory);
@@ -502,7 +502,7 @@ try {
       mountedContents,
       "Resources",
       "skills",
-      "waku-computer-use",
+      "anastasia-computer-use",
       "SKILL.md",
     ),
     join(
@@ -649,9 +649,20 @@ try {
       : `No "${version}" section in CHANGELOG.md — attached fallback notes.`,
   );
 
-  logStep("Generating the signed appcast");
-  await generateAppcast(updatesDirectory, downloadUrlPrefix);
-  await $`ditto ${join(updatesDirectory, "appcast.xml")} ${join(projectRoot, "dist", "appcast.xml")}`;
+  // Anastasia ships no SUFeedURL yet (see resources/Info.plist), so there is
+  // nothing to serve an appcast to. Generating one would also require the
+  // Sparkle signing key. Set ANASTASIA_DOWNLOAD_URL_PREFIX once a release
+  // endpoint exists and this comes back automatically.
+  if (process.env.ANASTASIA_DOWNLOAD_URL_PREFIX) {
+    logStep("Generating the signed appcast");
+    await generateAppcast(updatesDirectory, downloadUrlPrefix);
+    await $`ditto ${join(updatesDirectory, "appcast.xml")} ${join(projectRoot, "dist", "appcast.xml")}`;
+  } else {
+    console.log(
+      "Skipped the appcast: no ANASTASIA_DOWNLOAD_URL_PREFIX, and the app " +
+        "ships no update feed to consume it.",
+    );
+  }
 
   if (publishing) {
     // Archives and the DMG are immutable once published → cache forever.

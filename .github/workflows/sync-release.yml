@@ -1,8 +1,10 @@
 name: Sync release
 
 on:
-  release:
-    types: [published]
+  # Mirroring to R2 is dormant: no R2_* secrets are configured and the app
+  # ships no update feed, so an automatic run on every release would only
+  # produce red builds. Re-add the `release: types: [published]` trigger once
+  # a bucket exists; until then this is manual-only.
   workflow_dispatch:
     inputs:
       tag:
@@ -62,7 +64,7 @@ jobs:
           RCLONE_CONFIG_R2_PROVIDER: Cloudflare
           RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
         run: |
-          bucket="${R2_BUCKET:-waku-releases}"
+          bucket="${R2_BUCKET:-anastasia-releases}"
           export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
           export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
           export RCLONE_CONFIG_R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
