@@ -429,8 +429,8 @@ impl ShellEnvironmentCapture {
     fn create() -> Option<Self> {
         for _ in 0..16 {
             let id = SHELL_ENV_CAPTURE_ID.fetch_add(1, Ordering::Relaxed);
-            let path =
-                std::env::temp_dir().join(format!(".anastasia-shell-env-{}-{id}", std::process::id()));
+            let path = std::env::temp_dir()
+                .join(format!(".anastasia-shell-env-{}-{id}", std::process::id()));
             let mut options = OpenOptions::new();
             options.write(true).create_new(true);
             #[cfg(unix)]

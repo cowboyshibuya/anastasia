@@ -142,7 +142,8 @@ impl DaemonProcess {
     ) -> anyhow::Result<Self> {
         let settings = settings.validate()?;
         let token = settings.token.clone();
-        let app_executable = std::env::current_exe().context("could not locate Anastasia executable")?;
+        let app_executable =
+            std::env::current_exe().context("could not locate Anastasia executable")?;
         let mut command = ProcessCommand::new(executable);
         command
             .arg("--bind")

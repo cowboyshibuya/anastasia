@@ -61,6 +61,72 @@ impl Waku {
 }
 
 impl Waku {
+    /// The sidebar's resting width — what it paints once any glide has landed.
+    /// Unfitted: the viewport clamp happens in [`Self::effective_panel_widths`],
+    /// and this only seeds a tween's origin.
+    pub(super) fn sidebar_displayed_width(&self) -> f32 {
+        let target = if self.sidebar_visible {
+            self.sidebar_width
+        } else {
+            0.0
+        };
+        self.sidebar_tween
+            .and_then(|tween| tween.value(target))
+            .unwrap_or(target)
+    }
+
+    pub(super) fn right_panel_displayed_width(&self) -> f32 {
+        let target = if self.right_panel_visible {
+            self.right_panel_width
+        } else {
+            0.0
+        };
+        self.right_panel_tween
+            .and_then(|tween| tween.value(target))
+            .unwrap_or(target)
+    }
+
+    /// The width a pane paints this frame. Flags [`Waku::motion_active`] while a
+    /// glide is mid-flight so the root render keeps frames coming, and snaps
+    /// straight to `target` under reduce-motion — the setting must remove the
+    /// motion, not just shorten it.
+    fn eval_tween(&self, tween: Option<WidthTween>, target: f32, cx: &App) -> f32 {
+        if cx.reduce_motion() {
+            return target;
+        }
+        match tween.and_then(|tween| tween.value(target)) {
+            Some(width) => {
+                self.motion_active.set(true);
+                width
+            }
+            None => target,
+        }
+    }
+
+    /// A pane wrapped in a clipped, animated-width container. The inner content
+    /// keeps its full `content_width`, so text inside never reflows mid-glide —
+    /// the pane slides out from under a fixed layout instead of being squeezed.
+    fn pane_container(
+        &self,
+        painted_width: f32,
+        content_width: f32,
+        pane: Entity<WakuPane>,
+    ) -> Div {
+        div()
+            .h_full()
+            .flex_none()
+            .overflow_hidden()
+            .w(px(painted_width))
+            .child(
+                pane.cached(
+                    StyleRefinement::default()
+                        .w(px(content_width))
+                        .h_full()
+                        .flex_none(),
+                ),
+            )
+    }
+
     /// Width left for the chat column once the visible panels take theirs.
     fn chat_viewport_width(&self, window: &Window) -> f32 {
         let (sidebar_width, right_panel_width) = self.effective_panel_widths(window);
@@ -177,6 +243,28 @@ impl Render for Waku {
                 .into_any_element()
         });
         let (sidebar_width, right_panel_width) = self.effective_panel_widths(window);
+        // Panes stay mounted while their width glides to zero, so a collapse
+        // animates instead of vanishing on the first frame. `motion_active` is
+        // set by `eval_tween` below and read after the tree is built.
+        self.motion_active.set(false);
+        let sidebar_painted = self.eval_tween(
+            self.sidebar_tween,
+            if self.sidebar_visible {
+                sidebar_width
+            } else {
+                0.0
+            },
+            cx,
+        );
+        let right_panel_painted = self.eval_tween(
+            self.right_panel_tween,
+            if self.right_panel_visible {
+                right_panel_width
+            } else {
+                0.0
+            },
+            cx,
+        );
         let content = div()
             .key_context("Anastasia")
             .on_action(cx.listener(Self::close_window_or_right_panel_tab_action))
@@ -212,12 +300,11 @@ impl Render for Waku {
             .flex()
             .text_color(theme.text)
             .font_family(crate::md::render::SANS_FAMILY)
-            .when(self.sidebar_visible, |root| {
-                root.child(self.sidebar_pane.clone().cached(
-                    StyleRefinement::default()
-                        .w(px(sidebar_width))
-                        .h_full()
-                        .flex_none(),
+            .when(sidebar_painted > 0.0, |root| {
+                root.child(self.pane_container(
+                    sidebar_painted,
+                    sidebar_width,
+                    self.sidebar_pane.clone(),
                 ))
             })
             .child(
@@ -237,9 +324,7 @@ impl Render for Waku {
                     } else {
                         self.transcript_pane
                             .clone()
-                            .cached(
-                                StyleRefinement::default().flex_1().min_h(px(0.0)).w_full(),
-                            )
+                            .cached(StyleRefinement::default().flex_1().min_h(px(0.0)).w_full())
                             .into_any_element()
                     })
                     .children(permission)
@@ -260,18 +345,26 @@ impl Render for Waku {
                         ))
                     }),
             )
-            .when(self.right_panel_visible, |root| {
-                root.child(self.right_panel_pane.clone().cached(
-                    StyleRefinement::default()
-                        .w(px(right_panel_width))
-                        .h_full()
-                        .flex_none(),
+            .when(right_panel_painted > 0.0, |root| {
+                root.child(self.pane_container(
+                    right_panel_painted,
+                    right_panel_width,
+                    self.right_panel_pane.clone(),
                 ))
             })
             .children(command_palette)
             .children(commit_dialog)
             .children(image_preview)
             .into_any_element();
+
+        // A manually driven tween is mid-flight: keep frames coming, which is
+        // the scheduling `with_animation` would have requested. This is the
+        // window's root render, so it runs exactly once per frame. The FPS
+        // counter already re-arms above; a second request in the same frame is
+        // harmless.
+        if self.motion_active.get() {
+            window.request_animation_frame();
+        }
 
         self.render_window_frame(content, window, cx)
     }

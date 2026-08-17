@@ -60,6 +60,7 @@ use crate::query::{Query, QueryCache};
 use crate::review_diff::{Snapshot as ReviewDiffSnapshot, Source as ReviewDiffSource};
 use crate::terminal::TerminalView;
 use crate::theme::{Theme, ThemePreference};
+use crate::ui::motion::WidthTween;
 use crate::ui::text_field::TextField;
 use crate::ui::{
     MenuChip, ProjectNameSelector, activity_icon, activity_noun, contain_scroll, file_icon, icon,
@@ -669,7 +670,10 @@ impl WakuPane {
         content: fn(&mut Waku, &mut Window, &mut Context<Waku>) -> AnyElement,
         cx: &mut App,
     ) -> Entity<Self> {
-        cx.new(|_| Self { waku: None, content })
+        cx.new(|_| Self {
+            waku: None,
+            content,
+        })
     }
 
     fn bind(&mut self, waku: &Entity<Waku>, cx: &mut Context<Self>) {
@@ -1259,6 +1263,14 @@ pub struct Waku {
     sidebar_width: f32,
     right_panel_visible: bool,
     right_panel_width: f32,
+    /// In-flight width glides for the two panes. `None` is the settled state:
+    /// the pane paints its target width directly. See [`crate::ui::motion::WidthTween`].
+    sidebar_tween: Option<WidthTween>,
+    right_panel_tween: Option<WidthTween>,
+    /// Set during render whenever a tween painted an intermediate width, so the
+    /// root can request the next frame — the scheduling `with_animation` would
+    /// have done for us. A `Cell` because the `&self` render helpers set it.
+    motion_active: Cell<bool>,
     fps_counter_visible: bool,
     panel_resize_drag: Option<PanelResizeDrag>,
     right_panel_session_states: HashMap<Uuid, RightPanelSessionState>,
@@ -2668,6 +2680,9 @@ impl Waku {
                 sidebar_width,
                 right_panel_visible,
                 right_panel_width,
+                sidebar_tween: None,
+                right_panel_tween: None,
+                motion_active: Cell::new(false),
                 fps_counter_visible: false,
                 panel_resize_drag: None,
                 right_panel_session_states: HashMap::new(),

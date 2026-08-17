@@ -432,6 +432,11 @@ impl Waku {
         cx: &mut Context<Self>,
     ) {
         self.set_sidebar_visible(!self.sidebar_visible, cx);
+        // Keyboard toggles land immediately. The glide exists to keep a
+        // pointer's action connected to its result; a shortcut has no such
+        // gesture to stay continuous with, and repeated ⌘B should never queue
+        // up behind 200ms of animation.
+        self.sidebar_tween = None;
     }
 
     pub(super) fn toggle_right_panel_action(
@@ -441,6 +446,7 @@ impl Waku {
         cx: &mut Context<Self>,
     ) {
         self.set_right_panel_visible(!self.right_panel_visible, cx);
+        self.right_panel_tween = None;
     }
 
     pub(super) fn toggle_fps_counter_action(
@@ -457,7 +463,12 @@ impl Waku {
         if self.sidebar_visible == visible {
             return;
         }
+        // Start from what is on screen right now, not from the old resting
+        // width: reversing mid-glide then continues from where the pane is
+        // instead of snapping back to its origin first.
+        let from = self.sidebar_displayed_width();
         self.sidebar_visible = visible;
+        self.sidebar_tween = Some(WidthTween::new(from));
         self.persist_panel_layout();
         cx.notify();
     }
@@ -471,7 +482,9 @@ impl Waku {
         if self.right_panel_visible == visible {
             return;
         }
+        let from = self.right_panel_displayed_width();
         self.right_panel_visible = visible;
+        self.right_panel_tween = Some(WidthTween::new(from));
         if visible {
             self.analytics
                 .track(crate::analytics::Event::RightPanelOpened);

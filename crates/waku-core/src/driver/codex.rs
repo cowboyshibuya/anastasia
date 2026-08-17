@@ -2451,11 +2451,11 @@ mod tests {
             .map(|argument| argument.to_string_lossy().into_owned())
             .collect::<Vec<_>>();
         assert!(disabled_arguments.is_empty());
-        assert!(
-            disabled
-                .get_envs()
-                .all(|(name, _)| { !name.to_string_lossy().starts_with("ANASTASIA_COMPUTER_USE_") })
-        );
+        assert!(disabled.get_envs().all(|(name, _)| {
+            !name
+                .to_string_lossy()
+                .starts_with("ANASTASIA_COMPUTER_USE_")
+        }));
 
         let config = CodexComputerUseConfig {
             server_path: PathBuf::from("/tmp/anastasia-computer-use-server"),

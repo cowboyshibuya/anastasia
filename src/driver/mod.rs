@@ -95,9 +95,9 @@ fn connect_remote(
                 };
                 let event = match waku_client::event_from_wire(sequenced.event) {
                     Ok(event) => event,
-                    Err(error) => {
-                        DriverEvent::Error(format!("Anastasia daemon sent an invalid event: {error}"))
-                    }
+                    Err(error) => DriverEvent::Error(format!(
+                        "Anastasia daemon sent an invalid event: {error}"
+                    )),
                 };
                 saw_process_exit |= matches!(&event, DriverEvent::ProcessExited);
                 if forwarding_events.send(event).is_err()

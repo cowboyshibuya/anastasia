@@ -9,8 +9,8 @@ use waku_protocol::{DAEMON_TOKEN_ENV, DaemonReady, PROTOCOL_VERSION};
 
 fn main() -> anyhow::Result<()> {
     let arguments = Arguments::parse(std::env::args().skip(1))?;
-    let token =
-        std::env::var(DAEMON_TOKEN_ENV).context("Anastasia daemon authentication token is missing")?;
+    let token = std::env::var(DAEMON_TOKEN_ENV)
+        .context("Anastasia daemon authentication token is missing")?;
     // The bearer capability belongs only to this server process. Remove it
     // before any provider or workspace subprocess can inherit the daemon's
     // environment.

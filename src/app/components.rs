@@ -1800,7 +1800,9 @@ mod message_time_tests {
             None,
             true,
         )
-        .with_arguments(Some(serde_json::json!({"query": "Anastasia GPUI"}).to_string()));
+        .with_arguments(Some(
+            serde_json::json!({"query": "Anastasia GPUI"}).to_string(),
+        ));
         assert_eq!(
             activity_display_title(&web_search),
             "Searched the web for Anastasia GPUI"

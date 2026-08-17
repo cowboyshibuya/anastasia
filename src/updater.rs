@@ -583,7 +583,8 @@ mod macos {
         pub fn init() -> Option<Self> {
             let preview = cfg!(debug_assertions)
                 && std::env::var_os("ANASTASIA_PREVIEW_UPDATE").is_some_and(|value| value == "1");
-            let forced = std::env::var_os("ANASTASIA_FORCE_UPDATER").is_some_and(|value| value == "1");
+            let forced =
+                std::env::var_os("ANASTASIA_FORCE_UPDATER").is_some_and(|value| value == "1");
             if cfg!(debug_assertions) && !forced && !preview {
                 return None;
             }

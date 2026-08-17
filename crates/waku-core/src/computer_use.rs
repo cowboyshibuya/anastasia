@@ -348,7 +348,11 @@ pub fn skill_root_path() -> anyhow::Result<PathBuf> {
         .parent()
         .ok_or_else(|| anyhow!("Anastasia app bundle is malformed"))?;
     let path = contents.join("Resources").join("skills");
-    if !path.join("anastasia-computer-use").join("SKILL.md").is_file() {
+    if !path
+        .join("anastasia-computer-use")
+        .join("SKILL.md")
+        .is_file()
+    {
         bail!("Anastasia Computer Use skill is missing from this Anastasia build")
     }
     Ok(path)
@@ -359,7 +363,9 @@ fn host_executable_path() -> anyhow::Result<PathBuf> {
         .filter(|path| !path.is_empty())
         .map(PathBuf::from)
         .map(Ok)
-        .unwrap_or_else(|| std::env::current_exe().context("Anastasia executable path is unavailable"))
+        .unwrap_or_else(|| {
+            std::env::current_exe().context("Anastasia executable path is unavailable")
+        })
 }
 
 #[cfg(test)]
