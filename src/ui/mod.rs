@@ -141,6 +141,7 @@ pub struct MenuChip {
     base: Stateful<Div>,
     icon: Option<(&'static str, Hsla)>,
     label: SharedString,
+    label_color: Option<Hsla>,
     caret: bool,
     outlined: bool,
     selected: bool,
@@ -155,6 +156,7 @@ impl MenuChip {
             base: div().id(id),
             icon: None,
             label: SharedString::default(),
+            label_color: None,
             caret: true,
             outlined: false,
             selected: false,
@@ -186,6 +188,11 @@ impl MenuChip {
 
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = label.into();
+        self
+    }
+
+    pub fn label_color(mut self, color: Hsla) -> Self {
+        self.label_color = Some(color);
         self
     }
 
@@ -263,7 +270,7 @@ impl RenderOnce for MenuChip {
                 div()
                     .min_w_0()
                     .truncate()
-                    .text_color(theme.text_secondary)
+                    .text_color(self.label_color.unwrap_or(theme.text_secondary))
                     .child(self.label),
             )
             .when(self.caret, |element| {

@@ -154,11 +154,7 @@ impl OpenCodeDriver {
         // The agent decides Plan versus Build, and it is per session: a
         // resumed session gets the agent re-posted and OpenCode persists it
         // with the session.
-        let agent = if interaction_mode == InteractionMode::Plan || mode == RuntimeMode::Plan {
-            "plan"
-        } else {
-            "build"
-        };
+        let agent = opencode_agent(mode, interaction_mode);
         let _ = server.request(
             "POST",
             &format!("/session/{}/agent", encode_path_segment(&session_id)),
@@ -546,6 +542,14 @@ impl Drop for OpenCodeDriver {
         // first, then wake the worker so any final terminate/wait happens there.
         drop(self.server.take());
         let _ = self.commands.send(CommandMessage::Shutdown);
+    }
+}
+
+fn opencode_agent(mode: RuntimeMode, interaction_mode: InteractionMode) -> &'static str {
+    if interaction_mode == InteractionMode::Plan || mode == RuntimeMode::Plan {
+        "plan"
+    } else {
+        "build"
     }
 }
 
@@ -1781,5 +1785,33 @@ mod tests {
         reader.join().unwrap();
         assert!(control.is_cancelled());
         assert!(control.socket.lock().is_none());
+    }
+
+    #[test]
+    fn access_modes_map_to_opencode_agents() {
+        assert_eq!(
+            opencode_agent(RuntimeMode::Ask, InteractionMode::Build),
+            "build"
+        );
+        assert_eq!(
+            opencode_agent(RuntimeMode::AutoAcceptEdits, InteractionMode::Build),
+            "build"
+        );
+        assert_eq!(
+            opencode_agent(RuntimeMode::Auto, InteractionMode::Build),
+            "build"
+        );
+        assert_eq!(
+            opencode_agent(RuntimeMode::FullAccess, InteractionMode::Build),
+            "build"
+        );
+        assert_eq!(
+            opencode_agent(RuntimeMode::FullAccess, InteractionMode::Plan),
+            "plan"
+        );
+        assert_eq!(
+            opencode_agent(RuntimeMode::Ask, InteractionMode::Plan),
+            "plan"
+        );
     }
 }

@@ -1282,6 +1282,18 @@ fn execute_harness_command(
     }
 }
 
+fn deepseek_permission(mode: RuntimeMode, interaction_mode: InteractionMode) -> &'static str {
+    if interaction_mode == InteractionMode::Plan || mode == RuntimeMode::Plan {
+        return "read-only";
+    }
+    match mode {
+        RuntimeMode::Ask => "read-only",
+        RuntimeMode::AutoAcceptEdits | RuntimeMode::Auto => "workspace-write",
+        RuntimeMode::FullAccess => "danger-full-access",
+        RuntimeMode::Plan => unreachable!("handled above"),
+    }
+}
+
 fn apply_session_options(
     server: &PooledDeepSeekServer,
     session_id: &str,
@@ -1313,11 +1325,7 @@ fn apply_session_options(
         server.rpc("session.selectModel", selection)?;
     }
 
-    let permission = if options.mode == RuntimeMode::FullAccess {
-        "danger-full-access"
-    } else {
-        "workspace-write"
-    };
+    let permission = deepseek_permission(options.mode, options.interaction_mode);
     let current_permission = projections
         .and_then(|values| values.pointer("/permissions/currentValue"))
         .and_then(Value::as_str);
@@ -1614,5 +1622,33 @@ mod tests {
                 context_window: Some(8192)
             }
         ));
+    }
+
+    #[test]
+    fn access_modes_map_to_deepseek_permissions() {
+        assert_eq!(
+            deepseek_permission(RuntimeMode::Ask, InteractionMode::Build),
+            "read-only"
+        );
+        assert_eq!(
+            deepseek_permission(RuntimeMode::AutoAcceptEdits, InteractionMode::Build),
+            "workspace-write"
+        );
+        assert_eq!(
+            deepseek_permission(RuntimeMode::Auto, InteractionMode::Build),
+            "workspace-write"
+        );
+        assert_eq!(
+            deepseek_permission(RuntimeMode::FullAccess, InteractionMode::Build),
+            "danger-full-access"
+        );
+        assert_eq!(
+            deepseek_permission(RuntimeMode::FullAccess, InteractionMode::Plan),
+            "read-only"
+        );
+        assert_eq!(
+            deepseek_permission(RuntimeMode::Ask, InteractionMode::Plan),
+            "read-only"
+        );
     }
 }

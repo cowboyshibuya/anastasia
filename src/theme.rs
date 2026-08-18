@@ -195,6 +195,35 @@ impl Theme {
             danger_soft: hsla(4.0 / 360.0, 0.55, 0.52, 0.10),
         }
     }
+
+    /// Semantic color for access permission postures.
+    /// Full access & Auto: orange, Auto accept edit: blue, Supervised: green.
+    pub fn access_color(&self, mode: anastasia_protocol::model::RuntimeMode) -> Hsla {
+        use anastasia_protocol::model::RuntimeMode;
+        match mode {
+            RuntimeMode::FullAccess | RuntimeMode::Auto => {
+                if self.is_dark {
+                    rgb(0xF97316).into() // vibrant orange
+                } else {
+                    rgb(0xEA580C).into() // dark amber orange
+                }
+            }
+            RuntimeMode::AutoAcceptEdits => {
+                if self.is_dark {
+                    rgb(0x60A5FA).into() // sky blue
+                } else {
+                    rgb(0x2563EB).into() // royal blue
+                }
+            }
+            RuntimeMode::Ask | RuntimeMode::Plan => {
+                if self.is_dark {
+                    rgb(0x4ADE80).into() // emerald green
+                } else {
+                    rgb(0x16A34A).into() // forest green
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -308,6 +337,25 @@ mod tests {
         for theme in [Theme::dark(), Theme::light()] {
             assert_eq!(theme.gauge, theme.accent);
             assert_eq!(theme.resize_handle, theme.accent);
+        }
+    }
+
+    #[test]
+    fn access_colors_are_defined_and_distinct() {
+        use anastasia_protocol::model::RuntimeMode;
+
+        for theme in [Theme::dark(), Theme::light()] {
+            let orange_full = theme.access_color(RuntimeMode::FullAccess);
+            let orange_auto = theme.access_color(RuntimeMode::Auto);
+            let blue = theme.access_color(RuntimeMode::AutoAcceptEdits);
+            let green = theme.access_color(RuntimeMode::Ask);
+            let green_plan = theme.access_color(RuntimeMode::Plan);
+
+            assert_eq!(orange_full, orange_auto);
+            assert_eq!(green, green_plan);
+            assert_ne!(orange_full, blue);
+            assert_ne!(blue, green);
+            assert_ne!(orange_full, green);
         }
     }
 }

@@ -2375,6 +2375,14 @@ mod tests {
             codex_permissions(RuntimeMode::FullAccess, InteractionMode::Plan),
             ("never", "read-only", "user")
         );
+        assert_eq!(
+            codex_permissions(RuntimeMode::Auto, InteractionMode::Plan),
+            ("never", "read-only", "user")
+        );
+        assert_eq!(
+            codex_permissions(RuntimeMode::Ask, InteractionMode::Plan),
+            ("never", "read-only", "user")
+        );
     }
 
     fn session_options(

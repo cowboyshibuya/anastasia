@@ -1336,11 +1336,12 @@ const ACCESS_MODES: Array<{
   labelKey: string
   descriptionKey: string
   icon: 'lock' | 'pencil' | 'sparkle' | 'lockOpen'
+  colorClass: string
 }> = [
-  { id: 'ask', labelKey: 'mode.supervised', descriptionKey: 'mode.supervised_description', icon: 'lock' },
-  { id: 'autoAcceptEdits', labelKey: 'mode.auto_accept_edits', descriptionKey: 'mode.auto_accept_edits_description', icon: 'pencil' },
-  { id: 'auto', labelKey: 'mode.auto', descriptionKey: 'mode.auto_description', icon: 'sparkle' },
-  { id: 'fullAccess', labelKey: 'mode.full_access', descriptionKey: 'mode.full_access_description', icon: 'lockOpen' },
+  { id: 'ask', labelKey: 'mode.supervised', descriptionKey: 'mode.supervised_description', icon: 'lock', colorClass: 'text-green-500' },
+  { id: 'autoAcceptEdits', labelKey: 'mode.auto_accept_edits', descriptionKey: 'mode.auto_accept_edits_description', icon: 'pencil', colorClass: 'text-blue-500' },
+  { id: 'auto', labelKey: 'mode.auto', descriptionKey: 'mode.auto_description', icon: 'sparkle', colorClass: 'text-orange-500' },
+  { id: 'fullAccess', labelKey: 'mode.full_access', descriptionKey: 'mode.full_access_description', icon: 'lockOpen', colorClass: 'text-orange-500' },
 ]
 
 function AccessControl({
@@ -1359,9 +1360,11 @@ function AccessControl({
     <ControlMenu
       caret={false}
       icon={selected.icon}
+      iconClassName={selected.colorClass}
       items={ACCESS_MODES.map((mode) => ({
         id: mode.id,
         icon: mode.icon,
+        iconClassName: mode.colorClass,
         label: t(mode.labelKey),
         description: t(mode.descriptionKey),
         selected: mode.id === selected.id,

@@ -2068,11 +2068,23 @@ mod tests {
             "acceptEdits"
         );
         assert_eq!(
+            permission_mode(RuntimeMode::Auto, InteractionMode::Build),
+            "auto"
+        );
+        assert_eq!(
             permission_mode(RuntimeMode::FullAccess, InteractionMode::Build),
             "bypassPermissions"
         );
         assert_eq!(
             permission_mode(RuntimeMode::FullAccess, InteractionMode::Plan),
+            "plan"
+        );
+        assert_eq!(
+            permission_mode(RuntimeMode::Auto, InteractionMode::Plan),
+            "plan"
+        );
+        assert_eq!(
+            permission_mode(RuntimeMode::Ask, InteractionMode::Plan),
             "plan"
         );
     }

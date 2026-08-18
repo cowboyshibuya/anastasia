@@ -1575,8 +1575,9 @@ impl Waku {
         let handle = self.menu_handle("runtime-mode", cx);
         dropdown_menu(
             MenuChip::new("runtime-mode")
-                .icon(selected_mode.icon(), theme.text_tertiary)
+                .icon(selected_mode.icon(), theme.access_color(selected_mode))
                 .label(selected_mode.label())
+                .label_color(theme.access_color(selected_mode))
                 .caret(false)
                 .selected(handle.is_open()),
             "runtime-mode-menu",
@@ -1588,6 +1589,7 @@ impl Waku {
                     .map(|option| {
                         let weak = weak.clone();
                         let selected = option == selected_mode;
+                        let option_color = theme.access_color(option);
                         MenuItem::custom(move |_, _| {
                             div()
                                 .w(px(288.0))
@@ -1595,7 +1597,7 @@ impl Waku {
                                 .flex()
                                 .items_center()
                                 .gap(px(10.0))
-                                .child(icon(option.icon(), 14.0, theme.text_tertiary))
+                                .child(icon(option.icon(), 14.0, option_color))
                                 .child(
                                     div()
                                         .flex_1()
@@ -1610,7 +1612,11 @@ impl Waku {
                                                 } else {
                                                     FontWeight::MEDIUM
                                                 })
-                                                .text_color(theme.text)
+                                                .text_color(if selected {
+                                                    option_color
+                                                } else {
+                                                    theme.text
+                                                })
                                                 .child(option.label()),
                                         )
                                         .child(
@@ -1628,7 +1634,7 @@ impl Waku {
                                     element.child(icon(
                                         "icons/check.svg",
                                         11.0,
-                                        theme.text_tertiary,
+                                        option_color,
                                     ))
                                 })
                                 .into_any_element()
