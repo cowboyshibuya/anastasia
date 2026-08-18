@@ -1719,6 +1719,7 @@ fn settings_search_filters_pages_for_arrow_cycling() {
         SettingsPage::Notifications,
         SettingsPage::Shortcuts,
         SettingsPage::Harness,
+        SettingsPage::Integrations,
         SettingsPage::Providers,
         SettingsPage::Skills,
         SettingsPage::Usage,
@@ -1732,6 +1733,7 @@ fn settings_search_filters_pages_for_arrow_cycling() {
     assert_eq!(pages("theme"), vec![SettingsPage::Appearance]);
     assert_eq!(pages("skill"), vec![SettingsPage::Skills]);
     assert_eq!(pages("ponytail"), vec![SettingsPage::Harness]);
+    assert_eq!(pages("alabasta"), vec![SettingsPage::Integrations]);
 
     // A keyword shared across pages keeps them all reachable.
     let mut codex_pages = vec![

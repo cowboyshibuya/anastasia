@@ -256,6 +256,7 @@ version = "0.3.1"
 dependencies = [
  "alacritty_terminal",
  "anastasia-client",
+ "anastasia-core",
  "anastasia-protocol",
  "anyhow",
  "base64",
@@ -335,6 +336,7 @@ dependencies = [
  "rust-i18n",
  "serde",
  "serde_json",
+ "sha2",
  "smol",
  "subtle",
  "toml 0.8.23",

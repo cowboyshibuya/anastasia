@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use anastasia_protocol::alabasta::{AlabastaLaunchRequest, AlabastaSessionBinding};
 use anastasia_protocol::computer_use::ComputerToolRequest;
 use anastasia_protocol::model::{
     BackgroundWorkKey, DriverEvent, InteractionMode, ProviderResumeCursor, RuntimeMode,
@@ -38,6 +39,8 @@ pub struct DriverHandle {
     /// What Ponytail did for this session, reported by whichever process
     /// actually launched the agent. `None` means Ponytail was off.
     ponytail: Option<PonytailStatus>,
+    /// What the Alabasta integration compiled for this session.
+    alabasta: Option<AlabastaSessionBinding>,
 }
 
 impl DriverHandle {
@@ -45,12 +48,22 @@ impl DriverHandle {
         Self {
             inner: control,
             ponytail: None,
+            alabasta: None,
         }
     }
 
     pub fn with_ponytail(mut self, ponytail: Option<PonytailStatus>) -> Self {
         self.ponytail = ponytail;
         self
+    }
+
+    pub fn with_alabasta(mut self, alabasta: Option<AlabastaSessionBinding>) -> Self {
+        self.alabasta = alabasta;
+        self
+    }
+
+    pub fn alabasta(&self) -> Option<&AlabastaSessionBinding> {
+        self.alabasta.as_ref()
     }
 
     pub fn ponytail(&self) -> Option<&PonytailStatus> {
@@ -157,6 +170,8 @@ pub struct DriverStartOptions {
     /// The Ponytail mode this session launches under, or `None` for off.
     /// Captured once here so the session keeps it for its whole life.
     pub ponytail: Option<PonytailMode>,
+    /// The Alabasta task this session executes, when it is bound to one.
+    pub alabasta: Option<AlabastaLaunchRequest>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

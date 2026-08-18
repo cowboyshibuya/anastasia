@@ -1836,6 +1836,195 @@ impl Waku {
             .into_any_element()
     }
 
+    pub(super) fn render_alabasta_task_control(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let theme = Theme::current(cx);
+        let session = self.selected_session()?;
+        let connection = self.state.alabasta.as_ref();
+        let is_configured = connection.is_some_and(|c| c.is_configured());
+        let binding = session.alabasta.as_ref();
+        let is_bound = binding.is_some();
+        let started = session.has_started();
+
+        let trigger_label = if let Some(b) = binding {
+            if !b.task_identifier.is_empty() {
+                b.task_identifier.clone()
+            } else {
+                "Alabasta: On".to_string()
+            }
+        } else if is_configured {
+            "Alabasta: Off".to_string()
+        } else {
+            "Connect Alabasta".to_string()
+        };
+
+        let weak = cx.entity().downgrade();
+
+        if started {
+            // Keep visible during chat as active status chip
+            let is_active = is_bound;
+            return Some(
+                div()
+                    .id("alabasta-started-chip")
+                    .tab_index(0)
+                    .h(px(24.0))
+                    .px(px(8.0))
+                    .rounded(px(5.0))
+                    .border_1()
+                    .border_color(if is_active { theme.accent } else { theme.border })
+                    .bg(if is_active { theme.overlay } else { gpui::transparent_black() })
+                    .flex()
+                    .items_center()
+                    .gap(px(5.0))
+                    .cursor_default()
+                    .text_size(px(11.5))
+                    .text_color(if is_active { theme.text } else { theme.text_tertiary })
+                    .hover(|el| el.bg(theme.overlay))
+                    .child(icon(
+                        "icons/alabasta.svg",
+                        13.0,
+                        if is_active { theme.accent } else { theme.text_tertiary },
+                    ))
+                    .child(trigger_label)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.open_right_panel_surface(super::RightPanelSurface::Context, cx);
+                    }))
+                    .into_any_element(),
+            );
+        }
+
+        let handle = self.menu_handle("alabasta-task", cx);
+
+        Some(
+            dropdown_menu(
+                MenuChip::new("alabasta-task")
+                    .icon(
+                        "icons/alabasta.svg",
+                        if is_bound { theme.accent } else { theme.text_tertiary },
+                    )
+                    .label(trigger_label)
+                    .caret(true)
+                    .selected(handle.is_open()),
+                "alabasta-task-menu",
+                &handle,
+                MenuAlign::AboveLeft,
+                move |_| {
+                    let mut items = Vec::new();
+                    if !is_configured {
+                        let weak_settings = weak.clone();
+                        items.push(MenuItem::Header("Alabasta Integration".into()));
+                        items.push(MenuItem::new("Connect to Alabasta...", move |_, cx| {
+                            let _ = weak_settings.update(cx, |this, cx| {
+                                this.open_settings_page(super::SettingsPage::Integrations, cx);
+                            });
+                        }));
+                        return items;
+                    }
+
+                    items.push(MenuItem::Header("Alabasta Workspace Context".into()));
+
+                    let weak_toggle = weak.clone();
+                    if is_bound {
+                        items.push(MenuItem::new("✓ Alabasta Context Enabled (Click to Disable)", move |_, cx| {
+                            let _ = weak_toggle.update(cx, |this, cx| {
+                                this.clear_selected_session_alabasta_task(cx);
+                            });
+                        }));
+                    } else {
+                        items.push(MenuItem::new("Enable Alabasta Workspace Context", move |_, cx| {
+                            let _ = weak_toggle.update(cx, |this, cx| {
+                                this.set_selected_session_alabasta_task(
+                                    "".into(),
+                                    "Alabasta".into(),
+                                    "Workspace Context".into(),
+                                    cx,
+                                );
+                            });
+                        }));
+                    }
+
+                    items.push(MenuItem::Separator);
+                    items.push(MenuItem::Header("Quick Tasks".into()));
+
+                    let weak_tom = weak.clone();
+                    items.push(MenuItem::new("TOM-35 (Task)", move |_, cx| {
+                        let _ = weak_tom.update(cx, |this, cx| {
+                            this.set_selected_session_alabasta_task(
+                                "TOM-35".into(),
+                                "TOM-35".into(),
+                                "Task TOM-35".into(),
+                                cx,
+                            );
+                        });
+                    }));
+
+                    let weak_alb = weak.clone();
+                    items.push(MenuItem::new("ALB-482 (Task)", move |_, cx| {
+                        let _ = weak_alb.update(cx, |this, cx| {
+                            this.set_selected_session_alabasta_task(
+                                "ALB-482".into(),
+                                "ALB-482".into(),
+                                "Task ALB-482".into(),
+                                cx,
+                            );
+                        });
+                    }));
+
+                    items.push(MenuItem::Separator);
+                    let weak_settings = weak.clone();
+                    items.push(MenuItem::new("Integrations Settings...", move |_, cx| {
+                        let _ = weak_settings.update(cx, |this, cx| {
+                            this.open_settings_page(super::SettingsPage::Integrations, cx);
+                        });
+                    }));
+
+                    items
+                },
+            )
+            .into_any_element(),
+        )
+    }
+
+    pub(super) fn set_selected_session_alabasta_task(
+        &mut self,
+        task_id: String,
+        task_identifier: String,
+        task_title: String,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = self.selected_session_mut() else {
+            return;
+        };
+        let provider = session.provider;
+        let integration = anastasia_protocol::alabasta::AlabastaIntegration::for_provider(provider);
+        let status = anastasia_protocol::alabasta::AlabastaStatus::active(
+            provider,
+            integration,
+            anastasia_protocol::alabasta::ContextReadiness::Ready,
+            Vec::new(),
+            None,
+        );
+        session.alabasta = Some(anastasia_protocol::alabasta::AlabastaSessionBinding {
+            task_id,
+            task_identifier: task_identifier.clone(),
+            task_title: task_title.clone(),
+            status,
+        });
+        if !task_identifier.is_empty() && task_identifier != "Alabasta" {
+            session.set_auto_title(Some(format!("{task_identifier} · {task_title}")));
+        }
+        self.save();
+        cx.notify();
+    }
+
+    pub(super) fn clear_selected_session_alabasta_task(&mut self, cx: &mut Context<Self>) {
+        let Some(session) = self.selected_session_mut() else {
+            return;
+        };
+        session.alabasta = None;
+        self.save();
+        cx.notify();
+    }
+
     /// Stage files dropped onto the composer as attachment chips. The mention
     /// each chip will submit takes the autocomplete's form: relative to the
     /// project root when the file is inside it, absolute otherwise,
@@ -2616,6 +2805,7 @@ impl Waku {
                         .children(self.render_agent_preset_control(cx))
                         .child(self.render_access_control(cx))
                         .child(self.render_interaction_mode_control(cx))
+                        .children(self.render_alabasta_task_control(cx))
                         .child(div().flex_1())
                         .child(match submit_action {
                             ComposerSubmitAction::Preparing => div()

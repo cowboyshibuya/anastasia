@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use uuid::Uuid;
 
+use crate::alabasta::AlabastaSessionBinding;
 use crate::ponytail::PonytailStatus;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -805,6 +806,12 @@ pub struct AgentSession {
     /// given, even after the setting changes or the app restarts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ponytail: Option<PonytailStatus>,
+    /// The Alabasta task this session executes and the context it received,
+    /// captured when its driver started. `None` means the session is not bound
+    /// to a workspace. Persisted rather than recomputed so the badge keeps
+    /// reporting the context the agent was actually given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alabasta: Option<AlabastaSessionBinding>,
     /// Slash commands the provider reported for this session's live process,
     /// kept so a resumed session still completes them before its next
     /// handshake.
@@ -871,6 +878,7 @@ impl AgentSession {
             detail_loaded: true,
             provider_cursor: None,
             ponytail: None,
+            alabasta: None,
             available_commands: Vec::new(),
             context_usage: None,
             runtime_event_cursor: None,
@@ -908,6 +916,7 @@ impl AgentSession {
             last_reply_at: self.last_reply_at,
             provider_cursor: None,
             ponytail: self.ponytail.clone(),
+            alabasta: self.alabasta.clone(),
             available_commands: Vec::new(),
             context_usage: None,
             runtime_event_cursor: None,

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ts_rs::TS;
 
+use crate::alabasta::AlabastaConnection;
 use crate::computer_use::ComputerAppGrant;
 use crate::model::ProviderKind;
 
@@ -16,6 +17,11 @@ pub struct DaemonSettings {
     pub disabled_providers: Vec<ProviderKind>,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub provider_binary_overrides: HashMap<ProviderKind, String>,
+    /// The connected Alabasta workspace, or `None` when signed out. Carries no
+    /// secret: the refresh token lives in the login keychain, keyed by the
+    /// connection's account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alabasta: Option<AlabastaConnection>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -27,6 +33,7 @@ impl Default for DaemonSettings {
             computer_use_allowed_apps: Vec::new(),
             disabled_providers: Vec::new(),
             provider_binary_overrides: HashMap::new(),
+            alabasta: None,
             extra: BTreeMap::new(),
         }
     }

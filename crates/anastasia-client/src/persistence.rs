@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{Command, DaemonExposureSettings, DaemonSettings, DaemonSupervisor, ResponsePayload};
+use anastasia_protocol::alabasta::{AlabastaBinding, AlabastaConnection};
 use anastasia_protocol::computer_use::ComputerAppGrant;
 use anastasia_protocol::i18n::AppLanguage;
 use anastasia_protocol::identity::DATA_DIRECTORY_NAME;
@@ -307,6 +308,14 @@ pub struct PersistedState {
     pub favorite_models: Vec<FavoriteModel>,
     #[serde(default)]
     pub theme: ThemePreference,
+    /// The connected Alabasta workspace. Daemon-owned settings, no secret.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alabasta: Option<AlabastaConnection>,
+    /// Which Alabasta product each local project is bound to. Keyed by project
+    /// rather than stored on `Project` so binding a repository needs no database
+    /// migration, and so signing out can drop every binding at once.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub alabasta_bindings: HashMap<Uuid, AlabastaBinding>,
     /// The Ponytail harness policy applied to new sessions. Split across two
     /// fields only because the settings UI is a switch plus a picker; use
     /// [`Self::ponytail_mode`] to get the one value that actually matters.
@@ -367,6 +376,8 @@ impl PersistedState {
             version: STATE_VERSION,
             analytics_id: Uuid::new_v4(),
             analytics_enabled: true,
+            alabasta: None,
+            alabasta_bindings: HashMap::new(),
             ponytail_enabled: default_ponytail_enabled(),
             ponytail: PonytailMode::default(),
             projects: Vec::new(),
@@ -482,11 +493,13 @@ impl PersistedState {
             computer_use_allowed_apps: self.computer_use_allowed_apps.clone(),
             disabled_providers: self.disabled_providers.clone(),
             provider_binary_overrides: self.provider_binary_overrides.clone(),
+            alabasta: self.alabasta.clone(),
             extra: self.daemon_settings_extra.clone(),
         }
     }
 
     pub fn apply_daemon_settings(&mut self, settings: DaemonSettings) {
+        self.alabasta = settings.alabasta;
         self.computer_use_enabled = settings.computer_use_enabled;
         self.computer_use_allowed_apps = settings.computer_use_allowed_apps;
         self.disabled_providers = settings.disabled_providers;

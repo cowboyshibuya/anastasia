@@ -1253,6 +1253,7 @@ impl Waku {
         // the policy this agent actually launched under, which a later settings
         // change does not alter.
         let ponytail = session.and_then(|session| session.ponytail.clone());
+        let alabasta = session.and_then(|session| session.alabasta.clone());
         let left_window_controls = (!self.sidebar_visible)
             .then(|| {
                 self.render_client_window_controls(
@@ -1361,7 +1362,8 @@ impl Waku {
                                 .child(icon("icons/bot.svg", 10.5, theme.text_tertiary))
                                 .child(div().min_w_0().truncate().child(SharedString::from(label)))
                         }))
-                        .children(ponytail.map(|status| render_ponytail_badge(status, theme))),
+                        .children(ponytail.map(|status| render_ponytail_badge(status, theme)))
+                        .children(alabasta.map(|binding| render_alabasta_badge(binding, theme))),
                     cx,
                 ),
             )
@@ -1776,4 +1778,38 @@ fn render_ponytail_badge(
             };
             Tooltip::text(detail)(window, cx)
         })
+}
+
+/// The header badge naming the Alabasta task and context status for a session.
+fn render_alabasta_badge(
+    binding: anastasia_protocol::alabasta::AlabastaSessionBinding,
+    theme: Theme,
+) -> impl IntoElement {
+    let task_id = binding.task_identifier.clone();
+    let label = tr!("alabasta.badge", task = task_id.clone());
+    let detail = tr!(
+        "alabasta.badge_tooltip",
+        task = task_id,
+        integration = "Context + bridge",
+        readiness = "Ready",
+        tokens = "compiled",
+    );
+
+    div()
+        .id("alabasta-badge")
+        .h(px(22.0))
+        .max_w(px(180.0))
+        .px(px(6.0))
+        .rounded(px(6.0))
+        .flex_none()
+        .flex()
+        .items_center()
+        .gap(px(4.0))
+        .bg(theme.overlay)
+        .text_size(px(11.0))
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(theme.text_secondary)
+        .child(icon("icons/alabasta.svg", 10.5, theme.accent))
+        .child(div().min_w_0().truncate().child(SharedString::from(label)))
+        .tooltip(move |window, cx| Tooltip::text(detail.clone())(window, cx))
 }

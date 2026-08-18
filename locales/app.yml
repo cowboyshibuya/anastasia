@@ -114,6 +114,88 @@ settings.daemon:
   en: Daemon
 settings.computer_use:
   en: Computer Use
+alabasta.integration_push_and_bridge:
+  en: Context + bridge
+alabasta.integration_push_only:
+  en: Context only
+alabasta.integration_unsupported:
+  en: Not supported
+alabasta.readiness_ready:
+  en: Ready
+alabasta.readiness_needs_context:
+  en: Needs context
+alabasta.readiness_not_ready:
+  en: Not ready
+alabasta.readiness_blocked:
+  en: Blocked
+alabasta.readiness_unknown:
+  en: Unknown
+settings.integrations:
+  en: Integrations
+settings.integrations_keywords:
+  en: integrations alabasta workspace context sync coordination task issues
+settings.alabasta:
+  en: Alabasta
+settings.alabasta_description:
+  en: Shared workspace context and coordination plane for your coding agents.
+settings.alabasta_connect:
+  en: Connect to Alabasta
+settings.alabasta_connecting:
+  en: Connecting…
+settings.alabasta_disconnect:
+  en: Disconnect
+settings.alabasta_connected:
+  en: Connected
+settings.alabasta_disconnected:
+  en: Not connected
+settings.alabasta_site_url:
+  en: Site URL
+settings.alabasta_app_url:
+  en: App URL
+settings.alabasta_account:
+  en: Account
+settings.alabasta_workspace:
+  en: Workspace
+settings.alabasta_product_bindings:
+  en: Project bindings
+settings.alabasta_product_bindings_description:
+  en: Bind local projects to an Alabasta product to filter tasks and standing rules.
+settings.alabasta_no_projects:
+  en: No projects available
+settings.alabasta_bound_to:
+  en: "Bound to %{product}"
+settings.alabasta_unbind:
+  en: Unbound
+settings.alabasta_health:
+  en: Integration support by provider
+alabasta.badge:
+  en: "Alabasta · %{task}"
+alabasta.badge_ready:
+  en: "%{task} · Context ready"
+alabasta.badge_unavailable:
+  en: "%{task} · Context unavailable"
+alabasta.badge_tooltip:
+  en: "Alabasta\nTask: %{task}\nIntegration: %{integration}\nReadiness: %{readiness}\nTokens: ~%{tokens}"
+alabasta.task_picker:
+  en: Alabasta task
+alabasta.no_task:
+  en: No task
+alabasta.loading_tasks:
+  en: Loading tasks…
+alabasta.no_tasks_found:
+  en: No assigned tasks found
+alabasta.context_panel_title:
+  en: Alabasta Context
+alabasta.context_panel_empty:
+  en: No Alabasta context compiled for this session.
+alabasta.sources_count:
+  en: "%{count} context sources"
+alabasta.authority:
+  en: "Authority: %{authority} (rank %{rank})"
+alabasta.approximate_tokens:
+  en: "~%{tokens} tokens"
+alabasta.why_in_context:
+  en: Why is this in context?
 settings.harness:
   en: Harness
 settings.harness_keywords:

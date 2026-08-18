@@ -228,6 +228,7 @@ enum BranchPickerAction {
 enum SettingsPage {
     General,
     Harness,
+    Integrations,
     Providers,
     Skills,
     Usage,
@@ -541,6 +542,7 @@ enum RightPanelSurface {
         key: BackgroundWorkKey,
         title: String,
     },
+    Context,
     Files,
     Diff,
     File(String),
@@ -1532,6 +1534,7 @@ mod runtime;
 mod sessions;
 mod settings;
 mod settings_harness;
+mod settings_integrations;
 mod settings_notifications;
 mod settings_shortcuts;
 mod sidebar;

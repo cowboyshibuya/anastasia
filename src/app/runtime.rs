@@ -54,6 +54,7 @@ fn attach_driver(
         runtime_id,
         supports_steer,
         ponytail,
+        alabasta,
     } = response
     else {
         anyhow::bail!("Anastasia daemon returned an invalid runtime attachment response");
@@ -70,7 +71,8 @@ fn attach_driver(
         session.runtime_event_cursor,
         event_tx,
     )?
-    .with_ponytail(ponytail);
+    .with_ponytail(ponytail)
+    .with_alabasta(alabasta);
     Ok(Some((session, PreparedDriver { handle, events })))
 }
 
@@ -2663,9 +2665,37 @@ impl Waku {
                 computer_use_enabled: cfg!(target_os = "macos") && self.state.computer_use_enabled,
                 provider_cursor: session.provider_cursor.clone(),
                 ponytail: self.state.ponytail_mode(),
+                alabasta: self.alabasta_launch_request(session),
             },
             event_wake: self.event_wake_tx.clone(),
             daemon_client: self.daemon.client(),
+        })
+    }
+
+    /// The Alabasta context request for a session, or `None` when it is not
+    /// bound to a task.
+    ///
+    /// Reads the connection from settings but never a credential — the daemon
+    /// reads the refresh token from the keychain itself.
+    fn alabasta_launch_request(
+        &self,
+        session: &AgentSession,
+    ) -> Option<anastasia_client::alabasta::AlabastaLaunchRequest> {
+        let connection = self.state.alabasta.clone()?;
+        if !connection.is_configured() {
+            return None;
+        }
+        let binding = session.alabasta.as_ref()?;
+        Some(anastasia_client::alabasta::AlabastaLaunchRequest {
+            connection,
+            task_id: binding.task_id.clone(),
+            task_identifier: binding.task_identifier.clone(),
+            task_title: binding.task_title.clone(),
+            product_id: self
+                .state
+                .alabasta_bindings
+                .get(&session.project_id)
+                .map(|binding| binding.product_id.clone()),
         })
     }
 
@@ -2681,8 +2711,10 @@ impl Waku {
         // the setting changes or the app restarts.
         if let Some(session) = self.state.session_mut(session_id) {
             let ponytail = handle.ponytail().cloned();
-            if session.ponytail != ponytail {
+            let alabasta = handle.alabasta().cloned();
+            if session.ponytail != ponytail || session.alabasta != alabasta {
                 session.ponytail = ponytail;
+                session.alabasta = alabasta;
                 self.save();
             }
         }

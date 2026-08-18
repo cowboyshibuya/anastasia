@@ -61,9 +61,9 @@ fi
 debug_adhoc_requirement="=designated => identifier \"$bundle_identifier\""
 if [ "${ANASTASIA_SKIP_CARGO_BUILD:-0}" != "1" ]; then
   if [ "$profile" = "release" ]; then
-    cargo build --release --package anastasia --bin anastasia --bin anastasia_js_repl --package anastasia-daemon --bin anastasia-daemon
+    cargo build --release --package anastasia --bin anastasia --bin anastasia_js_repl --bin anastasia_alabasta_bridge --package anastasia-daemon --bin anastasia-daemon
   else
-    cargo build --package anastasia --bin anastasia --bin anastasia_js_repl --package anastasia-daemon --bin anastasia-daemon
+    cargo build --package anastasia --bin anastasia --bin anastasia_js_repl --bin anastasia_alabasta_bridge --package anastasia-daemon --bin anastasia-daemon
   fi
 fi
 
@@ -71,6 +71,7 @@ bundle="$cargo_target_dir/$profile/$app_name.app"
 contents="$bundle/Contents"
 helper_bundle="$contents/Helpers/$helper_name.app"
 repl_executable="$contents/Resources/anastasia_js_repl"
+alabasta_bridge_executable="$contents/Resources/anastasia_alabasta_bridge"
 daemon_executable="$contents/MacOS/anastasia-daemon"
 swift_module_cache="$cargo_target_dir/$profile/swift-module-cache"
 helper_source="resources/computer-use/WakuComputerUse.swift"
@@ -155,6 +156,10 @@ mkdir -p "$contents/MacOS" "$contents/Resources/computer-use" "$contents/Resourc
 cp "$cargo_target_dir/$profile/anastasia" "$contents/MacOS/$app_name"
 cp "$cargo_target_dir/$profile/anastasia_js_repl" "$repl_executable"
 chmod 755 "$repl_executable"
+if [ -f "$cargo_target_dir/$profile/anastasia_alabasta_bridge" ]; then
+  cp "$cargo_target_dir/$profile/anastasia_alabasta_bridge" "$alabasta_bridge_executable"
+  chmod 755 "$alabasta_bridge_executable"
+fi
 if [ "$profile" = "release" ]; then
   cp "$cargo_target_dir/$profile/anastasia-daemon" "$daemon_executable"
   chmod 755 "$daemon_executable"

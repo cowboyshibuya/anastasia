@@ -177,6 +177,37 @@ fn configure_computer_use_command(command: &mut Command, config: Option<&CodexCo
     }
 }
 
+fn configure_alabasta_command(
+    command: &mut Command,
+    alabasta: Option<&anastasia_protocol::alabasta::AlabastaLaunchRequest>,
+) {
+    if alabasta.is_none() {
+        return;
+    }
+    if let Ok(bridge_path) = crate::computer_use::alabasta_bridge_path() {
+        command
+            .arg("-c")
+            .arg(format!(
+                "mcp_servers.alabasta.command={}",
+                toml_string(&bridge_path.display().to_string())
+            ))
+            .arg("-c")
+            .arg("mcp_servers.alabasta.args=[]");
+        if let Ok(address) = std::env::var(anastasia_protocol::DAEMON_ADDRESS_ENV) {
+            command.arg("-c").arg(format!(
+                "mcp_servers.alabasta.env.ANASTASIA_DAEMON_ADDRESS={}",
+                toml_string(&address)
+            ));
+        }
+        if let Ok(token) = std::env::var(anastasia_protocol::DAEMON_TOKEN_ENV) {
+            command.arg("-c").arg(format!(
+                "mcp_servers.alabasta.env.ANASTASIA_DAEMON_TOKEN={}",
+                toml_string(&token)
+            ));
+        }
+    }
+}
+
 impl CodexDriver {
     pub fn start(options: DriverStartOptions, events: DriverEventSender) -> anyhow::Result<Self> {
         let DriverStartOptions {
@@ -192,7 +223,8 @@ impl CodexDriver {
             computer_use_enabled,
             provider_cursor,
             ponytail: _,
-            ponytail_launch,
+            harness_launch,
+            alabasta,
         } = options;
         let provider_session_id = match provider_cursor {
             Some(ProviderResumeCursor::Codex { thread_id }) => Some(thread_id),
@@ -221,7 +253,8 @@ impl CodexDriver {
         let mut command = crate::command_env::command(&binary);
         command.args(["app-server", "--stdio"]);
         configure_computer_use_command(&mut command, computer_use.as_ref());
-        super::support::apply_ponytail(&mut command, &ponytail_launch);
+        configure_alabasta_command(&mut command, alabasta.as_ref());
+        crate::harness::apply(&mut command, &harness_launch);
         let command = command
             .current_dir(&cwd)
             .stdin(Stdio::piped())
@@ -3087,5 +3120,30 @@ mod tests {
 
         assert!(codex_plan_usage(Some(&json!({"planType": "plus"}))).is_none());
         assert!(codex_plan_usage(None).is_none());
+    }
+
+    #[test]
+    fn codex_alabasta_mcp_config_registers_server_without_secret() {
+        let launch = anastasia_protocol::alabasta::AlabastaLaunchRequest {
+            connection: anastasia_protocol::alabasta::AlabastaConnection {
+                site_url: "https://example.convex.site".into(),
+                app_url: "https://example.com".into(),
+                account_label: "user@example.com".into(),
+                workspace_id: "ws-123".into(),
+                workspace_slug: "ws".into(),
+                workspace_name: "Workspace".into(),
+            },
+            task_id: "task-1".into(),
+            task_identifier: "ALB-1".into(),
+            task_title: "Test Task".into(),
+            product_id: None,
+        };
+        let mut cmd = Command::new("codex");
+        configure_alabasta_command(&mut cmd, Some(&launch));
+        let args = cmd
+            .get_args()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert!(!args.iter().any(|arg| arg.contains("alab_sk_")));
     }
 }

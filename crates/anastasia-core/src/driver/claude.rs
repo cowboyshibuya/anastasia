@@ -15,6 +15,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::thread;
@@ -144,6 +145,30 @@ fn configure_stream_command(
     }
 }
 
+fn write_claude_mcp_config(bridge_path: &Path) -> anyhow::Result<PathBuf> {
+    let mut env = serde_json::Map::new();
+    if let Ok(addr) = std::env::var(anastasia_protocol::DAEMON_ADDRESS_ENV) {
+        env.insert("ANASTASIA_DAEMON_ADDRESS".into(), serde_json::Value::String(addr));
+    }
+    if let Ok(tok) = std::env::var(anastasia_protocol::DAEMON_TOKEN_ENV) {
+        env.insert("ANASTASIA_DAEMON_TOKEN".into(), serde_json::Value::String(tok));
+    }
+    let config = serde_json::json!({
+        "mcpServers": {
+            "alabasta": {
+                "command": bridge_path.display().to_string(),
+                "args": [],
+                "env": env
+            }
+        }
+    });
+    let dir = std::env::temp_dir().join("anastasia-claude-mcp");
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join("mcp-config.json");
+    std::fs::write(&path, serde_json::to_string(&config)?)?;
+    Ok(path)
+}
+
 impl ClaudeDriver {
     pub fn start(options: DriverStartOptions, events: DriverEventSender) -> anyhow::Result<Self> {
         let DriverStartOptions {
@@ -159,7 +184,8 @@ impl ClaudeDriver {
             computer_use_enabled: _,
             provider_cursor,
             ponytail: _,
-            ponytail_launch,
+            harness_launch,
+            alabasta,
         } = options;
         let (resume_session_id, resume_at) = match provider_cursor {
             Some(ProviderResumeCursor::Claude {
@@ -195,7 +221,14 @@ impl ClaudeDriver {
         } else {
             command.args(["--session-id", &session_id]);
         }
-        super::support::apply_ponytail(&mut command, &ponytail_launch);
+        if alabasta.is_some() {
+            if let Ok(bridge_path) = crate::computer_use::alabasta_bridge_path() {
+                if let Ok(config_path) = write_claude_mcp_config(&bridge_path) {
+                    command.args(["--mcp-config", &config_path.display().to_string()]);
+                }
+            }
+        }
+        crate::harness::apply(&mut command, &harness_launch);
 
         let command = command
             .stdin(Stdio::piped())
@@ -1492,7 +1525,8 @@ mod tests {
                 computer_use_enabled: false,
                 provider_cursor: None,
                 ponytail: None,
-                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                harness_launch: crate::harness::HarnessLaunch::disabled(),
+                alabasta: None,
             },
             events,
         )
@@ -1563,7 +1597,8 @@ mod tests {
                 computer_use_enabled: false,
                 provider_cursor: None,
                 ponytail: None,
-                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                harness_launch: crate::harness::HarnessLaunch::disabled(),
+                alabasta: None,
             },
             events,
         )

@@ -189,12 +189,14 @@ impl Backend for WakuBackend {
                         runtime_id: None,
                         supports_steer: false,
                         ponytail: None,
+                        alabasta: None,
                     });
                 };
                 Ok(ResponsePayload::SessionRuntime {
                     runtime_id: Some(*runtime_id),
                     supports_steer: driver.supports_steer(),
                     ponytail: driver.ponytail().cloned(),
+                    alabasta: driver.alabasta().cloned(),
                 })
             }
             Command::GetSettings => Ok(ResponsePayload::Settings {
@@ -203,6 +205,57 @@ impl Backend for WakuBackend {
             Command::UpdateSettings { settings } => {
                 self.settings.replace(settings)?;
                 Ok(ResponsePayload::Ack)
+            }
+            Command::AlabastaToolCall { tool, arguments } => {
+                let connection = self
+                    .settings
+                    .get()
+                    .alabasta
+                    .filter(|conn| conn.is_configured())
+                    .or_else(|| self.task_state.lock().alabasta.clone())
+                    .filter(|conn| conn.is_configured())
+                    .ok_or_else(|| anyhow!("Alabasta is not connected or configured"))?;
+                let client = crate::alabasta::client::AlabastaClient::new(connection);
+                let result = match tool.as_str() {
+                    "alabasta_get_context_package" => {
+                        let task_id = arguments
+                            .get("taskId")
+                            .and_then(Value::as_str)
+                            .ok_or_else(|| anyhow!("taskId is required"))?;
+                        client.task_context(task_id)?
+                    }
+                    "alabasta_get_standing_context" => {
+                        let product_id = arguments.get("productId").and_then(Value::as_str);
+                        client.standing_context(product_id)?
+                    }
+                    "alabasta_search_context" => {
+                        let query = arguments
+                            .get("query")
+                            .and_then(Value::as_str)
+                            .ok_or_else(|| anyhow!("query is required"))?;
+                        let limit = arguments
+                            .get("limit")
+                            .and_then(Value::as_u64)
+                            .map(|l| l as u32);
+                        client.search(query, limit)?
+                    }
+                    "alabasta_read_resource" => {
+                        let uri = arguments
+                            .get("uri")
+                            .and_then(Value::as_str)
+                            .ok_or_else(|| anyhow!("uri is required"))?;
+                        client.read_resource(uri)?
+                    }
+                    "alabasta_get_task" => {
+                        let identifier = arguments
+                            .get("identifier")
+                            .and_then(Value::as_str)
+                            .ok_or_else(|| anyhow!("identifier is required"))?;
+                        client.task(identifier)?
+                    }
+                    other => bail!("unknown Alabasta tool: {other}"),
+                };
+                Ok(ResponsePayload::AlabastaToolResult { result })
             }
             Command::ProbeProvider {
                 provider,
@@ -586,13 +639,15 @@ impl Backend for WakuBackend {
                         .transpose()
                         .context("daemon received an invalid provider cursor")?,
                     ponytail: options.ponytail,
-                    ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                    harness_launch: crate::harness::HarnessLaunch::disabled(),
+                    alabasta: options.alabasta,
                 };
                 let (wake, _wake_events) = smol::channel::bounded(1);
                 let (event_sender, event_receiver) = driver::event_channel(wake);
                 let handle = driver::start_local(provider, options, event_sender)?;
                 let supports_steer = handle.supports_steer();
                 let ponytail = handle.ponytail().cloned();
+                let alabasta = handle.alabasta().cloned();
                 std::thread::Builder::new()
                     .name(format!("waku-daemon-events-{session_id}"))
                     .spawn(move || {
@@ -617,6 +672,7 @@ impl Backend for WakuBackend {
                 Ok(ResponsePayload::Started {
                     supports_steer,
                     ponytail,
+                    alabasta,
                 })
             }
             Command::CloseSession => {
@@ -1116,7 +1172,8 @@ impl WakuBackend {
                 computer_use_enabled: false,
                 provider_cursor: source.provider_cursor.clone(),
                 ponytail: None,
-                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                harness_launch: crate::harness::HarnessLaunch::disabled(),
+                alabasta: None,
             },
             event_sender,
         )?;
@@ -1269,7 +1326,8 @@ impl WakuBackend {
                 computer_use_enabled: false,
                 provider_cursor: source.provider_cursor.clone(),
                 ponytail: None,
-                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                harness_launch: crate::harness::HarnessLaunch::disabled(),
+                alabasta: None,
             },
             event_sender,
         )?;
@@ -1529,6 +1587,7 @@ fn handle_driver_command(
         | Command::Start { .. }
         | Command::GetSettings
         | Command::UpdateSettings { .. }
+        | Command::AlabastaToolCall { .. }
         | Command::ProbeProvider { .. }
         | Command::FetchPlanUsage { .. }
         | Command::ProbeComputerPermissions { .. }

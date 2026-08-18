@@ -5,6 +5,7 @@ use serde_json::Value;
 use ts_rs::TS;
 use uuid::Uuid;
 
+use crate::alabasta::{AlabastaLaunchRequest, AlabastaSessionBinding};
 use crate::attachments::{AttachmentUpload, StoredAttachment};
 use crate::computer_use::ComputerPermissions;
 use crate::model::{AgentSession, Project, ProviderKind, ProviderProbe, UserInputAnswer};
@@ -111,6 +112,10 @@ pub enum Command {
     RejectComputerTool {
         request: WireComputerToolRequest,
         reason: String,
+    },
+    AlabastaToolCall {
+        tool: String,
+        arguments: Value,
     },
     ApplyOptions {
         options: WireSessionOptions,
@@ -259,6 +264,10 @@ pub struct WireDriverStartOptions {
     /// mode it started with even if the setting changes mid-run.
     #[serde(default)]
     pub ponytail: Option<PonytailMode>,
+    /// The Alabasta task this session executes. Carries the connection, never a
+    /// credential: the daemon reads that from the keychain itself.
+    #[serde(default)]
+    pub alabasta: Option<AlabastaLaunchRequest>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
@@ -364,6 +373,10 @@ pub enum ResponsePayload {
         /// `Started` did rather than leaving the client to guess.
         #[serde(default)]
         ponytail: Option<PonytailStatus>,
+        /// What Alabasta compiled for this session. Only the process that
+        /// launched the agent can know, so it reports back.
+        #[serde(default)]
+        alabasta: Option<AlabastaSessionBinding>,
     },
     Started {
         supports_steer: bool,
@@ -371,6 +384,11 @@ pub enum ResponsePayload {
         /// (it resolves the vendored copy and probes for Node), so it reports back.
         #[serde(default)]
         ponytail: Option<PonytailStatus>,
+        #[serde(default)]
+        alabasta: Option<AlabastaSessionBinding>,
+    },
+    AlabastaToolResult {
+        result: Value,
     },
     OptionsApplied {
         applied: bool,

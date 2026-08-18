@@ -141,22 +141,75 @@ fn build_opencode_computer_use_config(
     serde_json::to_string(&config).context("could not encode OpenCode Computer Use configuration")
 }
 
-/// Adds the Ponytail ruleset to an OpenCode server's configuration.
+/// Adds Anastasia's composed instructions to an OpenCode server's configuration.
 ///
-/// OpenCode's `instructions` array takes file paths, so the ruleset is written
-/// out and referenced — the same shape Computer Use already uses, and it merges
-/// with a Computer Use entry rather than replacing it.
-pub(super) fn opencode_ponytail_environment(
-    launch: &crate::ponytail::PonytailLaunch,
+/// OpenCode's `instructions` array takes file paths, so the composed text is
+/// written out and referenced — the same shape Computer Use already uses, and it
+/// merges with a Computer Use entry rather than replacing it.
+pub(super) fn opencode_harness_environment(
+    launch: &crate::harness::HarnessLaunch,
     environment: &[(String, String)],
 ) -> anyhow::Result<Vec<(String, String)>> {
-    let path = crate::ponytail::write_instructions_file(launch)?;
+    let text = launch
+        .instructions
+        .as_deref()
+        .ok_or_else(|| anyhow!("this harness launch carries no instruction text"))?;
+    let path = crate::harness::write_instructions_file(text)?;
     let existing = environment
         .iter()
         .find(|(key, _)| key == "OPENCODE_CONFIG_CONTENT")
         .map(|(_, value)| value.as_str())
         .filter(|value| !value.is_empty());
     let content = add_opencode_instruction(existing, &path)?;
+    let mut merged = environment
+        .iter()
+        .filter(|(key, _)| key != "OPENCODE_CONFIG_CONTENT")
+        .cloned()
+        .collect::<Vec<_>>();
+    merged.push(("OPENCODE_CONFIG_CONTENT".to_owned(), content));
+    Ok(merged)
+}
+
+pub(super) fn opencode_alabasta_environment(
+    environment: &[(String, String)],
+) -> anyhow::Result<Vec<(String, String)>> {
+    let bridge_path = crate::computer_use::alabasta_bridge_path()?;
+    let existing = environment
+        .iter()
+        .find(|(key, _)| key == "OPENCODE_CONFIG_CONTENT")
+        .map(|(_, value)| value.as_str())
+        .filter(|value| !value.is_empty());
+    let mut config = existing
+        .map(serde_json::from_str::<Value>)
+        .transpose()
+        .context("OPENCODE_CONFIG_CONTENT is invalid JSON")?
+        .unwrap_or_else(|| serde_json::json!({}));
+    let root = config
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("OPENCODE_CONFIG_CONTENT must contain a JSON object"))?;
+    let mcp = root
+        .entry("mcp")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("OPENCODE_CONFIG_CONTENT.mcp must be a JSON object"))?;
+    let mut env = serde_json::Map::new();
+    if let Ok(address) = std::env::var(anastasia_protocol::DAEMON_ADDRESS_ENV) {
+        env.insert("ANASTASIA_DAEMON_ADDRESS".into(), Value::String(address));
+    }
+    if let Ok(token) = std::env::var(anastasia_protocol::DAEMON_TOKEN_ENV) {
+        env.insert("ANASTASIA_DAEMON_TOKEN".into(), Value::String(token));
+    }
+    mcp.insert(
+        "alabasta".into(),
+        serde_json::json!({
+            "type": "local",
+            "command": [bridge_path.display().to_string()],
+            "enabled": true,
+            "environment": env,
+        }),
+    );
+    let content = serde_json::to_string(&config)
+        .context("could not encode OpenCode Alabasta configuration")?;
     let mut merged = environment
         .iter()
         .filter(|(key, _)| key != "OPENCODE_CONFIG_CONTENT")
@@ -329,6 +382,24 @@ fn build_grok_computer_use_toml(
     server.insert("env".into(), toml::Value::Table(environment));
     server.insert("enabled".into(), toml::Value::Boolean(true));
     mcp_servers.insert("waku_js_repl".into(), toml::Value::Table(server));
+    if let Ok(bridge_path) = crate::computer_use::alabasta_bridge_path() {
+        let mut alabasta_env = toml::Table::new();
+        if let Ok(address) = std::env::var(anastasia_protocol::DAEMON_ADDRESS_ENV) {
+            alabasta_env.insert("ANASTASIA_DAEMON_ADDRESS".into(), toml::Value::String(address));
+        }
+        if let Ok(token) = std::env::var(anastasia_protocol::DAEMON_TOKEN_ENV) {
+            alabasta_env.insert("ANASTASIA_DAEMON_TOKEN".into(), toml::Value::String(token));
+        }
+        let mut alabasta_server = toml::Table::new();
+        alabasta_server.insert(
+            "command".into(),
+            toml::Value::String(bridge_path.display().to_string()),
+        );
+        alabasta_server.insert("args".into(), toml::Value::Array(Vec::new()));
+        alabasta_server.insert("env".into(), toml::Value::Table(alabasta_env));
+        alabasta_server.insert("enabled".into(), toml::Value::Boolean(true));
+        mcp_servers.insert("alabasta".into(), toml::Value::Table(alabasta_server));
+    }
     toml::to_string(&root).context("could not encode Grok Computer Use configuration")
 }
 
@@ -366,22 +437,6 @@ pub(super) fn grok_computer_use_launch_configuration(
         (args, environment)
     } else {
         (Vec::new(), Vec::new())
-    }
-}
-
-/// Applies a resolved Ponytail policy to a child process.
-///
-/// Args and environment are applied as-is — never through a shell — so an
-/// install path containing spaces, quotes or unicode stays one argv entry.
-/// An empty launch (Ponytail off, or a provider with no channel) leaves the
-/// command byte-identical to what it would be without this call.
-pub(super) fn apply_ponytail(
-    command: &mut std::process::Command,
-    launch: &crate::ponytail::PonytailLaunch,
-) {
-    command.args(&launch.args);
-    for (key, value) in &launch.env {
-        command.env(key, value);
     }
 }
 
@@ -617,64 +672,15 @@ mod tests {
     }
 
     #[test]
-    fn ponytail_arguments_survive_hostile_install_paths() {
-        // The whole security argument for this integration is that nothing goes
-        // through a shell. Assert on the argv the child would actually receive,
-        // which is where that guarantee either holds or does not.
-        let hostile = "/Users/a b/\"quoted\"/$HOME/`whoami`/naïve — ✓/ponytail";
-        let launch = crate::ponytail::PonytailLaunch {
-            args: vec!["--plugin-dir".to_owned(), hostile.to_owned()],
-            env: vec![("PLUGIN_DATA".to_owned(), hostile.to_owned())],
-            instructions: None,
-            status: None,
-        };
-        let mut command = std::process::Command::new("/usr/bin/true");
-        apply_ponytail(&mut command, &launch);
-
-        let args = command
-            .get_args()
-            .map(|arg| arg.to_string_lossy().into_owned())
-            .collect::<Vec<_>>();
-        // Two entries, not five: no word splitting, no expansion, no quoting.
-        assert_eq!(args, vec!["--plugin-dir".to_owned(), hostile.to_owned()]);
-        let env = command
-            .get_envs()
-            .map(|(key, value)| {
-                (
-                    key.to_string_lossy().into_owned(),
-                    value.map(|value| value.to_string_lossy().into_owned()),
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            env,
-            vec![("PLUGIN_DATA".to_owned(), Some(hostile.to_owned()))]
-        );
-    }
-
-    #[test]
-    fn a_disabled_policy_leaves_the_command_untouched() {
-        let mut command = std::process::Command::new("/usr/bin/true");
-        command.arg("--existing");
-        apply_ponytail(&mut command, &crate::ponytail::PonytailLaunch::disabled());
-        let args = command
-            .get_args()
-            .map(|arg| arg.to_string_lossy().into_owned())
-            .collect::<Vec<_>>();
-        assert_eq!(args, vec!["--existing".to_owned()]);
-        assert_eq!(command.get_envs().count(), 0);
-    }
-
-    #[test]
-    fn ponytail_joins_opencode_instructions_without_evicting_computer_use() {
+    fn harness_instructions_join_opencode_without_evicting_computer_use() {
         let existing = serde_json::json!({
             "mcp": {"waku_js_repl": {"enabled": true}},
             "instructions": ["/skills/anastasia-computer-use/SKILL.md"],
         })
         .to_string();
-        let ponytail = Path::new("/tmp/anastasia-ponytail/full/ponytail.md");
+        let harness = Path::new("/tmp/anastasia-harness/abc123/CONTEXT.md");
 
-        let merged = add_opencode_instruction(Some(&existing), ponytail).unwrap();
+        let merged = add_opencode_instruction(Some(&existing), harness).unwrap();
         let value: Value = serde_json::from_str(&merged).unwrap();
         let instructions = value["instructions"].as_array().unwrap();
         assert_eq!(instructions.len(), 2);
@@ -682,7 +688,7 @@ mod tests {
             instructions[0].as_str(),
             Some("/skills/anastasia-computer-use/SKILL.md")
         );
-        assert_eq!(instructions[1].as_str(), Some(ponytail.to_str().unwrap()));
+        assert_eq!(instructions[1].as_str(), Some(harness.to_str().unwrap()));
         // The rest of the document is carried through, not rebuilt.
         assert_eq!(
             value["mcp"]["waku_js_repl"]["enabled"].as_bool(),
@@ -690,15 +696,29 @@ mod tests {
         );
 
         // Applying it twice must not stack duplicate entries.
-        let twice = add_opencode_instruction(Some(&merged), ponytail).unwrap();
+        let twice = add_opencode_instruction(Some(&merged), harness).unwrap();
         let value: Value = serde_json::from_str(&twice).unwrap();
         assert_eq!(value["instructions"].as_array().unwrap().len(), 2);
     }
 
     #[test]
     fn an_absent_opencode_configuration_becomes_a_valid_one() {
-        let merged = add_opencode_instruction(None, Path::new("/tmp/ponytail.md")).unwrap();
+        let merged = add_opencode_instruction(None, Path::new("/tmp/harness.md")).unwrap();
         let value: Value = serde_json::from_str(&merged).unwrap();
-        assert_eq!(value["instructions"][0].as_str(), Some("/tmp/ponytail.md"));
+        assert_eq!(value["instructions"][0].as_str(), Some("/tmp/harness.md"));
+    }
+
+    #[test]
+    fn opencode_alabasta_environment_configures_bridge_without_secrets() {
+        let base_env = vec![("OPENCODE_CONFIG_CONTENT".to_string(), "{}".to_string())];
+        if let Ok(env) = opencode_alabasta_environment(&base_env) {
+            let (_, content) = env
+                .iter()
+                .find(|(k, _)| k == "OPENCODE_CONFIG_CONTENT")
+                .unwrap();
+            let value: Value = serde_json::from_str(content).unwrap();
+            assert!(value["mcp"]["alabasta"]["enabled"].as_bool().unwrap());
+            assert!(!content.contains("alab_sk_"));
+        }
     }
 }

@@ -244,6 +244,33 @@ pub fn js_repl_server_path() -> anyhow::Result<PathBuf> {
     bail!("Anastasia JavaScript REPL is missing from this Anastasia build")
 }
 
+pub fn alabasta_bridge_path() -> anyhow::Result<PathBuf> {
+    let executable = host_executable_path()?;
+    let macos = executable
+        .parent()
+        .ok_or_else(|| anyhow!("Anastasia executable has no parent directory"))?;
+    let contents = macos
+        .parent()
+        .ok_or_else(|| anyhow!("Anastasia app bundle is malformed"))?;
+    let candidates = [
+        contents.join("Resources").join("anastasia_alabasta_bridge"),
+    ];
+    for path in candidates {
+        if path.is_file() {
+            return Ok(path);
+        }
+    }
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(parent) = current_exe.parent() {
+            let candidate = parent.join("anastasia_alabasta_bridge");
+            if candidate.is_file() {
+                return Ok(candidate);
+            }
+        }
+    }
+    bail!("Anastasia Alabasta bridge is missing from this Anastasia build")
+}
+
 pub fn pi_extension_path() -> anyhow::Result<PathBuf> {
     let executable = host_executable_path()?;
     let macos = executable

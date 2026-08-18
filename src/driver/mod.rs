@@ -38,19 +38,23 @@ pub(crate) fn start_remote(
                 .map(serde_json::to_value)
                 .transpose()?,
             ponytail: options.ponytail,
+            alabasta: options.alabasta,
         },
     };
-    let (supports_steer, ponytail) = match client.request(session_id, runtime_id, command) {
+    let (supports_steer, ponytail, alabasta) = match client.request(session_id, runtime_id, command)
+    {
         Ok(anastasia_client::ResponsePayload::Started {
             supports_steer,
             ponytail,
-        }) => (supports_steer, ponytail),
+            alabasta,
+        }) => (supports_steer, ponytail, alabasta),
         Ok(_) => anyhow::bail!("Anastasia daemon returned an invalid start response"),
         Err(error) => return Err(error),
     };
     Ok(
         connect_remote(client, session_id, runtime_id, supports_steer, None, events)?
-            .with_ponytail(ponytail),
+            .with_ponytail(ponytail)
+            .with_alabasta(alabasta),
     )
 }
 

@@ -287,8 +287,18 @@ pub(crate) fn request_json_on_port(
     if response.iter().all(u8::is_ascii_whitespace) {
         return Ok(Value::Null);
     }
-    serde_json::from_slice(&response)
-        .with_context(|| format!("OpenCode returned invalid JSON for {method} {path}"))
+    serde_json::from_slice(&response).or_else(|_| {
+        let text = std::str::from_utf8(&response)
+            .map(str::trim)
+            .unwrap_or_default();
+        if text.eq_ignore_ascii_case("ok") || text.eq_ignore_ascii_case("success") {
+            Ok(Value::Null)
+        } else if !text.is_empty() {
+            Ok(Value::String(text.to_owned()))
+        } else {
+            Ok(Value::Null)
+        }
+    })
 }
 
 fn http_request(

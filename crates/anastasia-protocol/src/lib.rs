@@ -22,6 +22,7 @@ macro_rules! tr {
     };
 }
 
+pub mod alabasta;
 pub mod attachments;
 pub mod blob;
 pub mod checkpoint;

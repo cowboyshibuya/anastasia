@@ -12,13 +12,14 @@ fn main() -> anyhow::Result<()> {
     let token = std::env::var(DAEMON_TOKEN_ENV)
         .context("Anastasia daemon authentication token is missing")?;
     // The bearer capability belongs only to this server process. Remove it
-    // before any provider or workspace subprocess can inherit the daemon's
-    // environment.
-    unsafe { std::env::remove_var(DAEMON_TOKEN_ENV) };
     let listener = TcpListener::bind(&arguments.bind)
         .with_context(|| format!("could not bind Anastasia daemon to {}", arguments.bind))?;
     let address = listener.local_addr()?;
     ensure_bind_allowed(address, arguments.allow_non_loopback)?;
+    unsafe {
+        std::env::set_var(anastasia_protocol::DAEMON_ADDRESS_ENV, address.to_string());
+        std::env::set_var(anastasia_protocol::DAEMON_TOKEN_ENV, &token);
+    };
     let ready = DaemonReady {
         address: address.to_string(),
         protocol_version: PROTOCOL_VERSION,

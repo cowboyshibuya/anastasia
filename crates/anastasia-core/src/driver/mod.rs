@@ -18,11 +18,12 @@ use std::sync::Arc;
 use crossbeam_channel::{Receiver, SendError, Sender, unbounded};
 
 use crate::computer_use::ComputerToolRequest;
+use crate::harness::HarnessLaunch;
 use crate::model::{
     BackgroundWorkKey, DriverEvent, InteractionMode, ProviderKind, ProviderResumeCursor,
     RuntimeMode, UserInputAnswer,
 };
-use crate::ponytail::PonytailLaunch;
+use anastasia_protocol::alabasta::{AlabastaLaunchRequest, AlabastaSessionBinding};
 use anastasia_protocol::ponytail::{PonytailMode, PonytailStatus};
 
 /// Provider events remain synchronous to send from reader threads, while the
@@ -79,6 +80,9 @@ pub struct DriverHandle {
     /// What Ponytail did for this session, or `None` when it was off. Only the
     /// process that launched the agent can know, so it travels with the handle.
     ponytail: Option<PonytailStatus>,
+    /// What the Alabasta integration compiled for this session, or `None` when
+    /// the session is not bound to a workspace.
+    alabasta: Option<AlabastaSessionBinding>,
 }
 
 impl DriverHandle {
@@ -86,11 +90,16 @@ impl DriverHandle {
         Self {
             inner: control,
             ponytail: None,
+            alabasta: None,
         }
     }
 
     pub fn ponytail(&self) -> Option<&PonytailStatus> {
         self.ponytail.as_ref()
+    }
+
+    pub fn alabasta(&self) -> Option<&AlabastaSessionBinding> {
+        self.alabasta.as_ref()
     }
 
     pub fn prompt(&self, prompt: String) {
@@ -197,9 +206,12 @@ pub struct DriverStartOptions {
     /// Resolved into a [`crate::ponytail::PonytailLaunch`] by [`start_local`]
     /// before any driver sees it.
     pub ponytail: Option<PonytailMode>,
-    /// How that policy is actually delivered to this runtime. Filled in by
-    /// [`start_local`]; drivers read it and never resolve it themselves.
-    pub ponytail_launch: PonytailLaunch,
+    /// The Alabasta task this session executes, when it is bound to one.
+    pub alabasta: Option<AlabastaLaunchRequest>,
+    /// Everything Anastasia tells this runtime at launch, already composed.
+    /// Filled in by [`start_local`]; drivers apply it and never resolve it
+    /// themselves.
+    pub harness_launch: HarnessLaunch,
 }
 
 /// The subset of `DriverStartOptions` a user can change without starting a new
@@ -224,8 +236,15 @@ pub(crate) fn start_local(
     // policy, and a resolver failure can never stop an agent from starting.
     let ponytail = crate::ponytail::resolve(provider, options.ponytail);
     let status = ponytail.status.clone();
+    let alabasta = crate::alabasta::resolve(provider, options.alabasta.as_ref());
+    let binding = alabasta.binding.clone();
     let mut options = options;
-    options.ponytail_launch = ponytail;
+    // Composed in authority order: a workspace's approved decisions and standing
+    // rules bind harder than a code-style preference, so Alabasta goes first.
+    // `compose` owns each provider's single instruction channel, so the two
+    // cannot overwrite one another.
+    options.harness_launch =
+        crate::harness::compose(provider, vec![alabasta.contribution, ponytail.contribution]);
     let inner: Arc<dyn DriverControl> = match provider {
         ProviderKind::Codex => Arc::new(codex::CodexDriver::start(options, events)?),
         ProviderKind::Pi => Arc::new(pi::PiDriver::start(options, events)?),
@@ -250,6 +269,7 @@ pub(crate) fn start_local(
     Ok(DriverHandle {
         inner,
         ponytail: status,
+        alabasta: binding,
     })
 }
 

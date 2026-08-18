@@ -730,6 +730,7 @@ impl RightPanelSurface {
             }
             Self::Files => tr!("right_panel.files"),
             Self::Diff => tr!("right_panel.diff"),
+            Self::Context => tr!("alabasta.context_panel_title"),
             Self::File(path) => path.rsplit('/').next().unwrap_or(path).to_owned(),
         }
     }
@@ -741,6 +742,7 @@ impl RightPanelSurface {
             Self::BackgroundWork { key, .. } => work_kind_icon(key.kind),
             Self::Files => "icons/folder.svg",
             Self::Diff => "icons/file-diff.svg",
+            Self::Context => "icons/alabasta.svg",
             Self::File(path) => file_icon_for_path(path),
         }
     }
@@ -779,7 +781,10 @@ fn reusable_surface_index(
         RightPanelSurface::BackgroundWork { key, .. } => surfaces.iter().position(|surface| {
             matches!(surface, RightPanelSurface::BackgroundWork { key: candidate, .. } if candidate == key)
         }),
-        RightPanelSurface::Files | RightPanelSurface::Diff | RightPanelSurface::File(_) => {
+        RightPanelSurface::Files
+        | RightPanelSurface::Diff
+        | RightPanelSurface::Context
+        | RightPanelSurface::File(_) => {
             surfaces.iter().position(|surface| surface == requested)
         }
     }
@@ -1930,6 +1935,7 @@ impl Waku {
             Some(RightPanelSurface::Diff) => self
                 .render_right_panel_diff(width, window, cx)
                 .into_any_element(),
+            Some(RightPanelSurface::Context) => self.render_right_panel_context(cx),
             Some(RightPanelSurface::Terminal(terminal_id)) => self
                 .right_panel_terminals
                 .get(&terminal_id)
@@ -2445,6 +2451,115 @@ impl Waku {
             .on_click(cx.listener(move |this, _, _, cx| {
                 this.open_right_panel_surface(surface.clone(), cx);
             }))
+    }
+
+    fn render_right_panel_context(&self, cx: &mut Context<Self>) -> AnyElement {
+        let theme = Theme::current(cx);
+        let session = self.selected_session();
+        let binding = session.and_then(|s| s.alabasta.as_ref());
+
+        let Some(binding) = binding else {
+            return self
+                .render_right_panel_empty_message(
+                    tr!("alabasta.context_panel_title"),
+                    tr!("alabasta.context_panel_empty"),
+                    cx,
+                )
+                .into_any_element();
+        };
+
+        div()
+            .id("right-panel-context")
+            .size_full()
+            .flex()
+            .flex_col()
+            .overflow_y_scroll()
+            .bg(theme.canvas)
+            .p(px(16.0))
+            .gap(px(16.0))
+            .child(
+                div()
+                    .w_full()
+                    .p(px(14.0))
+                    .rounded(px(10.0))
+                    .bg(theme.raised)
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.0))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(8.0))
+                                    .child(icon("icons/alabasta.svg", 16.0, theme.accent))
+                                    .child(
+                                        div()
+                                            .text_size(px(14.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(theme.text)
+                                            .child(binding.task_identifier.clone()),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .px(px(8.0))
+                                    .py(px(2.0))
+                                    .rounded_full()
+                                    .bg(theme.overlay)
+                                    .text_size(px(11.0))
+                                    .text_color(theme.accent)
+                                    .child(tr!("alabasta.readiness_ready")),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(theme.text_secondary)
+                            .child(binding.task_title.clone()),
+                    ),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.0))
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(theme.text_secondary)
+                            .child(tr!("alabasta.context_panel_title")),
+                    )
+                    .child(
+                        div()
+                            .w_full()
+                            .p(px(12.0))
+                            .rounded(px(8.0))
+                            .bg(theme.raised)
+                            .flex()
+                            .flex_col()
+                            .gap(px(6.0))
+                            .child(
+                                div()
+                                    .text_size(px(12.0))
+                                    .text_color(theme.text)
+                                    .child("L1 Compiled Task Context Package"),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(11.0))
+                                    .text_color(theme.text_tertiary)
+                                    .child("Decisions, standing conventions, and constraints injected before agent start."),
+                            ),
+                    ),
+            )
+            .into_any_element()
     }
 
     fn render_right_panel_files(

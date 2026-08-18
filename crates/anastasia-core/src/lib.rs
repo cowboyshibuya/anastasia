@@ -17,6 +17,7 @@ macro_rules! tr {
     };
 }
 
+pub mod alabasta;
 pub mod amp_session;
 pub mod attachments;
 pub mod blob_store;
@@ -33,6 +34,8 @@ pub mod driver;
 pub mod git_branch;
 pub mod git_commit;
 pub mod grok_session;
+pub mod harness;
+pub mod http;
 pub mod i18n;
 pub mod identity;
 pub mod model;

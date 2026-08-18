@@ -23,7 +23,7 @@ const SETTINGS_SEARCH_CONTEXT: &str = "SettingsSidebar > ComposerInput";
 
 /// The sidebar's rows in display order, each with the keyword haystack the
 /// search field filters against.
-const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 10] = [
+const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 11] = [
     (
         SettingsPage::General,
         "settings.general",
@@ -53,6 +53,12 @@ const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 10] = [
         "settings.harness",
         "icons/harness.svg",
         "settings.harness_keywords",
+    ),
+    (
+        SettingsPage::Integrations,
+        "settings.integrations",
+        "icons/alabasta.svg",
+        "settings.integrations_keywords",
     ),
     (
         SettingsPage::Providers,
@@ -386,6 +392,7 @@ impl Waku {
                     .child(match page {
                         SettingsPage::General => tr!("settings.general"),
                         SettingsPage::Harness => tr!("settings.harness"),
+                        SettingsPage::Integrations => tr!("settings.integrations"),
                         SettingsPage::Providers => tr!("settings.providers"),
                         SettingsPage::Skills => tr!("settings.skills"),
                         SettingsPage::Usage => tr!("settings.usage"),
@@ -399,6 +406,7 @@ impl Waku {
             .child(match page {
                 SettingsPage::General => self.render_general_settings(cx),
                 SettingsPage::Harness => self.render_harness_settings(cx),
+                SettingsPage::Integrations => self.render_integrations_settings(cx),
                 SettingsPage::Providers => self.render_providers_settings(cx),
                 SettingsPage::Skills => self.render_skills_settings(cx),
                 SettingsPage::Usage => self.render_usage_settings(cx),

@@ -64,6 +64,24 @@ fn configure_pi_computer_use_command(
     }
 }
 
+fn configure_pi_alabasta_command(
+    command: &mut std::process::Command,
+    alabasta: Option<&anastasia_protocol::alabasta::AlabastaLaunchRequest>,
+) {
+    if alabasta.is_none() {
+        return;
+    }
+    if let Ok(bridge_path) = crate::computer_use::alabasta_bridge_path() {
+        command.env("ANASTASIA_ALABASTA_BRIDGE_SERVER", bridge_path);
+        if let Ok(address) = std::env::var(anastasia_protocol::DAEMON_ADDRESS_ENV) {
+            command.env(anastasia_protocol::DAEMON_ADDRESS_ENV, address);
+        }
+        if let Ok(token) = std::env::var(anastasia_protocol::DAEMON_TOKEN_ENV) {
+            command.env(anastasia_protocol::DAEMON_TOKEN_ENV, token);
+        }
+    }
+}
+
 impl PiDriver {
     pub fn start(options: DriverStartOptions, events: DriverEventSender) -> anyhow::Result<Self> {
         let DriverStartOptions {
@@ -79,7 +97,8 @@ impl PiDriver {
             computer_use_enabled,
             provider_cursor,
             ponytail: _,
-            ponytail_launch,
+            harness_launch,
+            alabasta,
         } = options;
         if mode != RuntimeMode::FullAccess || interaction_mode != InteractionMode::Build {
             return Err(anyhow!("Pi currently supports Build with Full access only"));
@@ -124,7 +143,8 @@ impl PiDriver {
                 .zip(pi_extension.as_deref())
                 .map(|(runtime, extension)| (&runtime.config, extension)),
         );
-        super::support::apply_ponytail(&mut command, &ponytail_launch);
+        configure_pi_alabasta_command(&mut command, alabasta.as_ref());
+        crate::harness::apply(&mut command, &harness_launch);
         let command = command
             .current_dir(cwd)
             .stdin(Stdio::piped())
@@ -1105,7 +1125,8 @@ mod tests {
                 computer_use_enabled: false,
                 provider_cursor: None,
                 ponytail: None,
-                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                harness_launch: crate::harness::HarnessLaunch::disabled(),
+                alabasta: None,
             },
             events,
         )

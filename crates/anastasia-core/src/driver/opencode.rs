@@ -92,7 +92,8 @@ impl OpenCodeDriver {
             computer_use_enabled,
             provider_cursor,
             ponytail: _,
-            ponytail_launch,
+            harness_launch,
+            alabasta,
         } = options;
         let resume_session_id = match provider_cursor {
             Some(ProviderResumeCursor::OpenCode { session_id }) => {
@@ -121,20 +122,24 @@ impl OpenCodeDriver {
             .as_ref()
             .map(|runtime| super::support::opencode_computer_use_environment(&runtime.config))
             .unwrap_or_default();
-        // Ponytail rides in the server's configuration the same way, so a
-        // session running it needs its own server rather than the shared one —
+        // The harness rides in the server's configuration the same way, so a
+        // session carrying one needs its own server rather than the shared one —
         // otherwise a second session would inherit this session's policy.
-        let ponytail_active = ponytail_launch.instructions.is_some();
-        if ponytail_active {
+        let harness_active = harness_launch.instructions.is_some();
+        if harness_active {
             environment =
-                super::support::opencode_ponytail_environment(&ponytail_launch, &environment)?;
+                super::support::opencode_harness_environment(&harness_launch, &environment)?;
+        }
+        let alabasta_active = alabasta.is_some();
+        if alabasta_active {
+            environment = super::support::opencode_alabasta_environment(&environment)?;
         }
         // Computer Use bakes per-session configuration into the server's
         // environment, so it keeps a dedicated server. Every other session
         // shares the workspace's one resident server — OpenCode hosts many
         // sessions per process, and a second `opencode serve` in the same
         // workspace contends with the live one.
-        let server = if computer_use.is_some() || ponytail_active {
+        let server = if computer_use.is_some() || harness_active || alabasta_active {
             PooledServer::dedicated(OpenCodeServer::start_with_env(&binary, &cwd, &environment)?)
         } else {
             crate::opencode_pool::acquire(&binary, &cwd)?
@@ -1296,7 +1301,8 @@ mod tests {
                 computer_use_enabled: false,
                 provider_cursor: None,
                 ponytail: None,
-                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                harness_launch: crate::harness::HarnessLaunch::disabled(),
+                alabasta: None,
             },
             events,
         )
@@ -1387,7 +1393,8 @@ mod tests {
                 computer_use_enabled: false,
                 provider_cursor: None,
                 ponytail: None,
-                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
+                harness_launch: crate::harness::HarnessLaunch::disabled(),
+                alabasta: None,
             },
             events,
         )

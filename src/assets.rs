@@ -16,6 +16,7 @@ macro_rules! icons {
 }
 
 const ICONS: &[(&str, &[u8])] = icons![
+    "alabasta",
     "alert",
     "appearance",
     "arrow-down",

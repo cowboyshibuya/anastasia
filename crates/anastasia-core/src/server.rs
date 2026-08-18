@@ -1001,12 +1001,14 @@ mod tests {
                     Ok(ResponsePayload::Started {
                         supports_steer: true,
                         ponytail: None,
+                        alabasta: None,
                     })
                 }
                 Command::AttachSession => Ok(ResponsePayload::SessionRuntime {
                     runtime_id: self.runtimes.lock().get(&session_id).copied(),
                     supports_steer: true,
                     ponytail: None,
+                    alabasta: None,
                 }),
                 Command::Prompt { prompt } => {
                     events.send(WireDriverEvent::new("textDelta", json!(prompt)))?;
@@ -1301,6 +1303,7 @@ mod tests {
                         computer_use_enabled: false,
                         provider_cursor: None,
                         ponytail: None,
+                        alabasta: None,
                     },
                 },
             )
@@ -1309,7 +1312,8 @@ mod tests {
             response,
             ResponsePayload::Started {
                 supports_steer: true,
-                ponytail: None
+                ponytail: None,
+                ..
             }
         ));
         // Start can emit before a refreshed app discovers and subscribes to
@@ -1370,6 +1374,7 @@ mod tests {
                         computer_use_enabled: false,
                         provider_cursor: None,
                         ponytail: None,
+                        alabasta: None,
                     },
                 },
             )
@@ -1741,6 +1746,7 @@ mod tests {
                     return Ok(ResponsePayload::Started {
                         supports_steer: true,
                         ponytail: None,
+                        alabasta: None,
                     });
                 }
                 Command::Prompt { .. } => "prompt",
@@ -1901,6 +1907,7 @@ mod tests {
             computer_use_enabled: false,
             provider_cursor: None,
             ponytail: None,
+            alabasta: None,
         }
     }
 }
