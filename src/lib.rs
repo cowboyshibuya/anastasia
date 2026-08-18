@@ -268,8 +268,8 @@ pub fn run() {
                     move |window, cx| {
                         crate::platform::configure_main_window_close_behavior(window, cx);
                         let waku = Waku::new(window, cx, daemon);
-                        let composer_focus = waku.read(cx).composer_focus(cx);
-                        window.focus(&composer_focus, cx);
+                        let default_focus = waku.read(cx).default_focus(cx);
+                        window.focus(&default_focus, cx);
                         waku
                     },
                 )

@@ -1168,6 +1168,19 @@ impl Waku {
         self.composer.read(cx).focus()
     }
 
+    pub fn default_focus(&self, cx: &App) -> FocusHandle {
+        if self.selected_project().is_some() {
+            self.composer_focus(cx)
+        } else {
+            self.focus_handle.clone()
+        }
+    }
+
+    pub fn shortcut_display(&self, id: ShortcutId) -> String {
+        let combo = self.state.keymap.get(id);
+        anastasia_protocol::keymap::display_combo(combo)
+    }
+
     pub(super) fn selected_project(&self) -> Option<&Project> {
         let id = self.state.selected_project?;
         self.state.projects.iter().find(|project| project.id == id)

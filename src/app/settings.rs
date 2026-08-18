@@ -229,7 +229,7 @@ impl Waku {
                         .child(tr!("settings.back"))
                         .on_click(cx.listener(|this, _, window, cx| {
                             this.settings_page = None;
-                            let focus_handle = this.composer_focus(cx);
+                            let focus_handle = this.default_focus(cx);
                             window.focus(&focus_handle, cx);
                             cx.notify();
                         })),

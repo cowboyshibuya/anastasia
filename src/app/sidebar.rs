@@ -285,6 +285,7 @@ impl Waku {
 
     fn render_sidebar_toggle(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         let theme = Theme::current(cx);
+        let shortcut = self.shortcut_display(ShortcutId::ToggleSidebar);
         div()
             .id("toggle-sidebar")
             .w(px(26.0))
@@ -298,6 +299,7 @@ impl Waku {
             .hover(|element| element.bg(theme.overlay))
             .active(|element| element.bg(theme.overlay_strong))
             .child(icon("icons/panel-left.svg", 14.0, theme.text_tertiary))
+            .tooltip(Tooltip::with_shortcut(tr!("sidebar.toggle"), shortcut))
             .on_mouse_down(MouseButton::Left, |_, _, cx| {
                 cx.stop_propagation();
             })
@@ -316,6 +318,12 @@ impl Waku {
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
         let theme = Theme::current(cx);
+        let (shortcut_id, label) = if navigate_back {
+            (ShortcutId::NavigateBack, tr!("navigation.back"))
+        } else {
+            (ShortcutId::NavigateForward, tr!("navigation.forward"))
+        };
+        let shortcut = self.shortcut_display(shortcut_id);
         div()
             .id(id)
             .w(px(26.0))
@@ -331,6 +339,7 @@ impl Waku {
                 element
                     .hover(|element| element.bg(theme.overlay))
                     .active(|element| element.bg(theme.overlay_strong))
+                    .tooltip(Tooltip::with_shortcut(label, shortcut))
                     .on_mouse_down(MouseButton::Left, |_, _, cx| {
                         cx.stop_propagation();
                     })
@@ -398,6 +407,7 @@ impl Waku {
 
     fn render_sidebar_project_action(&self, cx: &mut Context<Self>) -> Div {
         let theme = Theme::current(cx);
+        let shortcut = self.shortcut_display(ShortcutId::NewProject);
         div().flex().items_center().child(
             div()
                 .id("add-project")
@@ -410,6 +420,7 @@ impl Waku {
                 .cursor_default()
                 .hover(|element| element.bg(theme.overlay))
                 .active(|element| element.bg(theme.overlay_strong))
+                .tooltip(Tooltip::with_shortcut(tr!("project.new_project"), shortcut))
                 .child(icon("icons/folder-new.svg", 15.0, theme.text_ghost))
                 .on_click(cx.listener(|this, _, _, cx| this.add_project(cx))),
         )
@@ -458,12 +469,14 @@ impl Waku {
     }
 
     fn render_sidebar_new_session(&self, cx: &mut Context<Self>) -> Stateful<Div> {
+        let shortcut = self.shortcut_display(ShortcutId::NewSession);
         self.render_sidebar_action_row(
             "sidebar-new-session",
             "icons/compose.svg",
             tr!("menu.new_task"),
             cx,
         )
+        .tooltip(Tooltip::with_shortcut(tr!("menu.new_task"), shortcut))
         .on_click(cx.listener(|this, _, window, cx| {
             this.new_session_action(&NewSession, window, cx);
         }))
@@ -476,6 +489,7 @@ impl Waku {
     }
 
     fn render_sidebar_search(&self, cx: &mut Context<Self>) -> Div {
+        let shortcut = self.shortcut_display(ShortcutId::ToggleCommandPalette);
         let search = self
             .render_sidebar_action_row(
                 "sidebar-search",
@@ -483,6 +497,7 @@ impl Waku {
                 tr!("sidebar.search"),
                 cx,
             )
+            .tooltip(Tooltip::with_shortcut(tr!("sidebar.search"), shortcut))
             .on_click(cx.listener(|this, _, window, cx| {
                 this.toggle_command_palette_action(&ToggleCommandPalette, window, cx);
             }))
@@ -650,9 +665,11 @@ impl Waku {
                     .cursor_default()
                     .hover(|element| element.bg(theme.overlay))
                     .active(|element| element.bg(theme.overlay_strong))
+                    .tooltip(Tooltip::with_shortcut(
+                        tr_cow!("common.settings"),
+                        self.shortcut_display(ShortcutId::OpenSettings),
+                    ))
                     .child(icon("icons/settings.svg", 14.0, theme.text_tertiary))
-                    // The glyph alone needed a tooltip to be legible; with the
-                    // word beside it the tooltip would only repeat itself.
                     .child(
                         div()
                             .text_size(px(12.0))
@@ -1420,6 +1437,10 @@ impl Waku {
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .hover(|element| element.opacity(0.9))
                                 .active(|element| element.opacity(0.8))
+                                .tooltip(Tooltip::with_shortcut(
+                                    tr_cow!("onboarding.open_project_folder"),
+                                    self.shortcut_display(ShortcutId::NewProject),
+                                ))
                                 .child(tr_cow!("onboarding.open_project_folder"))
                                 .on_click(cx.listener(|this, _, _, cx| this.add_project(cx)))
                                 .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
@@ -1446,6 +1467,10 @@ impl Waku {
                                 .text_size(px(12.0))
                                 .hover(|element| element.bg(theme.overlay))
                                 .active(|element| element.bg(theme.overlay_strong))
+                                .tooltip(Tooltip::with_shortcut(
+                                    tr_cow!("project.no_project"),
+                                    self.shortcut_display(ShortcutId::NewSession),
+                                ))
                                 .child(icon("icons/x.svg", 11.0, theme.text_tertiary))
                                 .child(tr_cow!("project.no_project"))
                                 .on_click(cx.listener(|this, _, _, cx| {

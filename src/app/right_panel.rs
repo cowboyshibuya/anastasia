@@ -1877,6 +1877,7 @@ impl Waku {
 
     pub(super) fn render_right_panel_toggle(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         let theme = Theme::current(cx);
+        let shortcut = self.shortcut_display(ShortcutId::ToggleRightPanel);
         div()
             .id("toggle-right-panel")
             .w(px(26.0))
@@ -1890,7 +1891,7 @@ impl Waku {
             .hover(|element| element.bg(theme.overlay))
             .active(|element| element.bg(theme.overlay_strong))
             .child(icon("icons/panel-right.svg", 14.0, theme.text_tertiary))
-            .tooltip(|window, cx| Tooltip::new(tr!("right_panel.toggle")).build(window, cx))
+            .tooltip(Tooltip::with_shortcut(tr!("right_panel.toggle"), shortcut))
             .on_mouse_down(MouseButton::Left, |_, _, cx| {
                 cx.stop_propagation();
             })

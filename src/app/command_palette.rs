@@ -343,7 +343,7 @@ impl Waku {
         } else if self.settings_page.is_some() {
             Some(self.settings_focus.clone())
         } else {
-            Some(self.composer_focus(cx))
+            Some(self.default_focus(cx))
         };
 
         self.command_palette.open = true;
@@ -400,6 +400,9 @@ impl Waku {
         self.command_palette.message_search_pending = false;
         if let Some(previous_focus) = self.command_palette.previous_focus.take() {
             window.focus(&previous_focus, cx);
+        } else {
+            let focus = self.default_focus(cx);
+            window.focus(&focus, cx);
         }
         cx.notify();
     }

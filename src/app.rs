@@ -38,6 +38,7 @@ use crate::model::{
     SessionWorkspace, TranscriptBlock, TurnStatus, UserInputAnswer, UserInputQuestion,
     compact_path, unix_time, unix_time_millis,
 };
+use anastasia_protocol::keymap::ShortcutId;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::md::render::{
@@ -1049,6 +1050,7 @@ pub struct Waku {
     daemon_origins_input: Entity<ComposerInput>,
     daemon_reconfigure_pending: bool,
     daemon_token_revealed: bool,
+    focus_handle: FocusHandle,
     settings_focus: FocusHandle,
     onboarding_add_project_focus: FocusHandle,
     onboarding_projectless_focus: FocusHandle,
@@ -2173,6 +2175,7 @@ impl Waku {
             .map(|updater| (updater.status(), Some(updater.events())))
             .unwrap_or_default();
         let entity = cx.new(|cx| {
+            let focus_handle = cx.focus_handle();
             let settings_focus = cx.focus_handle();
             let onboarding_add_project_focus = cx.focus_handle();
             let onboarding_projectless_focus = cx.focus_handle();
@@ -2599,6 +2602,7 @@ impl Waku {
                 daemon_origins_input,
                 daemon_reconfigure_pending: false,
                 daemon_token_revealed: false,
+                focus_handle,
                 settings_focus,
                 onboarding_add_project_focus,
                 onboarding_projectless_focus,
