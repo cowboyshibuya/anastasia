@@ -232,11 +232,16 @@ pub fn js_repl_server_path() -> anyhow::Result<PathBuf> {
     let contents = macos
         .parent()
         .ok_or_else(|| anyhow!("Anastasia app bundle is malformed"))?;
-    let path = contents.join("Resources").join("waku_js_repl");
-    if !path.is_file() {
-        bail!("Anastasia JavaScript REPL is missing from this Anastasia build")
+    let candidates = [
+        contents.join("Resources").join("anastasia_js_repl"),
+        contents.join("Resources").join("waku_js_repl"),
+    ];
+    for path in candidates {
+        if path.is_file() {
+            return Ok(path);
+        }
     }
-    Ok(path)
+    bail!("Anastasia JavaScript REPL is missing from this Anastasia build")
 }
 
 pub fn pi_extension_path() -> anyhow::Result<PathBuf> {

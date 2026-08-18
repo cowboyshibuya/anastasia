@@ -64,7 +64,10 @@ fn daemon_executable_path() -> anyhow::Result<PathBuf> {
     if let Some(path) = std::env::var_os("ANASTASIA_DAEMON_PATH").filter(|path| !path.is_empty()) {
         return Ok(path.into());
     }
-    let executable = format!("waku-daemon{}", std::env::consts::EXE_SUFFIX);
+    let executables = [
+        format!("anastasia-daemon{}", std::env::consts::EXE_SUFFIX),
+        format!("waku-daemon{}", std::env::consts::EXE_SUFFIX),
+    ];
     let current = std::env::current_exe().context("could not locate the Anastasia executable")?;
 
     // Development keeps the daemon beside Cargo's debug artifacts rather than
@@ -75,27 +78,31 @@ fn daemon_executable_path() -> anyhow::Result<PathBuf> {
         .ancestors()
         .find(|candidate| candidate.file_name().is_some_and(|name| name == "debug"))
     {
-        let external = debug_directory.join(&executable);
-        if external.is_file() {
-            return Ok(external);
+        for executable in &executables {
+            let external = debug_directory.join(executable);
+            if external.is_file() {
+                return Ok(external);
+            }
         }
     }
 
-    let sibling = current
+    let parent_directory = current
         .parent()
-        .map(|directory| directory.join(&executable))
         .ok_or_else(|| anyhow!("Anastasia executable has no parent directory"))?;
-    if sibling.is_file() {
-        return Ok(sibling);
+    for executable in &executables {
+        let sibling = parent_directory.join(executable);
+        if sibling.is_file() {
+            return Ok(sibling);
+        }
     }
     #[cfg(debug_assertions)]
     bail!(
         "Anastasia daemon was not found in Cargo's debug directory or next to the app executable: {}",
-        sibling.display(),
+        parent_directory.join(&executables[0]).display(),
     );
     #[cfg(not(debug_assertions))]
     bail!(
         "Anastasia daemon is missing next to the app executable: {}",
-        sibling.display(),
+        parent_directory.join(&executables[0]).display(),
     )
 }

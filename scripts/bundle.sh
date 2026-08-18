@@ -63,7 +63,7 @@ if [ "${ANASTASIA_SKIP_CARGO_BUILD:-0}" != "1" ]; then
   if [ "$profile" = "release" ]; then
     cargo build --release --package anastasia --bin anastasia --bin anastasia_js_repl --package anastasia-daemon --bin anastasia-daemon
   else
-    cargo build --package anastasia --bin anastasia --bin anastasia_js_repl
+    cargo build --package anastasia --bin anastasia --bin anastasia_js_repl --package anastasia-daemon --bin anastasia-daemon
   fi
 fi
 
