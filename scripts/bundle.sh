@@ -198,6 +198,9 @@ if [ "$codesign_identity" = "-" ]; then
   codesign --force --sign - "$sparkle_framework/Versions/B/Updater.app"
   codesign --force --sign - "$sparkle_framework"
   codesign --force --identifier "$bundle_identifier.js-repl" --sign - "$repl_executable"
+  if [ -f "$alabasta_bridge_executable" ]; then
+    codesign --force --identifier "$bundle_identifier.alabasta-bridge" --sign - "$alabasta_bridge_executable"
+  fi
   if [ "$profile" = "release" ]; then
     codesign --force --identifier "$bundle_identifier.daemon" --sign - "$daemon_executable"
   fi
@@ -216,6 +219,9 @@ elif [ "$profile" = "release" ]; then
   codesign --force --options runtime --timestamp --sign "$codesign_identity" "$sparkle_framework/Versions/B/Updater.app"
   codesign --force --options runtime --timestamp --sign "$codesign_identity" "$sparkle_framework"
   codesign --force --options runtime --timestamp --identifier "$bundle_identifier.js-repl" --sign "$codesign_identity" "$repl_executable"
+  if [ -f "$alabasta_bridge_executable" ]; then
+    codesign --force --options runtime --timestamp --identifier "$bundle_identifier.alabasta-bridge" --sign "$codesign_identity" "$alabasta_bridge_executable"
+  fi
   codesign --force --options runtime --timestamp --identifier "$bundle_identifier.daemon" --sign "$codesign_identity" "$daemon_executable"
   codesign --force --options runtime --timestamp --sign "$codesign_identity" "$bundle"
 else
@@ -223,10 +229,16 @@ else
   codesign --force --options runtime --sign "$codesign_identity" "$sparkle_framework/Versions/B/Updater.app"
   codesign --force --options runtime --sign "$codesign_identity" "$sparkle_framework"
   codesign --force --options runtime --identifier "$bundle_identifier.js-repl" --sign "$codesign_identity" "$repl_executable"
+  if [ -f "$alabasta_bridge_executable" ]; then
+    codesign --force --options runtime --identifier "$bundle_identifier.alabasta-bridge" --sign "$codesign_identity" "$alabasta_bridge_executable"
+  fi
   codesign --force --options runtime --sign "$codesign_identity" "$bundle"
 fi
 if [ "$profile" = "release" ]; then
   codesign --verify --strict --verbose=2 "$repl_executable"
+  if [ -f "$alabasta_bridge_executable" ]; then
+    codesign --verify --strict --verbose=2 "$alabasta_bridge_executable"
+  fi
   codesign --verify --strict --verbose=2 "$daemon_executable"
   codesign --verify --deep --strict --verbose=2 "$bundle"
 fi

@@ -3195,6 +3195,7 @@ mod tests {
     }
 
     #[gpui::test]
+    #[cfg(target_os = "macos")]
     fn cmd_backspace_deletes_current_line_not_whole_document(cx: &mut TestAppContext) {
         let text = "Line 1\nLine 2 with text\nLine 3";
         let (input, cx) = setup_input(cx, text, px(300.));
