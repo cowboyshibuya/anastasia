@@ -222,6 +222,11 @@ def main():
         build_icns(release, ROOT / "resources" / "AppIcon.icns", work)
         build_icns(debug, ROOT / "resources" / "AppIconDev.icns", work)
 
+        linux_icons = ROOT / "resources" / "linux"
+        if linux_icons.is_dir():
+            resize(release, linux_icons / "app.anastasia.png", 256)
+            print("wrote resources/linux/app.anastasia.png")
+
         public = ROOT / "website" / "public"
         if public.is_dir():
             for name, size in WEB_ICONS:

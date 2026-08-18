@@ -14,7 +14,7 @@ archive="$target_dir/release/$package.tar.gz"
 staging="$(mktemp -d)"
 trap 'rm -rf -- "$staging"' EXIT
 
-cargo build --locked --release --package anastasia --bin anastasia --package anastasia-daemon --bin anastasia-daemon
+cargo build --release --package anastasia --bin anastasia --package anastasia-daemon --bin anastasia-daemon
 
 package_dir="$staging/$package"
 install -Dm755 "$target_dir/release/anastasia" "$package_dir/bin/anastasia"
@@ -22,7 +22,7 @@ install -Dm755 "$target_dir/release/anastasia" "$package_dir/bin/anastasia"
 install -Dm755 "$target_dir/release/anastasia-daemon" "$package_dir/bin/anastasia-daemon"
 install -Dm644 resources/linux/app.anastasia.desktop \
   "$package_dir/share/applications/app.anastasia.desktop"
-install -Dm644 website/public/app-icon.png \
+install -Dm644 resources/linux/app.anastasia.png \
   "$package_dir/share/icons/hicolor/256x256/apps/app.anastasia.png"
 install -Dm644 LICENSE "$package_dir/share/licenses/anastasia/LICENSE"
 
