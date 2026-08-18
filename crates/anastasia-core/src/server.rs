@@ -978,12 +978,12 @@ mod tests {
     use crate::persistence::StateStore;
     #[cfg(unix)]
     use crate::settings::DaemonSettingsStore;
+    use anastasia_client::DaemonClient;
     #[cfg(unix)]
     use base64::Engine as _;
     use crossbeam_channel::bounded;
     use serde_json::json;
     use std::path::PathBuf;
-    use anastasia_client::DaemonClient;
 
     #[derive(Default)]
     struct TestBackend {
@@ -1000,11 +1000,13 @@ mod tests {
                     events.send(WireDriverEvent::new("connected", json!({})))?;
                     Ok(ResponsePayload::Started {
                         supports_steer: true,
+                        ponytail: None,
                     })
                 }
                 Command::AttachSession => Ok(ResponsePayload::SessionRuntime {
                     runtime_id: self.runtimes.lock().get(&session_id).copied(),
                     supports_steer: true,
+                    ponytail: None,
                 }),
                 Command::Prompt { prompt } => {
                     events.send(WireDriverEvent::new("textDelta", json!(prompt)))?;
@@ -1298,6 +1300,7 @@ mod tests {
                         agent_preset: None,
                         computer_use_enabled: false,
                         provider_cursor: None,
+                        ponytail: None,
                     },
                 },
             )
@@ -1305,7 +1308,8 @@ mod tests {
         assert!(matches!(
             response,
             ResponsePayload::Started {
-                supports_steer: true
+                supports_steer: true,
+                ponytail: None
             }
         ));
         // Start can emit before a refreshed app discovers and subscribes to
@@ -1365,6 +1369,7 @@ mod tests {
                         agent_preset: None,
                         computer_use_enabled: false,
                         provider_cursor: None,
+                        ponytail: None,
                     },
                 },
             )
@@ -1385,6 +1390,7 @@ mod tests {
             ResponsePayload::SessionRuntime {
                 runtime_id: Some(attached),
                 supports_steer: true,
+                ..
             } if attached == runtime_id
         ));
         let late_events = late.subscribe(session_id, runtime_id);
@@ -1419,6 +1425,7 @@ mod tests {
             ResponsePayload::SessionRuntime {
                 runtime_id: None,
                 supports_steer: true,
+                ..
             }
         ));
         let stale_events = after_close.subscribe(session_id, runtime_id);
@@ -1733,6 +1740,7 @@ mod tests {
                     }
                     return Ok(ResponsePayload::Started {
                         supports_steer: true,
+                        ponytail: None,
                     });
                 }
                 Command::Prompt { .. } => "prompt",
@@ -1892,6 +1900,7 @@ mod tests {
             agent_preset: None,
             computer_use_enabled: false,
             provider_cursor: None,
+            ponytail: None,
         }
     }
 }

@@ -158,6 +158,8 @@ impl ClaudeDriver {
             agent_preset: _,
             computer_use_enabled: _,
             provider_cursor,
+            ponytail: _,
+            ponytail_launch,
         } = options;
         let (resume_session_id, resume_at) = match provider_cursor {
             Some(ProviderResumeCursor::Claude {
@@ -193,6 +195,7 @@ impl ClaudeDriver {
         } else {
             command.args(["--session-id", &session_id]);
         }
+        super::support::apply_ponytail(&mut command, &ponytail_launch);
 
         let command = command
             .stdin(Stdio::piped())
@@ -1488,6 +1491,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )
@@ -1557,6 +1562,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )

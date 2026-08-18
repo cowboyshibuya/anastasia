@@ -96,6 +96,8 @@ impl AmpDriver {
             agent_preset: _,
             computer_use_enabled: _,
             provider_cursor,
+            ponytail: _,
+            ponytail_launch: _,
         } = options;
         if mode != RuntimeMode::FullAccess || interaction_mode != InteractionMode::Build {
             return Err(anyhow!(
@@ -576,6 +578,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )
@@ -635,6 +639,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )

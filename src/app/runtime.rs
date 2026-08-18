@@ -45,13 +45,15 @@ fn attach_driver(
     let Some(session) = anastasia_client::persistence::hydrate_session(&daemon, session_id)? else {
         return Ok(None);
     };
-    let response =
-        daemon
-            .client()
-            .request(session_id, Uuid::nil(), anastasia_client::Command::AttachSession)?;
+    let response = daemon.client().request(
+        session_id,
+        Uuid::nil(),
+        anastasia_client::Command::AttachSession,
+    )?;
     let anastasia_client::ResponsePayload::SessionRuntime {
         runtime_id,
         supports_steer,
+        ponytail,
     } = response
     else {
         anyhow::bail!("Anastasia daemon returned an invalid runtime attachment response");
@@ -67,7 +69,8 @@ fn attach_driver(
         supports_steer,
         session.runtime_event_cursor,
         event_tx,
-    )?;
+    )?
+    .with_ponytail(ponytail);
     Ok(Some((session, PreparedDriver { handle, events })))
 }
 
@@ -153,17 +156,18 @@ fn prepare_submission(
             if project.is_projectless() {
                 anyhow::bail!("a projectless task cannot create a Git worktree");
             }
-            let created =
-                match workspace_client.request(anastasia_client::WorkspaceOperation::CreateWorktree {
+            let created = match workspace_client.request(
+                anastasia_client::WorkspaceOperation::CreateWorktree {
                     project_path: project.path.clone(),
                     project_id: project.id,
                     session_id,
                     prompt: prompt.to_owned(),
                     base_branch,
-                })? {
-                    anastasia_client::WorkspaceResult::WorktreeCreated { worktree } => worktree,
-                    _ => anyhow::bail!("the daemon returned an invalid worktree response"),
-                };
+                },
+            )? {
+                anastasia_client::WorkspaceResult::WorktreeCreated { worktree } => worktree,
+                _ => anyhow::bail!("the daemon returned an invalid worktree response"),
+            };
             SessionWorkspace::Worktree {
                 path: created.path,
                 branch: created.branch,
@@ -1366,7 +1370,9 @@ impl Waku {
                             probe_version: true,
                         },
                     ) {
-                        Ok(anastasia_client::ResponsePayload::ProviderProbe { version, .. }) => version,
+                        Ok(anastasia_client::ResponsePayload::ProviderProbe {
+                            version, ..
+                        }) => version,
                         _ => None,
                     };
                     if provider_version_tx.send((provider, version)).is_ok() {
@@ -2656,6 +2662,7 @@ impl Waku {
                 agent_preset,
                 computer_use_enabled: cfg!(target_os = "macos") && self.state.computer_use_enabled,
                 provider_cursor: session.provider_cursor.clone(),
+                ponytail: self.state.ponytail_mode(),
             },
             event_wake: self.event_wake_tx.clone(),
             daemon_client: self.daemon.client(),
@@ -2668,6 +2675,17 @@ impl Waku {
         prepared: PreparedDriver,
     ) -> DriverHandle {
         let handle = prepared.handle.clone();
+        // Record what the harness policy actually did, once, at the moment the
+        // agent process came up. Persisted on the session rather than recomputed
+        // so the badge keeps naming the policy this agent was given, even after
+        // the setting changes or the app restarts.
+        if let Some(session) = self.state.session_mut(session_id) {
+            let ponytail = handle.ponytail().cloned();
+            if session.ponytail != ponytail {
+                session.ponytail = ponytail;
+                self.save();
+            }
+        }
         self.runtimes.insert(
             session_id,
             SessionRuntime {

@@ -9,6 +9,7 @@ use crate::attachments::{AttachmentUpload, StoredAttachment};
 use crate::computer_use::ComputerPermissions;
 use crate::model::{AgentSession, Project, ProviderKind, ProviderProbe, UserInputAnswer};
 use crate::persistence::{ComposerDraftChange, ComposerDrafts, SessionMessageMatch};
+use crate::ponytail::{PonytailMode, PonytailStatus};
 use crate::provider_session::{ProviderSessionFork, ProviderSessionForkRequest};
 use crate::settings::DaemonSettings;
 use crate::skills::SkillsCatalog;
@@ -253,6 +254,11 @@ pub struct WireDriverStartOptions {
     pub agent_preset: Option<String>,
     pub computer_use_enabled: bool,
     pub provider_cursor: Option<Value>,
+    /// The Ponytail mode this session launches under, or `None` for off.
+    /// Resolved once by the client and never re-read, so the session keeps the
+    /// mode it started with even if the setting changes mid-run.
+    #[serde(default)]
+    pub ponytail: Option<PonytailMode>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
@@ -353,9 +359,18 @@ pub enum ResponsePayload {
     SessionRuntime {
         runtime_id: Option<Uuid>,
         supports_steer: bool,
+        /// Reattaching to a live runtime must not lose what Ponytail did for
+        /// it. The daemon still holds the handle, so it reports the same status
+        /// `Started` did rather than leaving the client to guess.
+        #[serde(default)]
+        ponytail: Option<PonytailStatus>,
     },
     Started {
         supports_steer: bool,
+        /// What Ponytail actually did for this session. Only the daemon can know
+        /// (it resolves the vendored copy and probes for Node), so it reports back.
+        #[serde(default)]
+        ponytail: Option<PonytailStatus>,
     },
     OptionsApplied {
         applied: bool,

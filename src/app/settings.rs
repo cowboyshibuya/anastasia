@@ -23,7 +23,7 @@ const SETTINGS_SEARCH_CONTEXT: &str = "SettingsSidebar > ComposerInput";
 
 /// The sidebar's rows in display order, each with the keyword haystack the
 /// search field filters against.
-const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 9] = [
+const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 10] = [
     (
         SettingsPage::General,
         "settings.general",
@@ -47,6 +47,12 @@ const SETTINGS_PAGES: [(SettingsPage, &str, &str, &str); 9] = [
         "settings.shortcuts",
         "icons/keyboard.svg",
         "settings.shortcuts_keywords",
+    ),
+    (
+        SettingsPage::Harness,
+        "settings.harness",
+        "icons/harness.svg",
+        "settings.harness_keywords",
     ),
     (
         SettingsPage::Providers,
@@ -379,6 +385,7 @@ impl Waku {
                     .text_color(theme.text)
                     .child(match page {
                         SettingsPage::General => tr!("settings.general"),
+                        SettingsPage::Harness => tr!("settings.harness"),
                         SettingsPage::Providers => tr!("settings.providers"),
                         SettingsPage::Skills => tr!("settings.skills"),
                         SettingsPage::Usage => tr!("settings.usage"),
@@ -391,6 +398,7 @@ impl Waku {
             )
             .child(match page {
                 SettingsPage::General => self.render_general_settings(cx),
+                SettingsPage::Harness => self.render_harness_settings(cx),
                 SettingsPage::Providers => self.render_providers_settings(cx),
                 SettingsPage::Skills => self.render_skills_settings(cx),
                 SettingsPage::Usage => self.render_usage_settings(cx),
@@ -456,52 +464,13 @@ impl Waku {
             .try_global::<crate::updater::UpdaterState>()
             .is_some_and(|updater| updater.0.is_some());
         let analytics_enabled = self.state.analytics_enabled;
-        let analytics_toggle = div()
-            .id("anonymous-analytics-toggle")
-            .tab_index(0)
-            .focus_visible(|style| style.border_color(theme.accent))
-            .w(px(36.0))
-            .h(px(20.0))
-            .p(px(2.0))
-            .flex_none()
-            .rounded_full()
-            .cursor_default()
-            .bg(if analytics_enabled {
-                theme.inverse
-            } else {
-                theme.inset
-            })
-            .border_1()
-            .border_color(if analytics_enabled {
-                theme.inverse
-            } else {
-                theme.border_strong
-            })
-            .flex()
-            .items_center()
-            .when(analytics_enabled, |element| element.justify_end())
-            .child(
-                div()
-                    .w(px(14.0))
-                    .h(px(14.0))
-                    .rounded_full()
-                    .bg(if analytics_enabled {
-                        theme.on_inverse
-                    } else {
-                        theme.text_tertiary
-                    }),
-            )
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.set_analytics_enabled(!analytics_enabled, cx);
-            }))
-            .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
-                if !event.keystroke.modifiers.modified()
-                    && matches!(event.keystroke.key.as_str(), "enter" | "space")
-                {
-                    this.set_analytics_enabled(!analytics_enabled, cx);
-                    cx.stop_propagation();
-                }
-            }));
+        let analytics_toggle = crate::ui::settings_switch(
+            "anonymous-analytics-toggle",
+            analytics_enabled,
+            theme,
+            cx,
+            move |this, _, cx| this.set_analytics_enabled(!analytics_enabled, cx),
+        );
         div()
             .child(
                 div()
@@ -563,34 +532,13 @@ impl Waku {
             )
             .when(updater_available, |column| {
                 let enabled = self.automatic_updates_enabled;
-                let toggle = div()
-                    .id("automatic-updates-toggle")
-                    .tab_index(0)
-                    .focus_visible(|style| style.border_color(theme.accent))
-                    .w(px(36.0))
-                    .h(px(20.0))
-                    .p(px(2.0))
-                    .flex_none()
-                    .rounded_full()
-                    .cursor_default()
-                    .bg(if enabled { theme.inverse } else { theme.inset })
-                    .border_1()
-                    .border_color(if enabled {
-                        theme.inverse
-                    } else {
-                        theme.border_strong
-                    })
-                    .flex()
-                    .items_center()
-                    .when(enabled, |element| element.justify_end())
-                    .child(div().w(px(14.0)).h(px(14.0)).rounded_full().bg(if enabled {
-                        theme.on_inverse
-                    } else {
-                        theme.text_tertiary
-                    }))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.set_automatic_updates_enabled(!enabled, cx);
-                    }));
+                let toggle = crate::ui::settings_switch(
+                    "automatic-updates-toggle",
+                    enabled,
+                    theme,
+                    cx,
+                    move |this, _, cx| this.set_automatic_updates_enabled(!enabled, cx),
+                );
                 column.child(
                     div()
                         .mt(px(15.0))

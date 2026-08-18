@@ -163,6 +163,9 @@ cp resources/Info.plist "$contents/Info.plist"
 cp "resources/$icon_file" "$contents/Resources/AppIcon.icns"
 cp resources/computer-use/pi-extension.ts "$contents/Resources/computer-use/pi-extension.ts"
 cp resources/computer-use/SKILL.md "$contents/Resources/skills/anastasia-computer-use/SKILL.md"
+# Vendored Ponytail (pinned upstream release, MIT). Anastasia loads it per session
+# with `claude --plugin-dir` and reads its ruleset for runtimes without hooks.
+cp -R resources/ponytail "$contents/Resources/ponytail"
 frameworks_directory="$contents/Frameworks"
 sparkle_framework="$frameworks_directory/Sparkle.framework"
 mkdir -p "$frameworks_directory"

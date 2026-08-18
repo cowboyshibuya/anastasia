@@ -22,6 +22,8 @@ use crate::model::{
     BackgroundWorkKey, DriverEvent, InteractionMode, ProviderKind, ProviderResumeCursor,
     RuntimeMode, UserInputAnswer,
 };
+use crate::ponytail::PonytailLaunch;
+use anastasia_protocol::ponytail::{PonytailMode, PonytailStatus};
 
 /// Provider events remain synchronous to send from reader threads, while the
 /// bounded wake channel lets the UI sleep until at least one event is ready.
@@ -74,11 +76,21 @@ pub(crate) fn test_event_channel() -> (DriverEventSender, Receiver<DriverEvent>)
 #[derive(Clone)]
 pub struct DriverHandle {
     inner: Arc<dyn DriverControl>,
+    /// What Ponytail did for this session, or `None` when it was off. Only the
+    /// process that launched the agent can know, so it travels with the handle.
+    ponytail: Option<PonytailStatus>,
 }
 
 impl DriverHandle {
     pub fn from_control(control: Arc<dyn DriverControl>) -> Self {
-        Self { inner: control }
+        Self {
+            inner: control,
+            ponytail: None,
+        }
+    }
+
+    pub fn ponytail(&self) -> Option<&PonytailStatus> {
+        self.ponytail.as_ref()
     }
 
     pub fn prompt(&self, prompt: String) {
@@ -181,6 +193,13 @@ pub struct DriverStartOptions {
     pub agent_preset: Option<String>,
     pub computer_use_enabled: bool,
     pub provider_cursor: Option<ProviderResumeCursor>,
+    /// The Ponytail harness policy for this session, or `None` for off.
+    /// Resolved into a [`crate::ponytail::PonytailLaunch`] by [`start_local`]
+    /// before any driver sees it.
+    pub ponytail: Option<PonytailMode>,
+    /// How that policy is actually delivered to this runtime. Filled in by
+    /// [`start_local`]; drivers read it and never resolve it themselves.
+    pub ponytail_launch: PonytailLaunch,
 }
 
 /// The subset of `DriverStartOptions` a user can change without starting a new
@@ -201,6 +220,12 @@ pub(crate) fn start_local(
     options: DriverStartOptions,
     events: DriverEventSender,
 ) -> anyhow::Result<DriverHandle> {
+    // Resolved here rather than in each driver so every runtime agrees on the
+    // policy, and a resolver failure can never stop an agent from starting.
+    let ponytail = crate::ponytail::resolve(provider, options.ponytail);
+    let status = ponytail.status.clone();
+    let mut options = options;
+    options.ponytail_launch = ponytail;
     let inner: Arc<dyn DriverControl> = match provider {
         ProviderKind::Codex => Arc::new(codex::CodexDriver::start(options, events)?),
         ProviderKind::Pi => Arc::new(pi::PiDriver::start(options, events)?),
@@ -222,7 +247,10 @@ pub(crate) fn start_local(
         // until stdin closes, so it too serves the whole conversation.
         ProviderKind::Amp => Arc::new(amp::AmpDriver::start(options, events)?),
     };
-    Ok(DriverHandle { inner })
+    Ok(DriverHandle {
+        inner,
+        ponytail: status,
+    })
 }
 
 #[cfg(test)]

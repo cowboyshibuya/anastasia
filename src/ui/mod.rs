@@ -1,7 +1,7 @@
 use gpui::{
-    AnyElement, App, Div, ElementId, Hsla, Img, InteractiveElement, Interactivity, ParentElement,
-    PathBuilder, Pixels, RenderOnce, ScrollHandle, SharedString, Stateful, StyleRefinement, Styled,
-    Svg, Window, canvas, div, img, point, prelude::*, px, rgb, svg,
+    AnyElement, App, Context, Div, ElementId, Hsla, Img, InteractiveElement, Interactivity,
+    ParentElement, PathBuilder, Pixels, RenderOnce, ScrollHandle, SharedString, Stateful,
+    StyleRefinement, Styled, Svg, Window, canvas, div, img, point, prelude::*, px, rgb, svg,
 };
 
 pub mod menu;
@@ -29,6 +29,59 @@ pub fn icon(path: &'static str, size: f32, color: Hsla) -> Svg {
 /// tinted with one text color.
 pub fn file_icon(path: &'static str, size: f32) -> Img {
     img(path).w(px(size)).h(px(size)).flex_none()
+}
+
+/// The settings toggle switch.
+///
+/// One definition for every settings page, so the surfaces stay visually
+/// identical and the keyboard behaviour cannot drift apart between them:
+/// focusable with a visible ring, and operable with enter or space, which the
+/// mouse-only version of this control would silently lose.
+pub fn settings_switch<V: 'static>(
+    id: impl Into<ElementId>,
+    enabled: bool,
+    theme: Theme,
+    cx: &mut Context<V>,
+    toggle: impl Fn(&mut V, &mut Window, &mut Context<V>) + 'static,
+) -> Stateful<Div> {
+    let toggle = std::rc::Rc::new(toggle);
+    let clicked = toggle.clone();
+    div()
+        .id(id)
+        .tab_index(0)
+        .focus_visible(|style| style.border_color(theme.accent))
+        .w(px(36.0))
+        .h(px(20.0))
+        .p(px(2.0))
+        .flex_none()
+        .rounded_full()
+        .cursor_default()
+        .bg(if enabled { theme.inverse } else { theme.inset })
+        .border_1()
+        .border_color(if enabled {
+            theme.inverse
+        } else {
+            theme.border_strong
+        })
+        .flex()
+        .items_center()
+        .when(enabled, |element| element.justify_end())
+        .child(div().w(px(14.0)).h(px(14.0)).rounded_full().bg(if enabled {
+            theme.on_inverse
+        } else {
+            theme.text_tertiary
+        }))
+        .on_click(cx.listener(move |this, _, window, cx| clicked(this, window, cx)))
+        .on_key_down(
+            cx.listener(move |this, event: &gpui::KeyDownEvent, window, cx| {
+                if !event.keystroke.modifiers.modified()
+                    && matches!(event.keystroke.key.as_str(), "enter" | "space")
+                {
+                    toggle(this, window, cx);
+                    cx.stop_propagation();
+                }
+            }),
+        )
 }
 
 /// A compact ghost icon button: the only button shape outside the composer's

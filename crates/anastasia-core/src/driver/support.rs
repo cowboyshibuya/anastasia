@@ -141,6 +141,56 @@ fn build_opencode_computer_use_config(
     serde_json::to_string(&config).context("could not encode OpenCode Computer Use configuration")
 }
 
+/// Adds the Ponytail ruleset to an OpenCode server's configuration.
+///
+/// OpenCode's `instructions` array takes file paths, so the ruleset is written
+/// out and referenced — the same shape Computer Use already uses, and it merges
+/// with a Computer Use entry rather than replacing it.
+pub(super) fn opencode_ponytail_environment(
+    launch: &crate::ponytail::PonytailLaunch,
+    environment: &[(String, String)],
+) -> anyhow::Result<Vec<(String, String)>> {
+    let path = crate::ponytail::write_instructions_file(launch)?;
+    let existing = environment
+        .iter()
+        .find(|(key, _)| key == "OPENCODE_CONFIG_CONTENT")
+        .map(|(_, value)| value.as_str())
+        .filter(|value| !value.is_empty());
+    let content = add_opencode_instruction(existing, &path)?;
+    let mut merged = environment
+        .iter()
+        .filter(|(key, _)| key != "OPENCODE_CONFIG_CONTENT")
+        .cloned()
+        .collect::<Vec<_>>();
+    merged.push(("OPENCODE_CONFIG_CONTENT".to_owned(), content));
+    Ok(merged)
+}
+
+/// Appends one path to `OPENCODE_CONFIG_CONTENT.instructions`, idempotently.
+fn add_opencode_instruction(existing: Option<&str>, path: &Path) -> anyhow::Result<String> {
+    let mut config = existing
+        .map(serde_json::from_str::<Value>)
+        .transpose()
+        .context("OPENCODE_CONFIG_CONTENT is invalid JSON")?
+        .unwrap_or_else(|| serde_json::json!({}));
+    let root = config
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("OPENCODE_CONFIG_CONTENT must contain a JSON object"))?;
+    let instructions = root
+        .entry("instructions")
+        .or_insert_with(|| serde_json::json!([]))
+        .as_array_mut()
+        .ok_or_else(|| anyhow!("OPENCODE_CONFIG_CONTENT.instructions must be a JSON array"))?;
+    let path = path.display().to_string();
+    if !instructions
+        .iter()
+        .any(|instruction| instruction.as_str() == Some(&path))
+    {
+        instructions.push(Value::String(path));
+    }
+    serde_json::to_string(&config).context("could not encode the OpenCode Ponytail configuration")
+}
+
 /// The environment that hands OpenCode its Computer Use configuration.
 pub(super) fn opencode_computer_use_environment(
     config: &HeadlessComputerUseConfig,
@@ -316,6 +366,22 @@ pub(super) fn grok_computer_use_launch_configuration(
         (args, environment)
     } else {
         (Vec::new(), Vec::new())
+    }
+}
+
+/// Applies a resolved Ponytail policy to a child process.
+///
+/// Args and environment are applied as-is — never through a shell — so an
+/// install path containing spaces, quotes or unicode stays one argv entry.
+/// An empty launch (Ponytail off, or a provider with no channel) leaves the
+/// command byte-identical to what it would be without this call.
+pub(super) fn apply_ponytail(
+    command: &mut std::process::Command,
+    launch: &crate::ponytail::PonytailLaunch,
+) {
+    command.args(&launch.args);
+    for (key, value) in &launch.env {
+        command.env(key, value);
     }
 }
 
@@ -548,5 +614,91 @@ mod tests {
             provider_stderr_error(vec!["warning: optional integration unavailable".into()]),
             None
         );
+    }
+
+    #[test]
+    fn ponytail_arguments_survive_hostile_install_paths() {
+        // The whole security argument for this integration is that nothing goes
+        // through a shell. Assert on the argv the child would actually receive,
+        // which is where that guarantee either holds or does not.
+        let hostile = "/Users/a b/\"quoted\"/$HOME/`whoami`/naïve — ✓/ponytail";
+        let launch = crate::ponytail::PonytailLaunch {
+            args: vec!["--plugin-dir".to_owned(), hostile.to_owned()],
+            env: vec![("PLUGIN_DATA".to_owned(), hostile.to_owned())],
+            instructions: None,
+            status: None,
+        };
+        let mut command = std::process::Command::new("/usr/bin/true");
+        apply_ponytail(&mut command, &launch);
+
+        let args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        // Two entries, not five: no word splitting, no expansion, no quoting.
+        assert_eq!(args, vec!["--plugin-dir".to_owned(), hostile.to_owned()]);
+        let env = command
+            .get_envs()
+            .map(|(key, value)| {
+                (
+                    key.to_string_lossy().into_owned(),
+                    value.map(|value| value.to_string_lossy().into_owned()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            env,
+            vec![("PLUGIN_DATA".to_owned(), Some(hostile.to_owned()))]
+        );
+    }
+
+    #[test]
+    fn a_disabled_policy_leaves_the_command_untouched() {
+        let mut command = std::process::Command::new("/usr/bin/true");
+        command.arg("--existing");
+        apply_ponytail(&mut command, &crate::ponytail::PonytailLaunch::disabled());
+        let args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(args, vec!["--existing".to_owned()]);
+        assert_eq!(command.get_envs().count(), 0);
+    }
+
+    #[test]
+    fn ponytail_joins_opencode_instructions_without_evicting_computer_use() {
+        let existing = serde_json::json!({
+            "mcp": {"waku_js_repl": {"enabled": true}},
+            "instructions": ["/skills/anastasia-computer-use/SKILL.md"],
+        })
+        .to_string();
+        let ponytail = Path::new("/tmp/anastasia-ponytail/full/ponytail.md");
+
+        let merged = add_opencode_instruction(Some(&existing), ponytail).unwrap();
+        let value: Value = serde_json::from_str(&merged).unwrap();
+        let instructions = value["instructions"].as_array().unwrap();
+        assert_eq!(instructions.len(), 2);
+        assert_eq!(
+            instructions[0].as_str(),
+            Some("/skills/anastasia-computer-use/SKILL.md")
+        );
+        assert_eq!(instructions[1].as_str(), Some(ponytail.to_str().unwrap()));
+        // The rest of the document is carried through, not rebuilt.
+        assert_eq!(
+            value["mcp"]["waku_js_repl"]["enabled"].as_bool(),
+            Some(true)
+        );
+
+        // Applying it twice must not stack duplicate entries.
+        let twice = add_opencode_instruction(Some(&merged), ponytail).unwrap();
+        let value: Value = serde_json::from_str(&twice).unwrap();
+        assert_eq!(value["instructions"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn an_absent_opencode_configuration_becomes_a_valid_one() {
+        let merged = add_opencode_instruction(None, Path::new("/tmp/ponytail.md")).unwrap();
+        let value: Value = serde_json::from_str(&merged).unwrap();
+        assert_eq!(value["instructions"][0].as_str(), Some("/tmp/ponytail.md"));
     }
 }

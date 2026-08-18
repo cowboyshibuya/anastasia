@@ -227,6 +227,7 @@ enum BranchPickerAction {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SettingsPage {
     General,
+    Harness,
     Providers,
     Skills,
     Usage,
@@ -1530,6 +1531,7 @@ mod right_panel;
 mod runtime;
 mod sessions;
 mod settings;
+mod settings_harness;
 mod settings_notifications;
 mod settings_shortcuts;
 mod sidebar;

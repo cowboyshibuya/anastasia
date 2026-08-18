@@ -37,14 +37,21 @@ pub(crate) fn start_remote(
                 .provider_cursor
                 .map(serde_json::to_value)
                 .transpose()?,
+            ponytail: options.ponytail,
         },
     };
-    let supports_steer = match client.request(session_id, runtime_id, command) {
-        Ok(anastasia_client::ResponsePayload::Started { supports_steer }) => supports_steer,
+    let (supports_steer, ponytail) = match client.request(session_id, runtime_id, command) {
+        Ok(anastasia_client::ResponsePayload::Started {
+            supports_steer,
+            ponytail,
+        }) => (supports_steer, ponytail),
         Ok(_) => anyhow::bail!("Anastasia daemon returned an invalid start response"),
         Err(error) => return Err(error),
     };
-    connect_remote(client, session_id, runtime_id, supports_steer, None, events)
+    Ok(
+        connect_remote(client, session_id, runtime_id, supports_steer, None, events)?
+            .with_ponytail(ponytail),
+    )
 }
 
 pub(crate) fn attach_remote(
@@ -178,7 +185,9 @@ impl DriverControl for RemoteDriverControl {
 
     fn stop_background_work(&self, key: BackgroundWorkKey, control_id: String) {
         match serde_json::to_value(key) {
-            Ok(key) => self.notify(anastasia_client::Command::StopBackgroundWork { key, control_id }),
+            Ok(key) => {
+                self.notify(anastasia_client::Command::StopBackgroundWork { key, control_id })
+            }
             Err(error) => {
                 let _ = self.events.send(DriverEvent::Error(format!(
                     "could not encode background-work command: {error}"

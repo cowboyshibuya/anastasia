@@ -33,6 +33,7 @@ use crate::model::{
     AgentSession, FavoriteModel, InteractionMode, Message, MessageAttachment, MessageRole, Project,
     ProviderKind, RuntimeMode, SessionWorkspace,
 };
+use crate::ponytail::PonytailMode;
 use crate::theme::ThemePreference;
 pub use anastasia_protocol::persistence::{
     ComposerDraft, ComposerDraftAttachment, ComposerDraftChange, ComposerDraftKey,
@@ -60,6 +61,10 @@ fn default_right_panel_visibility() -> bool {
 
 fn default_computer_use_enabled() -> bool {
     false
+}
+
+fn default_ponytail_enabled() -> bool {
+    true
 }
 
 fn default_analytics_enabled() -> bool {
@@ -191,6 +196,8 @@ pub struct AppSettings {
     pub favorite_models: Vec<FavoriteModel>,
     pub theme: ThemePreference,
     pub language: AppLanguage,
+    pub ponytail_enabled: bool,
+    pub ponytail_mode: PonytailMode,
 }
 
 impl Default for AppSettings {
@@ -200,6 +207,8 @@ impl Default for AppSettings {
             favorite_models: Vec::new(),
             theme: ThemePreference::default(),
             language: AppLanguage::default(),
+            ponytail_enabled: true,
+            ponytail_mode: PonytailMode::default(),
         }
     }
 }
@@ -266,6 +275,10 @@ pub struct PersistedState {
     pub favorite_models: Vec<FavoriteModel>,
     #[serde(default)]
     pub theme: ThemePreference,
+    #[serde(default = "default_ponytail_enabled")]
+    pub ponytail_enabled: bool,
+    #[serde(default)]
+    pub ponytail: PonytailMode,
     #[serde(default)]
     pub language: AppLanguage,
     #[serde(default = "default_sidebar_visibility")]
@@ -325,6 +338,8 @@ impl PersistedState {
             version: STATE_VERSION,
             analytics_id: Uuid::new_v4(),
             analytics_enabled: true,
+            ponytail_enabled: default_ponytail_enabled(),
+            ponytail: PonytailMode::default(),
             projects: Vec::new(),
             sessions: Vec::new(),
             selected_project: None,
@@ -434,6 +449,8 @@ impl PersistedState {
             favorite_models: self.favorite_models.clone(),
             theme: self.theme,
             language: self.language,
+            ponytail_enabled: self.ponytail_enabled,
+            ponytail_mode: self.ponytail,
         }
     }
 
@@ -471,6 +488,8 @@ impl PersistedState {
         self.favorite_models = settings.favorite_models;
         self.theme = settings.theme;
         self.language = settings.language;
+        self.ponytail_enabled = settings.ponytail_enabled;
+        self.ponytail = settings.ponytail_mode;
     }
 
     pub fn apply_daemon_settings(&mut self, settings: crate::DaemonSettings) {
@@ -1507,6 +1526,7 @@ fn session_skeleton(row: SessionColumns) -> Option<AgentSession> {
         updated_at: updated_at as u64,
         last_reply_at: last_reply_at.map(|at| at as u64),
         provider_cursor: None,
+        ponytail: None,
         available_commands: Vec::new(),
         context_usage: None,
         runtime_event_cursor: None,

@@ -188,11 +188,13 @@ impl Backend for WakuBackend {
                     return Ok(ResponsePayload::SessionRuntime {
                         runtime_id: None,
                         supports_steer: false,
+                        ponytail: None,
                     });
                 };
                 Ok(ResponsePayload::SessionRuntime {
                     runtime_id: Some(*runtime_id),
                     supports_steer: driver.supports_steer(),
+                    ponytail: driver.ponytail().cloned(),
                 })
             }
             Command::GetSettings => Ok(ResponsePayload::Settings {
@@ -583,11 +585,14 @@ impl Backend for WakuBackend {
                         .map(serde_json::from_value)
                         .transpose()
                         .context("daemon received an invalid provider cursor")?,
+                    ponytail: options.ponytail,
+                    ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
                 };
                 let (wake, _wake_events) = smol::channel::bounded(1);
                 let (event_sender, event_receiver) = driver::event_channel(wake);
                 let handle = driver::start_local(provider, options, event_sender)?;
                 let supports_steer = handle.supports_steer();
+                let ponytail = handle.ponytail().cloned();
                 std::thread::Builder::new()
                     .name(format!("waku-daemon-events-{session_id}"))
                     .spawn(move || {
@@ -609,7 +614,10 @@ impl Backend for WakuBackend {
                 self.sessions
                     .lock()
                     .insert(session_id, (runtime_id, handle));
-                Ok(ResponsePayload::Started { supports_steer })
+                Ok(ResponsePayload::Started {
+                    supports_steer,
+                    ponytail,
+                })
             }
             Command::CloseSession => {
                 let removed = {
@@ -1107,6 +1115,8 @@ impl WakuBackend {
                 agent_preset: source.agent_preset.clone(),
                 computer_use_enabled: false,
                 provider_cursor: source.provider_cursor.clone(),
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             event_sender,
         )?;
@@ -1258,6 +1268,8 @@ impl WakuBackend {
                 agent_preset: source.agent_preset.clone(),
                 computer_use_enabled: false,
                 provider_cursor: source.provider_cursor.clone(),
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             event_sender,
         )?;

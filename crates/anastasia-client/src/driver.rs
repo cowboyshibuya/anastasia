@@ -3,12 +3,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crossbeam_channel::{Receiver, SendError, Sender, unbounded};
 use anastasia_protocol::computer_use::ComputerToolRequest;
 use anastasia_protocol::model::{
     BackgroundWorkKey, DriverEvent, InteractionMode, ProviderResumeCursor, RuntimeMode,
     UserInputAnswer,
 };
+use anastasia_protocol::ponytail::{PonytailMode, PonytailStatus};
+use crossbeam_channel::{Receiver, SendError, Sender, unbounded};
 
 #[derive(Clone)]
 pub struct DriverEventSender {
@@ -34,11 +35,26 @@ pub fn event_channel(
 #[derive(Clone)]
 pub struct DriverHandle {
     inner: Arc<dyn DriverControl>,
+    /// What Ponytail did for this session, reported by whichever process
+    /// actually launched the agent. `None` means Ponytail was off.
+    ponytail: Option<PonytailStatus>,
 }
 
 impl DriverHandle {
     pub fn from_control(control: Arc<dyn DriverControl>) -> Self {
-        Self { inner: control }
+        Self {
+            inner: control,
+            ponytail: None,
+        }
+    }
+
+    pub fn with_ponytail(mut self, ponytail: Option<PonytailStatus>) -> Self {
+        self.ponytail = ponytail;
+        self
+    }
+
+    pub fn ponytail(&self) -> Option<&PonytailStatus> {
+        self.ponytail.as_ref()
     }
 
     pub fn prompt(&self, prompt: String) {
@@ -138,6 +154,9 @@ pub struct DriverStartOptions {
     pub agent_preset: Option<String>,
     pub computer_use_enabled: bool,
     pub provider_cursor: Option<ProviderResumeCursor>,
+    /// The Ponytail mode this session launches under, or `None` for off.
+    /// Captured once here so the session keeps it for its whole life.
+    pub ponytail: Option<PonytailMode>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -105,6 +105,8 @@ impl AcpDriver {
             agent_preset: _,
             computer_use_enabled,
             provider_cursor,
+            ponytail: _,
+            ponytail_launch,
         } = options;
         let fork_context = match &provider_cursor {
             Some(ProviderResumeCursor::Cursor { fork_context, .. }) => fork_context.clone(),
@@ -139,6 +141,7 @@ impl AcpDriver {
             &cwd,
             launch,
             computer_use.as_ref().map(|runtime| &runtime.config),
+            &ponytail_launch,
             stderr_lines.clone(),
         )?;
         let (commands, command_rx) = smol::channel::unbounded();
@@ -193,6 +196,7 @@ fn sdk_agent(
     cwd: &Path,
     mut launch: AcpLaunch,
     computer_use: Option<&super::support::HeadlessComputerUseConfig>,
+    ponytail: &crate::ponytail::PonytailLaunch,
     stderr_lines: Arc<Mutex<Vec<String>>>,
 ) -> anyhow::Result<AcpAgent> {
     let binary = binary
@@ -204,6 +208,9 @@ fn sdk_agent(
     let (computer_args, computer_env) =
         super::support::grok_computer_use_launch_configuration(computer_use);
     launch.args.extend(computer_args);
+    // Grok's `--rules` is one argv entry, so the ruleset travels verbatim
+    // however it is punctuated. Cursor resolves to an empty launch.
+    launch.args.extend(ponytail.args.iter().cloned());
     let mut environment = crate::command_env::shell_environment()
         .into_iter()
         .map(|(name, value)| {
@@ -215,6 +222,7 @@ fn sdk_agent(
         .collect::<Vec<_>>();
     environment.append(&mut launch.env);
     environment.extend(computer_env);
+    environment.extend(ponytail.env.iter().cloned());
 
     // `AcpAgentConfig` deliberately contains only argv and environment. macOS
     // `env -C` supplies the session cwd without a shell, preserving exact
@@ -1728,6 +1736,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )

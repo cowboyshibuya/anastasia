@@ -1249,6 +1249,10 @@ impl Waku {
         let agent_preset_label = session
             .filter(|session| session.provider == ProviderKind::DeepSeek && session.has_started())
             .and_then(|session| self.agent_preset_label_for_session(session));
+        // Read from the session rather than from settings: the badge must name
+        // the policy this agent actually launched under, which a later settings
+        // change does not alter.
+        let ponytail = session.and_then(|session| session.ponytail.clone());
         let left_window_controls = (!self.sidebar_visible)
             .then(|| {
                 self.render_client_window_controls(
@@ -1356,7 +1360,8 @@ impl Waku {
                                 .text_color(theme.text_secondary)
                                 .child(icon("icons/bot.svg", 10.5, theme.text_tertiary))
                                 .child(div().min_w_0().truncate().child(SharedString::from(label)))
-                        })),
+                        }))
+                        .children(ponytail.map(|status| render_ponytail_badge(status, theme))),
                     cx,
                 ),
             )
@@ -1705,4 +1710,70 @@ mod tests {
         ));
         assert!(sidebar_session_selected(Some(current), None, current));
     }
+}
+
+/// The header badge naming the harness policy a session is running under.
+///
+/// Never colour alone: an unhealthy status carries an icon and the word
+/// "unavailable" as well, and the tooltip spells out mode, mechanism, runtime
+/// and version for anyone debugging why an agent is behaving differently.
+fn render_ponytail_badge(
+    status: anastasia_client::ponytail::PonytailStatus,
+    theme: Theme,
+) -> impl IntoElement {
+    let healthy = status.healthy
+        && status.integration != anastasia_client::ponytail::PonytailIntegration::Unsupported;
+    let label = if healthy {
+        tr!("ponytail.badge", mode = status.mode.label())
+    } else {
+        tr!("ponytail.badge_unavailable")
+    };
+    let detail = tr!(
+        "ponytail.badge_tooltip",
+        mode = status.mode.label(),
+        integration = status.integration.label(),
+        runtime = status.provider.display_name(),
+        version = status.version.clone().unwrap_or_default(),
+    );
+    let message = status.message.clone();
+
+    div()
+        .id("ponytail-badge")
+        .h(px(22.0))
+        .max_w(px(180.0))
+        .px(px(6.0))
+        .rounded(px(6.0))
+        .flex_none()
+        .flex()
+        .items_center()
+        .gap(px(4.0))
+        .bg(theme.overlay)
+        .text_size(px(11.0))
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(if healthy {
+            theme.text_secondary
+        } else {
+            theme.text_tertiary
+        })
+        .child(icon(
+            if healthy {
+                "icons/harness.svg"
+            } else {
+                "icons/alert.svg"
+            },
+            10.5,
+            if healthy {
+                theme.text_tertiary
+            } else {
+                theme.warning
+            },
+        ))
+        .child(div().min_w_0().truncate().child(SharedString::from(label)))
+        .tooltip(move |window, cx| {
+            let detail = match &message {
+                Some(message) => format!("{detail}\n{message}"),
+                None => detail.clone(),
+            };
+            Tooltip::text(detail)(window, cx)
+        })
 }

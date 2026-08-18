@@ -78,6 +78,8 @@ impl PiDriver {
             agent_preset: _,
             computer_use_enabled,
             provider_cursor,
+            ponytail: _,
+            ponytail_launch,
         } = options;
         if mode != RuntimeMode::FullAccess || interaction_mode != InteractionMode::Build {
             return Err(anyhow!("Pi currently supports Build with Full access only"));
@@ -122,6 +124,7 @@ impl PiDriver {
                 .zip(pi_extension.as_deref())
                 .map(|(runtime, extension)| (&runtime.config, extension)),
         );
+        super::support::apply_ponytail(&mut command, &ponytail_launch);
         let command = command
             .current_dir(cwd)
             .stdin(Stdio::piped())
@@ -1101,6 +1104,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )

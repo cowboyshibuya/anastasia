@@ -1,7 +1,5 @@
 //! Settings → Notifications: how a session asks for attention.
 
-use gpui::KeyDownEvent;
-
 use super::*;
 
 /// One switch on the page: what it reads, and what flipping it does.
@@ -62,44 +60,9 @@ impl Waku {
                 apply,
             } = toggle;
 
-            // The same switch the General page uses, so the two read as one
-            // settings surface.
-            let control = div()
-                .id(id)
-                .tab_index(0)
-                .focus_visible(|style| style.border_color(theme.accent))
-                .w(px(36.0))
-                .h(px(20.0))
-                .p(px(2.0))
-                .flex_none()
-                .rounded_full()
-                .cursor_default()
-                .bg(if enabled { theme.inverse } else { theme.inset })
-                .border_1()
-                .border_color(if enabled {
-                    theme.inverse
-                } else {
-                    theme.border_strong
-                })
-                .flex()
-                .items_center()
-                .when(enabled, |element| element.justify_end())
-                .child(div().w(px(14.0)).h(px(14.0)).rounded_full().bg(if enabled {
-                    theme.on_inverse
-                } else {
-                    theme.text_tertiary
-                }))
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.set_notification_settings(apply, !enabled, cx);
-                }))
-                .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
-                    if !event.keystroke.modifiers.modified()
-                        && matches!(event.keystroke.key.as_str(), "enter" | "space")
-                    {
-                        this.set_notification_settings(apply, !enabled, cx);
-                        cx.stop_propagation();
-                    }
-                }));
+            let control = crate::ui::settings_switch(id, enabled, theme, cx, move |this, _, cx| {
+                this.set_notification_settings(apply, !enabled, cx)
+            });
 
             let row = div()
                 .w_full()

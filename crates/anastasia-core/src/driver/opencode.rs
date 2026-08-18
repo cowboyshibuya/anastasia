@@ -91,6 +91,8 @@ impl OpenCodeDriver {
             agent_preset: _,
             computer_use_enabled,
             provider_cursor,
+            ponytail: _,
+            ponytail_launch,
         } = options;
         let resume_session_id = match provider_cursor {
             Some(ProviderResumeCursor::OpenCode { session_id }) => {
@@ -115,16 +117,24 @@ impl OpenCodeDriver {
             .transpose()?;
         // The one-shot path handed Computer Use to OpenCode through the
         // environment; the resident server takes it exactly the same way.
-        let environment = computer_use
+        let mut environment = computer_use
             .as_ref()
             .map(|runtime| super::support::opencode_computer_use_environment(&runtime.config))
             .unwrap_or_default();
+        // Ponytail rides in the server's configuration the same way, so a
+        // session running it needs its own server rather than the shared one —
+        // otherwise a second session would inherit this session's policy.
+        let ponytail_active = ponytail_launch.instructions.is_some();
+        if ponytail_active {
+            environment =
+                super::support::opencode_ponytail_environment(&ponytail_launch, &environment)?;
+        }
         // Computer Use bakes per-session configuration into the server's
         // environment, so it keeps a dedicated server. Every other session
         // shares the workspace's one resident server — OpenCode hosts many
         // sessions per process, and a second `opencode serve` in the same
         // workspace contends with the live one.
-        let server = if computer_use.is_some() {
+        let server = if computer_use.is_some() || ponytail_active {
             PooledServer::dedicated(OpenCodeServer::start_with_env(&binary, &cwd, &environment)?)
         } else {
             crate::opencode_pool::acquire(&binary, &cwd)?
@@ -1285,6 +1295,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )
@@ -1374,6 +1386,8 @@ mod tests {
                 agent_preset: None,
                 computer_use_enabled: false,
                 provider_cursor: None,
+                ponytail: None,
+                ponytail_launch: crate::ponytail::PonytailLaunch::disabled(),
             },
             events,
         )

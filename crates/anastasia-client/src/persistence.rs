@@ -21,6 +21,7 @@ use anastasia_protocol::identity::DATA_DIRECTORY_NAME;
 use anastasia_protocol::keymap::KeymapConfig;
 use anastasia_protocol::model::{AgentSession, FavoriteModel, Project, ProviderKind};
 use anastasia_protocol::notifications::NotificationSettings;
+use anastasia_protocol::ponytail::PonytailMode;
 use anastasia_protocol::theme::ThemePreference;
 
 pub use anastasia_protocol::persistence::{
@@ -44,6 +45,10 @@ fn default_right_panel_visibility() -> bool {
 
 fn default_computer_use_enabled() -> bool {
     false
+}
+
+fn default_ponytail_enabled() -> bool {
+    true
 }
 
 fn default_analytics_enabled() -> bool {
@@ -220,6 +225,8 @@ pub struct AppSettings {
     pub daemon_exposure: DaemonExposureSettings,
     pub keymap: KeymapConfig,
     pub notifications: NotificationSettings,
+    pub ponytail_enabled: bool,
+    pub ponytail_mode: PonytailMode,
 }
 
 impl Default for AppSettings {
@@ -232,6 +239,11 @@ impl Default for AppSettings {
             daemon_exposure: DaemonExposureSettings::default(),
             keymap: KeymapConfig::default(),
             notifications: NotificationSettings::default(),
+            // Ponytail is on out of the box: making agents prefer the simplest
+            // solution that works is the default Anastasia wants, and it is one
+            // switch away from off.
+            ponytail_enabled: true,
+            ponytail_mode: PonytailMode::default(),
         }
     }
 }
@@ -295,6 +307,13 @@ pub struct PersistedState {
     pub favorite_models: Vec<FavoriteModel>,
     #[serde(default)]
     pub theme: ThemePreference,
+    /// The Ponytail harness policy applied to new sessions. Split across two
+    /// fields only because the settings UI is a switch plus a picker; use
+    /// [`Self::ponytail_mode`] to get the one value that actually matters.
+    #[serde(default = "default_ponytail_enabled")]
+    pub ponytail_enabled: bool,
+    #[serde(default)]
+    pub ponytail: PonytailMode,
     #[serde(default)]
     pub language: AppLanguage,
     #[serde(default)]
@@ -348,6 +367,8 @@ impl PersistedState {
             version: STATE_VERSION,
             analytics_id: Uuid::new_v4(),
             analytics_enabled: true,
+            ponytail_enabled: default_ponytail_enabled(),
+            ponytail: PonytailMode::default(),
             projects: Vec::new(),
             sessions: Vec::new(),
             selected_project: None,
@@ -473,6 +494,11 @@ impl PersistedState {
         self.daemon_settings_extra = settings.extra;
     }
 
+    /// The Ponytail mode new sessions launch under, or `None` for off.
+    pub fn ponytail_mode(&self) -> Option<PonytailMode> {
+        self.ponytail_enabled.then_some(self.ponytail)
+    }
+
     fn app_settings(&self) -> AppSettings {
         AppSettings {
             analytics_enabled: self.analytics_enabled,
@@ -482,6 +508,8 @@ impl PersistedState {
             daemon_exposure: self.daemon_exposure.clone(),
             keymap: self.keymap.clone(),
             notifications: self.notifications,
+            ponytail_enabled: self.ponytail_enabled,
+            ponytail_mode: self.ponytail,
         }
     }
 
@@ -513,6 +541,8 @@ impl PersistedState {
         self.daemon_exposure = settings.daemon_exposure;
         self.keymap = settings.keymap;
         self.notifications = settings.notifications;
+        self.ponytail_enabled = settings.ponytail_enabled;
+        self.ponytail = settings.ponytail_mode;
     }
 
     fn apply_app_state(&mut self, app_state: AppState) {
@@ -980,6 +1010,70 @@ fn restore_task_state_skeletons(sessions: &mut [AgentSession]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anastasia_protocol::ponytail::{PonytailIntegration, PonytailStatus};
+
+    #[test]
+    fn a_session_keeps_its_ponytail_status_when_projected_for_the_list() {
+        // The header badge renders from the list projection before the detail
+        // is hydrated, so dropping the status here would blank the badge on
+        // every launch until the session was opened.
+        let mut session = AgentSession::new(Uuid::new_v4(), ProviderKind::Claude);
+        session.ponytail = Some(PonytailStatus::active(
+            ProviderKind::Claude,
+            PonytailMode::Ultra,
+            PonytailIntegration::Native,
+            Some("4.8.4".into()),
+        ));
+        let projected = session.list_projection();
+        assert_eq!(projected.ponytail, session.ponytail);
+    }
+
+    #[test]
+    fn ponytail_is_on_at_full_out_of_the_box() {
+        let state = PersistedState::empty();
+        assert_eq!(state.ponytail_mode(), Some(PonytailMode::Full));
+        assert_eq!(AppSettings::default().ponytail_mode, PonytailMode::Full);
+        assert!(AppSettings::default().ponytail_enabled);
+    }
+
+    #[test]
+    fn the_switch_and_the_picker_collapse_to_one_value() {
+        // Off has exactly one representation downstream, so no caller can
+        // encounter a disabled-but-Ultra state.
+        let mut state = PersistedState::empty();
+        for mode in PonytailMode::ALL {
+            state.ponytail = mode;
+            state.ponytail_enabled = true;
+            assert_eq!(state.ponytail_mode(), Some(mode));
+            state.ponytail_enabled = false;
+            assert_eq!(state.ponytail_mode(), None);
+        }
+    }
+
+    #[test]
+    fn ponytail_settings_survive_a_round_trip_through_the_settings_file() {
+        let mut state = PersistedState::empty();
+        state.ponytail = PonytailMode::Ultra;
+        state.ponytail_enabled = false;
+
+        let encoded = serde_json::to_string(&state.app_settings()).unwrap();
+        let decoded: AppSettings = serde_json::from_str(&encoded).unwrap();
+        let mut restored = PersistedState::empty();
+        restored.apply_app_settings(decoded);
+
+        assert_eq!(restored.ponytail, PonytailMode::Ultra);
+        assert!(!restored.ponytail_enabled);
+        assert_eq!(restored.ponytail_mode(), None);
+    }
+
+    #[test]
+    fn a_settings_file_written_before_ponytail_existed_still_enables_it() {
+        // Additive fields only, so an existing install picks up the default
+        // rather than loading as off.
+        let settings: AppSettings = serde_json::from_str("{}").unwrap();
+        assert!(settings.ponytail_enabled);
+        assert_eq!(settings.ponytail_mode, PonytailMode::Full);
+    }
 
     #[test]
     fn desktop_settings_paths_are_build_specific() {

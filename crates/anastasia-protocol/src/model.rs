@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use uuid::Uuid;
 
+use crate::ponytail::PonytailStatus;
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum ProviderKind {
@@ -797,6 +799,12 @@ pub struct AgentSession {
     pub last_reply_at: Option<u64>,
     #[serde(default)]
     pub provider_cursor: Option<ProviderResumeCursor>,
+    /// What the Ponytail harness policy did for this session, captured when its
+    /// driver started. `None` means Ponytail was off. Persisted rather than
+    /// recomputed so the badge keeps reporting the mode the agent was actually
+    /// given, even after the setting changes or the app restarts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ponytail: Option<PonytailStatus>,
     /// Slash commands the provider reported for this session's live process,
     /// kept so a resumed session still completes them before its next
     /// handshake.
@@ -862,6 +870,7 @@ impl AgentSession {
             last_reply_at: None,
             detail_loaded: true,
             provider_cursor: None,
+            ponytail: None,
             available_commands: Vec::new(),
             context_usage: None,
             runtime_event_cursor: None,
@@ -898,6 +907,7 @@ impl AgentSession {
             updated_at: self.updated_at,
             last_reply_at: self.last_reply_at,
             provider_cursor: None,
+            ponytail: self.ponytail.clone(),
             available_commands: Vec::new(),
             context_usage: None,
             runtime_event_cursor: None,

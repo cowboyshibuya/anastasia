@@ -114,6 +114,44 @@ settings.daemon:
   en: Daemon
 settings.computer_use:
   en: Computer Use
+settings.harness:
+  en: Harness
+settings.harness_keywords:
+  en: harness policy policies ponytail minimal code lazy yagni simplest solution over-engineering intensity lite full ultra
+settings.ponytail:
+  en: Ponytail
+settings.ponytail_description:
+  en: Write less code by making agents prefer the simplest solution that actually solves the problem.
+settings.ponytail_intensity:
+  en: Intensity
+settings.ponytail_intensity_description:
+  en: How hard agents push toward the smaller solution. Applies to new sessions.
+settings.ponytail_runtimes:
+  en: Applies to Anastasia agent sessions
+settings.ponytail_attribution:
+  en: "Powered by Ponytail v%{version} — MIT, © Dietrich Gebert"
+ponytail.mode_lite:
+  en: Lite
+ponytail.mode_full:
+  en: Full
+ponytail.mode_ultra:
+  en: Ultra
+ponytail.integration_native:
+  en: Native hooks
+ponytail.integration_instructions:
+  en: Instructions
+ponytail.integration_unsupported:
+  en: Not supported
+ponytail.integration_off:
+  en: 'Off'
+ponytail.node_missing:
+  en: Native lifecycle hooks are unavailable because Node.js could not be found.
+ponytail.badge:
+  en: "Ponytail · %{mode}"
+ponytail.badge_unavailable:
+  en: Ponytail unavailable
+ponytail.badge_tooltip:
+  en: "Ponytail\nMode: %{mode}\nIntegration: %{integration}\nAgent: %{runtime}\nVersion: %{version}"
 settings.general_keywords:
   en: general local projects conversations privacy analytics telemetry anonymous sharing updates automatic sparkle version
 settings.notifications:

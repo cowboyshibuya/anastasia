@@ -36,6 +36,7 @@ pub mod model;
 pub mod model_catalog;
 pub mod notifications;
 pub mod persistence;
+pub mod ponytail;
 pub mod projectless;
 pub mod provider_session;
 pub mod settings;

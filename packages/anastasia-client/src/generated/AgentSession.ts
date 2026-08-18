@@ -3,6 +3,7 @@ import type { AgentTurn } from "./AgentTurn";
 import type { ContextUsage } from "./ContextUsage";
 import type { InteractionMode } from "./InteractionMode";
 import type { Message } from "./Message";
+import type { PonytailStatus } from "./PonytailStatus";
 import type { ProviderKind } from "./ProviderKind";
 import type { ProviderResumeCursor } from "./ProviderResumeCursor";
 import type { QueuedMessage } from "./QueuedMessage";
@@ -48,6 +49,13 @@ updated_at: number,
  * then refreshed when the turn settles, whatever its outcome.
  */
 last_reply_at?: number | null, provider_cursor: ProviderResumeCursor | null,
+/**
+ * What the Ponytail harness policy did for this session, captured when its
+ * driver started. `None` means Ponytail was off. Persisted rather than
+ * recomputed so the badge keeps reporting the mode the agent was actually
+ * given, even after the setting changes or the app restarts.
+ */
+ponytail?: PonytailStatus | null,
 /**
  * Slash commands the provider reported for this session's live process,
  * kept so a resumed session still completes them before its next

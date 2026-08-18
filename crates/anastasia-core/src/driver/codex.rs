@@ -191,6 +191,8 @@ impl CodexDriver {
             agent_preset: _,
             computer_use_enabled,
             provider_cursor,
+            ponytail: _,
+            ponytail_launch,
         } = options;
         let provider_session_id = match provider_cursor {
             Some(ProviderResumeCursor::Codex { thread_id }) => Some(thread_id),
@@ -219,6 +221,7 @@ impl CodexDriver {
         let mut command = crate::command_env::command(&binary);
         command.args(["app-server", "--stdio"]);
         configure_computer_use_command(&mut command, computer_use.as_ref());
+        super::support::apply_ponytail(&mut command, &ponytail_launch);
         let command = command
             .current_dir(&cwd)
             .stdin(Stdio::piped())
