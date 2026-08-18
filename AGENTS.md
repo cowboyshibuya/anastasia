@@ -97,3 +97,20 @@
 - Validate visible changes in the freshly rebuilt, signed app managed by the
   dev watcher against the exact provider interaction; a successful Rust build
   alone is insufficient.
+
+## Release & CI integrity
+
+- Whenever adding or modifying helper binaries, embedded resources, bridge
+  tools, or build targets:
+  - Update `scripts/bundle.sh` to ensure every newly added executable inside the
+    app bundle (`Contents/Resources/`, `Contents/MacOS/`, `Contents/Helpers/`)
+    is explicitly codesigned (with hardened runtime, timestamp, and correct
+    bundle identifier) and strictly verified in release mode. Unsigned nested
+    binaries will cause Apple Notarization to reject the release DMG.
+  - Ensure cross-platform compatibility for tests: OS-specific shortcuts or
+    APIs (such as macOS `cmd` keybindings) must be conditionally compiled or
+    guarded with `#[cfg(target_os = "macos")]` so Linux CI runners (`ubuntu-24.04`)
+    pass.
+  - Always run `bun run test` (which executes Rust tests, daemon tests, protocol
+    tests, and TypeScript test suites) to ensure complete workspace integrity
+    before pushing.
