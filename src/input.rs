@@ -29,10 +29,14 @@ actions!(
         SelectAll,
         Home,
         End,
+        MoveToStartOfDocument,
+        MoveToEndOfDocument,
         MoveToPreviousWord,
         MoveToNextWord,
         SelectToStart,
         SelectToEnd,
+        SelectToStartOfDocument,
+        SelectToEndOfDocument,
         SelectToPreviousWord,
         SelectToNextWord,
         DeleteToStart,
@@ -102,14 +106,22 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("ctrl-f", Right, Some("ComposerInput")),
         KeyBinding::new("cmd-left", Home, Some("ComposerInput")),
         KeyBinding::new("cmd-right", End, Some("ComposerInput")),
-        KeyBinding::new("cmd-up", Home, Some("ComposerInput")),
-        KeyBinding::new("cmd-down", End, Some("ComposerInput")),
+        KeyBinding::new("cmd-up", MoveToStartOfDocument, Some("ComposerInput")),
+        KeyBinding::new("cmd-down", MoveToEndOfDocument, Some("ComposerInput")),
         KeyBinding::new("ctrl-a", Home, Some("ComposerInput")),
         KeyBinding::new("ctrl-e", End, Some("ComposerInput")),
         KeyBinding::new("shift-cmd-left", SelectToStart, Some("ComposerInput")),
         KeyBinding::new("shift-cmd-right", SelectToEnd, Some("ComposerInput")),
-        KeyBinding::new("cmd-shift-up", SelectToStart, Some("ComposerInput")),
-        KeyBinding::new("cmd-shift-down", SelectToEnd, Some("ComposerInput")),
+        KeyBinding::new(
+            "cmd-shift-up",
+            SelectToStartOfDocument,
+            Some("ComposerInput"),
+        ),
+        KeyBinding::new(
+            "cmd-shift-down",
+            SelectToEndOfDocument,
+            Some("ComposerInput"),
+        ),
         KeyBinding::new("ctrl-shift-a", SelectToStart, Some("ComposerInput")),
         KeyBinding::new("ctrl-shift-e", SelectToEnd, Some("ComposerInput")),
     ]);
@@ -1084,10 +1096,30 @@ impl ComposerInput {
     }
 
     fn home(&mut self, _: &Home, _: &mut Window, cx: &mut Context<Self>) {
-        self.move_to(0, cx);
+        let offset = line_start_boundary(&self.content, self.cursor_offset());
+        self.move_to(offset, cx);
     }
 
     fn end(&mut self, _: &End, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = line_end_boundary(&self.content, self.cursor_offset());
+        self.move_to(offset, cx);
+    }
+
+    fn move_to_start_of_document(
+        &mut self,
+        _: &MoveToStartOfDocument,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.move_to(0, cx);
+    }
+
+    fn move_to_end_of_document(
+        &mut self,
+        _: &MoveToEndOfDocument,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.move_to(self.content.len(), cx);
     }
 
@@ -1115,10 +1147,30 @@ impl ComposerInput {
     }
 
     fn select_to_start(&mut self, _: &SelectToStart, _: &mut Window, cx: &mut Context<Self>) {
-        self.select_to(0, cx);
+        let offset = line_start_boundary(&self.content, self.cursor_offset());
+        self.select_to(offset, cx);
     }
 
     fn select_to_end(&mut self, _: &SelectToEnd, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = line_end_boundary(&self.content, self.cursor_offset());
+        self.select_to(offset, cx);
+    }
+
+    fn select_to_start_of_document(
+        &mut self,
+        _: &SelectToStartOfDocument,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.select_to(0, cx);
+    }
+
+    fn select_to_end_of_document(
+        &mut self,
+        _: &SelectToEndOfDocument,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.select_to(self.content.len(), cx);
     }
 
@@ -1163,14 +1215,28 @@ impl ComposerInput {
 
     fn delete_to_start(&mut self, _: &DeleteToStart, window: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
-            self.select_to(0, cx);
+            let offset = self.cursor_offset();
+            let start = line_start_boundary(&self.content, offset);
+            let target = if start == offset && offset > 0 {
+                offset - 1
+            } else {
+                start
+            };
+            self.select_to(target, cx);
         }
         self.replace_text_in_range(None, "", window, cx);
     }
 
     fn delete_to_end(&mut self, _: &DeleteToEnd, window: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
-            self.select_to(self.content.len(), cx);
+            let offset = self.cursor_offset();
+            let end = line_end_boundary(&self.content, offset);
+            let target = if end == offset && offset < self.content.len() {
+                offset + 1
+            } else {
+                end
+            };
+            self.select_to(target, cx);
         }
         self.replace_text_in_range(None, "", window, cx);
     }
@@ -1260,10 +1326,13 @@ impl ComposerInput {
             return;
         };
         let text = match self.mode {
-            // A composer is one prompt — and a search box one query — so
-            // pasted line breaks become spaces.
-            FieldMode::Composer | FieldMode::Search => text.replace(['\n', '\r'], " "),
-            FieldMode::Code => text.replace('\r', ""),
+            // A search box is one query — so pasted line breaks become spaces.
+            FieldMode::Search => text.replace(['\n', '\r'], " "),
+            // A composer prompt or code editor preserves multiline structure,
+            // normalizing CRLF and bare CR to LF.
+            FieldMode::Composer | FieldMode::Code => {
+                text.replace("\r\n", "\n").replace('\r', "\n")
+            }
         };
         // A paste is its own undo step, never part of the typing around it —
         // the native NSTextView boundary, stricter than Zed's time grouping.
@@ -1570,6 +1639,16 @@ fn word_range_at(content: &str, offset: usize) -> Range<usize> {
             range.contains(&offset).then_some(range)
         })
         .unwrap_or(offset..offset)
+}
+
+fn line_start_boundary(content: &str, offset: usize) -> usize {
+    let offset = offset.min(content.len());
+    content[..offset].rfind('\n').map_or(0, |idx| idx + 1)
+}
+
+fn line_end_boundary(content: &str, offset: usize) -> usize {
+    let offset = offset.min(content.len());
+    content[offset..].find('\n').map_or(content.len(), |idx| offset + idx)
 }
 
 impl EventEmitter<ComposerEvent> for ComposerInput {}
@@ -2234,10 +2313,14 @@ impl Render for ComposerInput {
             .on_action(cx.listener(Self::select_all))
             .on_action(cx.listener(Self::home))
             .on_action(cx.listener(Self::end))
+            .on_action(cx.listener(Self::move_to_start_of_document))
+            .on_action(cx.listener(Self::move_to_end_of_document))
             .on_action(cx.listener(Self::move_to_previous_word))
             .on_action(cx.listener(Self::move_to_next_word))
             .on_action(cx.listener(Self::select_to_start))
             .on_action(cx.listener(Self::select_to_end))
+            .on_action(cx.listener(Self::select_to_start_of_document))
+            .on_action(cx.listener(Self::select_to_end_of_document))
             .on_action(cx.listener(Self::select_to_previous_word))
             .on_action(cx.listener(Self::select_to_next_word))
             .on_action(cx.listener(Self::delete_to_start))
@@ -2368,9 +2451,9 @@ mod tests {
     use super::TokenClass;
     use super::{
         ComposerInput, EditHistory, SearchPaint, UNDO_GROUP_INTERVAL, UNDO_HISTORY_CAP,
-        attachment_paste_entries, cursor_should_be_visible, input_text_runs, next_word_boundary,
-        previous_word_boundary, single_line_scroll, trimmed_splice, visual_row_count,
-        word_range_at,
+        attachment_paste_entries, cursor_should_be_visible, input_text_runs, line_end_boundary,
+        line_start_boundary, next_word_boundary, previous_word_boundary, single_line_scroll,
+        trimmed_splice, visual_row_count, word_range_at,
     };
 
     struct InputHarness {
@@ -3083,5 +3166,62 @@ mod tests {
             ),
             px(300.)
         );
+    }
+
+    #[test]
+    fn line_boundaries_track_newlines() {
+        let text = "first line\nsecond line\nthird line";
+        // On first line
+        assert_eq!(line_start_boundary(text, 0), 0);
+        assert_eq!(line_start_boundary(text, 5), 0);
+        assert_eq!(line_start_boundary(text, 10), 0);
+        assert_eq!(line_end_boundary(text, 0), 10);
+        assert_eq!(line_end_boundary(text, 5), 10);
+        assert_eq!(line_end_boundary(text, 10), 10);
+
+        // On second line (offset 11 is start of 'second line')
+        assert_eq!(line_start_boundary(text, 11), 11);
+        assert_eq!(line_start_boundary(text, 18), 11);
+        assert_eq!(line_start_boundary(text, 22), 11);
+        assert_eq!(line_end_boundary(text, 11), 22);
+        assert_eq!(line_end_boundary(text, 18), 22);
+        assert_eq!(line_end_boundary(text, 22), 22);
+
+        // On third line (offset 23 is start of 'third line')
+        assert_eq!(line_start_boundary(text, 23), 23);
+        assert_eq!(line_start_boundary(text, 33), 23);
+        assert_eq!(line_end_boundary(text, 23), 33);
+        assert_eq!(line_end_boundary(text, 33), 33);
+    }
+
+    #[gpui::test]
+    fn cmd_backspace_deletes_current_line_not_whole_document(cx: &mut TestAppContext) {
+        let text = "Line 1\nLine 2 with text\nLine 3";
+        let (input, cx) = setup_input(cx, text, px(300.));
+        // Put cursor at the end of Line 2 (offset 23)
+        cx.update(|_, cx| input.update(cx, |input, cx| input.select_range(23..23, cx)));
+
+        cx.simulate_keystrokes("cmd-backspace");
+
+        cx.read_entity(&input, |input, _| {
+            // Line 1 and Line 3 must still exist!
+            assert_eq!(input.content(), "Line 1\n\nLine 3");
+            assert_eq!(input.cursor(), 7);
+        });
+    }
+
+    #[gpui::test]
+    fn paste_preserves_multiline_markdown_in_composer(cx: &mut TestAppContext) {
+        let (input, cx) = setup_input(cx, "", px(300.));
+        let pasted_text = "### Heading\n- Item 1\n- Item 2\n\n```rust\nlet x = 1;\n```";
+        cx.update(|_, cx| {
+            cx.write_to_clipboard(ClipboardItem::new_string(pasted_text.to_string()));
+        });
+
+        cx.simulate_keystrokes("secondary-v");
+
+        cx.read_entity(&input, |input, _| {
+            assert_eq!(input.content(), pasted_text);
+        });
     }
 }
