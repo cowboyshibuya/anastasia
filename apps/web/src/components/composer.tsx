@@ -1397,7 +1397,11 @@ function InteractionModeControl({
         interactive ? 'hover:bg-accent' : 'opacity-50',
       )}
       disabled={!interactive}
-      title={minimal && !plan ? t('agent_preset.minimal_no_plan') : undefined}
+      title={
+        minimal && !plan
+          ? t('agent_preset.minimal_no_plan')
+          : t('mode.switch_to', { mode: t(plan ? 'mode.build' : 'mode.plan') })
+      }
       type="button"
       onClick={() => onPatch({ interaction_mode: plan ? 'build' : 'plan' })}
     >

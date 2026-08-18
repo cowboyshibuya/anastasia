@@ -498,6 +498,8 @@ sidebar.days_ago:
   en: "%{count}d"
 sidebar.unknown_project:
   en: Unknown project
+sidebar.toggle:
+  en: Toggle sidebar
 sidebar.close:
   en: Close sidebar
 sidebar.hide:

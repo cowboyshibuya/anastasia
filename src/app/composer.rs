@@ -1782,6 +1782,11 @@ impl Waku {
         } else {
             InteractionMode::Plan
         };
+        let shortcut = self.shortcut_display(ShortcutId::ToggleInteractionMode);
+        let tooltip_label = match next_mode {
+            InteractionMode::Plan => tr!("mode.switch_to", mode = tr!("mode.plan")),
+            InteractionMode::Build => tr!("mode.switch_to", mode = tr!("mode.build")),
+        };
         let weak = cx.entity().downgrade();
         div()
             .id("interaction-mode")
@@ -1816,6 +1821,7 @@ impl Waku {
             .when(interactive, |element| {
                 element
                     .hover(|element| element.bg(theme.overlay))
+                    .tooltip(Tooltip::with_shortcut(tooltip_label, shortcut))
                     .on_click(move |_, _, cx| {
                         let _ = weak.update(cx, |this, cx| {
                             this.set_interaction_mode(next_mode, cx);
