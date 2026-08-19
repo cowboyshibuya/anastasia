@@ -231,6 +231,15 @@ impl Theme {
             }
         }
     }
+
+    /// Semantic color for file mentions in composer and chat.
+    pub fn mention_color(&self) -> Hsla {
+        if self.is_dark {
+            rgb(0x60A5FA).into() // bright blue
+        } else {
+            rgb(0x2563EB).into() // royal blue
+        }
+    }
 }
 
 #[derive(Clone, Copy)]

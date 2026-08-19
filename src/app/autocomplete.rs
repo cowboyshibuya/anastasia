@@ -352,20 +352,29 @@ impl Waku {
         let Some(row) = rows.get(index) else {
             return;
         };
-        let insert = match row {
-            AutocompleteRow::Command(scored) => format!("/{} ", scored.item.name),
-            AutocompleteRow::File(scored) => format!("@{} ", scored.item.path),
-        };
-        if matches!(row, AutocompleteRow::Command(_)) {
-            let mut submission = self.composer.read(cx).content().to_owned();
-            submission.replace_range(trigger.range.clone(), &insert);
-            if self.execute_local_composer_command(&submission, cx) {
-                return;
+        match row {
+            AutocompleteRow::Command(scored) => {
+                let insert = format!("/{} ", scored.item.name);
+                let mut submission = self.composer.read(cx).content().to_owned();
+                submission.replace_range(trigger.range.clone(), &insert);
+                if self.execute_local_composer_command(&submission, cx) {
+                    return;
+                }
+                self.composer.update(cx, |input, cx| {
+                    input.replace_range(trigger.range.clone(), &insert, cx);
+                });
+            }
+            AutocompleteRow::File(scored) => {
+                let symbol = super::right_panel::file_icon_symbol_for_path(
+                    &scored.item.path,
+                    scored.item.is_dir,
+                );
+                let insert = format!("{symbol} {} ", scored.item.path);
+                self.composer.update(cx, |input, cx| {
+                    input.replace_range(trigger.range.clone(), &insert, cx);
+                });
             }
         }
-        self.composer.update(cx, |input, cx| {
-            input.replace_range(trigger.range.clone(), &insert, cx);
-        });
         cx.notify();
     }
 
@@ -551,7 +560,12 @@ impl Waku {
                 } else {
                     super::right_panel::file_icon_for_path(&file.path)
                 };
-                base.child(icon(icon_path, 13.0, theme.text_tertiary))
+                let icon_element = if file.is_dir {
+                    crate::ui::icon(icon_path, 13.0, theme.text_tertiary).into_any_element()
+                } else {
+                    crate::ui::file_icon(icon_path, 13.0).into_any_element()
+                };
+                base.child(icon_element)
                     .child(
                         div()
                             .flex_none()

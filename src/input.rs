@@ -769,23 +769,24 @@ impl ComposerInput {
     /// Re-tokenize after a content change. Cheap for a composer (no language),
     /// one linear pass for a code editor.
     fn refresh_highlight(&mut self) {
-        let Some(language) = self.language else {
-            return;
-        };
         self.highlight.clear();
-        let mut line_start = 0;
-        for (line, tokens) in self
-            .content
-            .split('\n')
-            .zip(highlight::tokenize(language, &self.content))
-        {
-            self.highlight.extend(tokens.into_iter().map(|token| {
-                (
-                    line_start + token.range.start..line_start + token.range.end,
-                    token.class,
-                )
-            }));
-            line_start += line.len() + 1;
+        if let Some(language) = self.language {
+            let mut line_start = 0;
+            for (line, tokens) in self
+                .content
+                .split('\n')
+                .zip(highlight::tokenize(language, &self.content))
+            {
+                self.highlight.extend(tokens.into_iter().map(|token| {
+                    (
+                        line_start + token.range.start..line_start + token.range.end,
+                        token.class,
+                    )
+                }));
+                line_start += line.len() + 1;
+            }
+        } else {
+            highlight_composer_mentions(&self.content, &mut self.highlight);
         }
     }
 
@@ -2035,6 +2036,59 @@ impl SearchPaint<'static> {
     }
 }
 
+const MENTION_SYMBOLS: &[&str] = &[
+    "⚛", "🦀", "🐍", "📁", "📄", "🔷", "🟨", "🐹", "💎", "☕",
+    "📝", "🐳", "🐙", "🖼️", "🗄️", "⚙️", "🐚", "🌐", "🎨", "📖", "🔒",
+];
+
+fn highlight_composer_mentions(content: &str, highlight: &mut Vec<(Range<usize>, TokenClass)>) {
+    let mut chars = content.char_indices().peekable();
+    while let Some((idx, ch)) = chars.next() {
+        if ch == '@' {
+            let start = idx;
+            let mut end = start + ch.len_utf8();
+            while let Some(&(next_idx, next_ch)) = chars.peek() {
+                if next_ch.is_whitespace() {
+                    break;
+                }
+                end = next_idx + next_ch.len_utf8();
+                chars.next();
+            }
+            if end > start + ch.len_utf8() {
+                highlight.push((start..end, TokenClass::Meta));
+            }
+        } else {
+            for &sym in MENTION_SYMBOLS {
+                if content[idx..].starts_with(sym) {
+                    let sym_end = idx + sym.len();
+                    if content[sym_end..].starts_with(' ') {
+                        let name_start = sym_end + 1;
+                        let mut name_end = name_start;
+                        let mut temp_chars = content[name_start..].char_indices().peekable();
+                        while let Some((c_idx, c)) = temp_chars.next() {
+                            if c.is_whitespace() {
+                                break;
+                            }
+                            name_end = name_start + c_idx + c.len_utf8();
+                        }
+                        if name_end > name_start {
+                            highlight.push((idx..name_end, TokenClass::Meta));
+                            while let Some(&(next_idx, _)) = chars.peek() {
+                                if next_idx < name_end {
+                                    chars.next();
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn input_text_runs(
     display_len: usize,
@@ -2187,7 +2241,13 @@ impl Element for InputElement {
             } else {
                 &input.highlight
             },
-            |class| palette.token(class),
+            |class| {
+                if class == TokenClass::Meta && input.language.is_none() {
+                    theme.mention_color()
+                } else {
+                    palette.token(class)
+                }
+            },
             search,
         );
         let mut text = StyledText::new(display_text).with_runs(runs);

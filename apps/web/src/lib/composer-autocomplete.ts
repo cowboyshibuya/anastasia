@@ -115,6 +115,41 @@ export function composerAutocompleteRows(
     .map(({ row }) => row)
 }
 
+export function fileIconSymbol(path: string, isDir?: boolean): string {
+  if (isDir) return '📁'
+  const ext = path.split('.').at(-1)?.toLowerCase() ?? ''
+  switch (ext) {
+    case 'tsx':
+    case 'jsx':
+      return '⚛'
+    case 'rs':
+      return '🦀'
+    case 'py':
+    case 'pyi':
+    case 'pyw':
+      return '🐍'
+    case 'ts':
+    case 'mts':
+    case 'cts':
+      return '🔷'
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+      return '🟨'
+    case 'go':
+      return '🐹'
+    case 'rb':
+      return '💎'
+    case 'java':
+      return '☕'
+    case 'md':
+    case 'mdx':
+      return '📝'
+    default:
+      return '📄'
+  }
+}
+
 export function replaceComposerTrigger(
   text: string,
   trigger: ComposerTrigger,
@@ -122,7 +157,7 @@ export function replaceComposerTrigger(
 ): { text: string; cursor: number } {
   const insert = row.kind === 'command'
     ? `/${row.command.name} `
-    : `@${row.file.path} `
+    : `${fileIconSymbol(row.file.path, row.file.is_dir)} ${row.file.path} `
   const next = `${text.slice(0, trigger.start)}${insert}${text.slice(trigger.end)}`
   return { text: next, cursor: trigger.start + insert.length }
 }

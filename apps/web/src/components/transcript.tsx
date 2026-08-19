@@ -1844,9 +1844,9 @@ function Attachment({ attachment }: { attachment: MessageAttachment }) {
       title={attachment.name}
     >
       {attachment.is_dir
-        ? <AnastasiaIcon className="size-[18px] text-[var(--text-tertiary)]" name="folder" />
+        ? <AnastasiaIcon className="size-[18px] text-blue-500" name="folder" />
         : <FileTypeIcon className="size-[18px]" path={attachment.mention || attachment.name} />}
-      <span className="w-full truncate text-center text-[9.5px] text-[var(--text-secondary)]">
+      <span className="w-full truncate text-center text-[9.5px] font-medium text-blue-500">
         {attachment.name}
       </span>
     </span>

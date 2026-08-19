@@ -448,15 +448,19 @@ fn render_sent_message_attachments(
                     .flex_col()
                     .items_center()
                     .justify_center()
-                    .gap(px(7.0))
-                    .child(icon(icon_path, 18.0, theme.text_tertiary))
+                    .child(if attachment.is_dir {
+                        icon(icon_path, 18.0, theme.text_tertiary).into_any_element()
+                    } else {
+                        crate::ui::file_icon(icon_path, 18.0).into_any_element()
+                    })
                     .child(
                         div()
                             .w_full()
                             .truncate()
                             .text_center()
                             .text_size(px(9.5))
-                            .text_color(theme.text_secondary)
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(theme.mention_color())
                             .child(attachment.name.clone()),
                     ),
             );

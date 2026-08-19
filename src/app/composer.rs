@@ -2108,7 +2108,7 @@ impl Waku {
         true
     }
 
-    fn stage_daemon_attachment(
+    pub(super) fn stage_daemon_attachment(
         &mut self,
         path: PathBuf,
         name: String,
@@ -2349,9 +2349,6 @@ impl Waku {
             let mut tile = div()
                 .id(SharedString::from(format!("composer-attachment-{index}")))
                 .relative()
-                .w(px(64.0))
-                .h(px(64.0))
-                .rounded(px(8.0))
                 .overflow_hidden()
                 .border_1()
                 .border_color(theme.border)
@@ -2377,6 +2374,10 @@ impl Waku {
             });
             let can_reveal = !self.daemon.is_remote();
             if attachment.is_image {
+                tile = tile
+                    .w(px(64.0))
+                    .h(px(64.0))
+                    .rounded(px(8.0));
                 if let Some(attachment_image) = attachment_image.as_ref() {
                     let preview_image = attachment_image.clone();
                     let preview_name = attachment.name.clone();
@@ -2413,27 +2414,25 @@ impl Waku {
                     );
                 }
             } else {
-                tile = tile.child(
-                    div()
-                        .size_full()
-                        .px(px(5.0))
-                        .flex()
-                        .flex_col()
-                        .items_center()
-                        .justify_center()
-                        .gap(px(5.0))
-                        .child(icon(icon_path, 16.0, theme.text_tertiary))
-                        .child(
-                            div().w_full().flex().justify_center().child(
-                                div()
-                                    .max_w_full()
-                                    .truncate()
-                                    .text_size(px(8.5))
-                                    .text_color(theme.text_tertiary)
-                                    .child(attachment.name.clone()),
-                            ),
-                        ),
-                );
+                tile = tile
+                    .h(px(24.0))
+                    .rounded(px(6.0))
+                    .px(px(6.0))
+                    .flex()
+                    .items_center()
+                    .gap(px(5.0))
+                    .child(if attachment.is_dir {
+                        icon(icon_path, 14.0, theme.text_tertiary).into_any_element()
+                    } else {
+                        crate::ui::file_icon(icon_path, 14.0).into_any_element()
+                    })
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(theme.mention_color())
+                            .child(attachment.name.clone()),
+                    );
             }
             let key_menu = menu.clone();
             let key_image = attachment_image.clone();

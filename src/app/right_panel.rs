@@ -188,6 +188,34 @@ pub(super) fn file_icon_for_path(path: &str) -> &'static str {
     file_icon_for_name(name)
 }
 
+/// A compact Unicode symbol corresponding to the file type for mention insertion.
+pub(super) fn file_icon_symbol_for_path(path: &str, is_dir: bool) -> &'static str {
+    if is_dir {
+        return "📁";
+    }
+    let icon_svg = file_icon_for_path(path);
+    match icon_svg {
+        "icons/file-types/react.svg" => "⚛",
+        "icons/file-types/rust.svg" => "🦀",
+        "icons/file-types/python.svg" => "🐍",
+        "icons/file-types/typescript.svg" => "🔷",
+        "icons/file-types/javascript.svg" => "🟨",
+        "icons/file-types/go.svg" => "🐹",
+        "icons/file-types/ruby.svg" => "💎",
+        "icons/file-types/java.svg" => "☕",
+        "icons/file-types/markdown.svg" | "icons/file-types/readme.svg" => "📝",
+        "icons/file-types/docker.svg" => "🐳",
+        "icons/file-types/git.svg" => "🐙",
+        "icons/file-types/image.svg" | "icons/file-types/svg.svg" => "🖼️",
+        "icons/file-types/database.svg" => "🗄️",
+        "icons/file-types/settings.svg" | "icons/file-types/editorconfig.svg" => "⚙️",
+        "icons/file-types/console.svg" | "icons/file-types/powershell.svg" => "🐚",
+        "icons/file-types/html.svg" => "🌐",
+        "icons/file-types/css.svg" | "icons/file-types/sass.svg" | "icons/file-types/stylelint.svg" => "🎨",
+        _ => "📄",
+    }
+}
+
 fn review_diff_gap_icon_path(direction: crate::review_diff::ExpansionDirection) -> &'static str {
     match direction {
         // Pierre's direction attributes and rendered chevrons are inverted by

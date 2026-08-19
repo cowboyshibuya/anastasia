@@ -1218,12 +1218,12 @@ function ComposerAttachmentTile({
       source={source}
     />
   ) : (
-    <div className="flex size-full flex-col items-center justify-center gap-[5px] px-[5px]">
+    <div className="flex h-6 items-center gap-1.5 px-2">
       {attachment.is_dir
-        ? <AnastasiaIcon className="size-4 text-[var(--text-tertiary)]" name="folder" />
-        : <FileTypeIcon className="size-4" path={attachment.mention || attachment.name} />}
+        ? <AnastasiaIcon className="size-3.5 text-[var(--text-tertiary)]" name="folder" />
+        : <FileTypeIcon className="size-3.5" path={attachment.mention || attachment.name} />}
       {!attachment.is_image && (
-        <span className="w-full truncate text-center text-[8.5px] text-[var(--text-tertiary)]">
+        <span className="truncate text-[12px] font-medium text-blue-500">
           {attachment.name}
         </span>
       )}
@@ -1232,18 +1232,22 @@ function ComposerAttachmentTile({
 
   return (
     <div
-      className="relative size-16 overflow-hidden rounded-lg border bg-[var(--inset)] outline-none focus-within:border-ring"
+      className={`group relative overflow-hidden border bg-[var(--inset)] outline-none focus-within:border-ring ${
+        attachment.is_image ? 'size-16 rounded-lg' : 'h-6 rounded-md'
+      }`}
       title={`@${attachment.mention}`}
     >
       {contents}
       <button
         aria-label={t('composer.remove_attachment', { name: attachment.name })}
-        className="absolute right-[3px] top-[3px] z-10 grid size-4 place-items-center rounded-[5px] bg-background/80 text-[var(--text-secondary)] outline-none hover:bg-background focus-visible:ring-1 focus-visible:ring-ring"
+        className={`absolute z-10 grid size-3.5 place-items-center rounded bg-background/80 text-[var(--text-secondary)] outline-none hover:bg-background focus-visible:ring-1 focus-visible:ring-ring ${
+          attachment.is_image ? 'right-[3px] top-[3px]' : 'right-1 top-1'
+        }`}
         type="button"
         onClick={onRemove}
         onMouseDown={(event) => event.preventDefault()}
       >
-        <AnastasiaIcon className="size-[9px]" name="x" />
+        <AnastasiaIcon className="size-2" name="x" />
       </button>
     </div>
   )
