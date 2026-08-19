@@ -1454,7 +1454,7 @@ function InteractionModeControl({
       type="button"
       onClick={() => onPatch({ interaction_mode: plan ? 'build' : 'plan' })}
     >
-      <AnastasiaIcon className={cn('size-[10.5px] text-[var(--text-tertiary)]', plan && 'text-ring')} name={plan ? 'list' : 'wrench'} />
+      <AnastasiaIcon className={cn('size-[10.5px] text-[var(--text-tertiary)]', plan && 'text-ring')} name={plan ? 'lightbulb' : 'wrench'} />
       {t(plan ? 'mode.plan' : 'mode.build')}
     </button>
   )

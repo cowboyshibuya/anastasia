@@ -1806,7 +1806,7 @@ impl Waku {
             })
             .child(icon(
                 if mode == InteractionMode::Plan {
-                    "icons/list.svg"
+                    "icons/lightbulb.svg"
                 } else {
                     "icons/wrench.svg"
                 },

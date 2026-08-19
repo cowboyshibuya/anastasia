@@ -168,7 +168,7 @@ pub fn activity_icon(kind: ActivityKind) -> &'static str {
         ActivityKind::FileSearch => "icons/search.svg",
         ActivityKind::FileList => "icons/folder.svg",
         ActivityKind::Search => "icons/search.svg",
-        ActivityKind::Plan => "icons/list.svg",
+        ActivityKind::Plan => "icons/lightbulb.svg",
         ActivityKind::Tool => "icons/wrench.svg",
     }
 }
@@ -455,6 +455,7 @@ mod tests {
             "icons/rotate-cw.svg",
             "icons/package.svg",
             "icons/trash.svg",
+            "icons/lightbulb.svg",
         ];
         for provider in ProviderKind::ALL {
             paths.push(provider_icon(provider));

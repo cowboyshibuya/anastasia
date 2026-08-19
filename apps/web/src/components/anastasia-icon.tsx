@@ -33,6 +33,7 @@ export const WAKU_ICONS = {
   github: 'i-waku-github',
   info: 'i-waku-info',
   laptop: 'i-waku-laptop',
+  lightbulb: 'i-waku-lightbulb',
   list: 'i-waku-list',
   loaderCircle: 'i-waku-loader-circle',
   lock: 'i-waku-lock',

@@ -161,6 +161,7 @@ const ICONS: &[(&str, &[u8])] = icons![
     "info",
     "keyboard",
     "laptop",
+    "lightbulb",
     "list",
     "loader-circle",
     "lock",

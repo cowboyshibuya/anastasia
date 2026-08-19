@@ -197,15 +197,22 @@ impl Theme {
     }
 
     /// Semantic color for access permission postures.
-    /// Full access & Auto: orange, Auto accept edit: blue, Supervised: green.
+    /// Full access: orange, Auto: yellow, Auto accept edit: blue, Supervised: green.
     pub fn access_color(&self, mode: anastasia_protocol::model::RuntimeMode) -> Hsla {
         use anastasia_protocol::model::RuntimeMode;
         match mode {
-            RuntimeMode::FullAccess | RuntimeMode::Auto => {
+            RuntimeMode::FullAccess => {
                 if self.is_dark {
                     rgb(0xF97316).into() // vibrant orange
                 } else {
                     rgb(0xEA580C).into() // dark amber orange
+                }
+            }
+            RuntimeMode::Auto => {
+                if self.is_dark {
+                    rgb(0xFACC15).into() // vibrant yellow
+                } else {
+                    rgb(0xCA8A04).into() // deep yellow
                 }
             }
             RuntimeMode::AutoAcceptEdits => {
@@ -346,14 +353,14 @@ mod tests {
 
         for theme in [Theme::dark(), Theme::light()] {
             let orange_full = theme.access_color(RuntimeMode::FullAccess);
-            let orange_auto = theme.access_color(RuntimeMode::Auto);
+            let yellow_auto = theme.access_color(RuntimeMode::Auto);
             let blue = theme.access_color(RuntimeMode::AutoAcceptEdits);
             let green = theme.access_color(RuntimeMode::Ask);
             let green_plan = theme.access_color(RuntimeMode::Plan);
 
-            assert_eq!(orange_full, orange_auto);
             assert_eq!(green, green_plan);
-            assert_ne!(orange_full, blue);
+            assert_ne!(orange_full, yellow_auto);
+            assert_ne!(yellow_auto, blue);
             assert_ne!(blue, green);
             assert_ne!(orange_full, green);
         }
