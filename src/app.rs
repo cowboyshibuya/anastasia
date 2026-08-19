@@ -33,8 +33,8 @@ use crate::model::{
     ActivityItem, ActivityKind, AgentSession, BackgroundWorkEvent, BackgroundWorkItem,
     BackgroundWorkKey, BackgroundWorkKind, BackgroundWorkStatus, Checkpoint, CheckpointStatus,
     ContextUsage, DriverEvent, FavoriteModel, InteractionMode, Message, MessageAttachment,
-    MessageRole, PLAN_ACCEPT, PendingPermission, Project, ProviderKind, ProviderModel,
-    ProviderProbe,
+    MessageRole, PLAN_ACCEPT, PendingPermission, PlanStep, PlanStepStatus, Project, ProviderKind,
+    ProviderModel, ProviderProbe,
     ProviderResumeCursor, QueuedMessage, ReasoningBlock, RuntimeMode, SessionStatus,
     SessionWorkspace, TranscriptBlock, TurnStatus, UserInputAnswer, UserInputQuestion,
     compact_path, unix_time, unix_time_millis,
@@ -1874,10 +1874,15 @@ impl Waku {
                 .count(),
         });
 
+        // Created before the composer so the field can follow its caret inside
+        // the viewport the composer card clips it to.
+        let composer_input_scroll = ScrollHandle::new();
         let composer = cx.new(|cx| {
             // The main composer reads a size up from every other field in the
             // app: it is the one the user types paragraphs into.
-            ComposerInput::new(window, cx).text_metrics(COMPOSER_TEXT_SIZE, COMPOSER_LINE_HEIGHT)
+            ComposerInput::new(window, cx)
+                .text_metrics(COMPOSER_TEXT_SIZE, COMPOSER_LINE_HEIGHT)
+                .viewport_scroll(composer_input_scroll.clone())
         });
         let user_input_answer = cx.new(|cx| {
             ComposerInput::new(window, cx)
@@ -2602,7 +2607,7 @@ impl Waku {
                 store,
                 home_directory,
                 composer,
-                composer_input_scroll: ScrollHandle::new(),
+                composer_input_scroll,
                 user_input_answer,
                 composer_drafts,
                 composer_draft_store,

@@ -7,9 +7,9 @@ use gpui::{
     App, Bounds, ClipboardEntry, ClipboardItem, Context, CursorStyle, Element, ElementId,
     ElementInputHandler, Entity, EntityInputHandler, EventEmitter, FocusHandle, Focusable,
     GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyBinding, LayoutId, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, SharedString,
-    StyledText, Subscription, Task, TextLayout, TextRun, UTF16Selection, UnderlineStyle, Window,
-    actions, div, fill, point, prelude::*, px, size,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ScrollHandle,
+    SharedString, StyledText, Subscription, Task, TextLayout, TextRun, UTF16Selection,
+    UnderlineStyle, Window, actions, div, fill, point, prelude::*, px, size,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -565,6 +565,11 @@ pub struct ComposerInput {
     /// caret in view; pinned to zero while the field is unfocused so the
     /// address bar's page echo shows the start of the URL.
     scroll_offset: Pixels,
+    /// The clipping viewport a wrapping field is scrolled inside, when the
+    /// owner puts one there. Composer mode lays out at full text height and
+    /// lets a parent clip it, so following the caret means driving that
+    /// parent's handle. `None` for fields that scroll themselves or not at all.
+    viewport_scroll: Option<ScrollHandle>,
     last_layout: Option<TextLayout>,
     /// Horizontal goal and soft-wrap affinity for consecutive Up/Down
     /// presses. A byte offset at a wrap boundary can mean either the end of
@@ -617,6 +622,7 @@ impl ComposerInput {
             focus_handle,
             mode: FieldMode::Composer,
             text_metrics: None,
+            viewport_scroll: None,
             read_only: false,
             select_all_on_focus_click: false,
             focus_click_select_all: false,
@@ -742,6 +748,15 @@ impl ComposerInput {
     /// rather than everything else being dragged along.
     pub fn text_metrics(mut self, text_size: f32, line_height: f32) -> Self {
         self.text_metrics = Some((text_size, line_height));
+        self
+    }
+
+    /// Follow the caret inside `scroll`, the clipping viewport the owner wraps
+    /// this field in. Without it a wrapping field grows past its parent's
+    /// `max_h` and the caret walks off the bottom, since `overflow_y_scroll`
+    /// answers to the wheel and nothing else.
+    pub fn viewport_scroll(mut self, scroll: ScrollHandle) -> Self {
+        self.viewport_scroll = Some(scroll);
         self
     }
 
@@ -2003,6 +2018,54 @@ impl InputElement {
             size(bounds.size.width.max(text_width), bounds.size.height),
         ))
     }
+
+    /// Scrolls the owner's clipping viewport so this frame's caret stays
+    /// visible, for a wrapping field that lays out at full text height.
+    ///
+    /// Reconciled here rather than from an edit event because the caret must
+    /// be measured against the layout being painted *now*: the line a caret
+    /// just wrapped onto does not exist in the previous frame's layout, which
+    /// is the common case while typing. Every mutation and caret move
+    /// therefore needs no hook of its own — each one funnels through the next
+    /// prepaint. Unfocused fields hold still, matching single-line mode.
+    fn reveal_caret_in_viewport(
+        &self,
+        cursor_position: Option<Point<Pixels>>,
+        layout: &TextLayout,
+        window: &Window,
+        cx: &App,
+    ) {
+        let input = self.input.read(cx);
+        if input.mode != FieldMode::Composer || !input.is_visually_focused(window) {
+            return;
+        }
+        let (Some(scroll), Some(cursor_position)) =
+            (input.viewport_scroll.as_ref(), cursor_position)
+        else {
+            return;
+        };
+        let viewport = scroll.bounds().size.height;
+        if viewport <= px(0.) {
+            return;
+        }
+        let line_height = layout.line_height();
+        // Content-relative, so the maths is independent of where the viewport
+        // currently sits. GPUI scroll offsets run negative downwards.
+        let caret_top = cursor_position.y - layout.bounds().top();
+        let content = layout.bounds().size.height;
+        let previous = -scroll.offset().y;
+        let next = single_line_scroll(
+            previous,
+            viewport,
+            line_height,
+            content,
+            (caret_top, caret_top, caret_top),
+            false,
+        );
+        if next != previous {
+            scroll.set_offset(point(scroll.offset().x, -next));
+        }
+    }
 }
 
 struct InputLayoutState {
@@ -2291,23 +2354,26 @@ impl Element for InputElement {
         );
         let theme = Theme::current(cx);
         let layout = layout_state.text.layout();
-        let cursor = (input.selected_range.is_empty() && cursor_visible)
-            .then(|| {
-                input
-                    .vertical_navigation
-                    .filter(|navigation| {
-                        navigation.cursor_offset == cursor
-                            && navigation.layout_width == layout.bounds().size.width
-                    })
-                    .map(|navigation| {
-                        point(
-                            layout.bounds().left() + navigation.cursor_x,
-                            layout.bounds().top()
-                                + layout.line_height() * navigation.visual_row as f32,
-                        )
-                    })
-                    .or_else(|| layout.position_for_index(cursor))
+        // Where the caret sits in this frame's layout, blink aside. The
+        // vertical-navigation override matters here as much as for painting:
+        // at a soft-wrap boundary one offset means two different rows, and
+        // scrolling must reveal the row the caret is actually drawn on.
+        let cursor_position = input
+            .vertical_navigation
+            .filter(|navigation| {
+                navigation.cursor_offset == cursor
+                    && navigation.layout_width == layout.bounds().size.width
             })
+            .map(|navigation| {
+                point(
+                    layout.bounds().left() + navigation.cursor_x,
+                    layout.bounds().top() + layout.line_height() * navigation.visual_row as f32,
+                )
+            })
+            .or_else(|| layout.position_for_index(cursor));
+        self.reveal_caret_in_viewport(cursor_position, layout, window, cx);
+        let cursor = (input.selected_range.is_empty() && cursor_visible)
+            .then_some(cursor_position)
             .flatten()
             .map(|cursor_position| {
                 fill(
@@ -3137,6 +3203,35 @@ mod tests {
         assert_eq!(background_at(8), Some(active_color));
         assert_eq!(background_at(14), Some(match_color));
         assert_eq!(background_at(6), None);
+    }
+
+    /// The same reconciliation drives the composer's vertical viewport, where
+    /// the unit of lookahead is one line so the caret's own row is revealed
+    /// whole. A caret below the fold is what made the user scroll by hand.
+    #[test]
+    fn caret_reveal_scrolls_the_composer_viewport_vertically() {
+        use gpui::px;
+        // 10 visible lines of 24px over 40 lines of content.
+        let (viewport, line, content) = (px(240.), px(24.), px(960.));
+        let caret = |y: f32| (px(y), px(y), px(y));
+        let reveal = |previous: f32, y: f32| {
+            single_line_scroll(px(previous), viewport, line, content, caret(y), false)
+        };
+
+        // Typing onto the row just past the fold scrolls by exactly that row.
+        assert_eq!(reveal(0., 240.), px(24.));
+        // A caret already inside the viewport must not move the view, or the
+        // text would drift under the user on every keystroke.
+        assert_eq!(reveal(120., 200.), px(120.));
+        // Arrowing back above the fold follows upwards, to the caret's row.
+        assert_eq!(reveal(480., 300.), px(300.));
+        // The last line rests at the bottom rather than scrolling past it.
+        assert_eq!(reveal(0., 960.), px(744.));
+        // Content shorter than the viewport never scrolls.
+        assert_eq!(
+            single_line_scroll(px(90.), viewport, line, px(72.), caret(48.), false),
+            px(0.)
+        );
     }
 
     /// The single-line scroll follows the caret with an em of lookahead and

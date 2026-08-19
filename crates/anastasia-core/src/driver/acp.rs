@@ -1228,13 +1228,20 @@ fn handle_session_update(
         }
         Some("tool_call" | "tool_call_update") => tool_activity(&update, events, state),
         Some("plan") => {
-            let _ = events.send(DriverEvent::Activity {
-                id: Some("acp-plan".into()),
-                kind: ActivityKind::Plan,
-                title: tr!("activity.plan_updated"),
-                detail: None,
-                complete: false,
-            });
+            // The entries are the plan; sending only the title threw the whole
+            // to-do list away and left the UI with nothing to render.
+            let entries = update.get("entries").cloned().unwrap_or_else(|| json!([]));
+            let item = activity::tool_activity(
+                Some("acp-plan".into()),
+                ActivityKind::Plan,
+                tr!("activity.plan_updated"),
+                Some(&entries),
+                None,
+                None,
+                false,
+                false,
+            );
+            let _ = events.send(DriverEvent::RichActivity(item));
         }
         Some("available_commands_update") => {
             let commands = update

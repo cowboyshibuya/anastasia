@@ -17,7 +17,7 @@ use super::{
     paused_toast_duration, pop_stream_batch, push_transcript_activity, session_is_reapable,
     should_refresh_branch_after_activity, should_show_navigation_rail,
     should_show_scroll_to_bottom, task_id_from_notification_tag, task_notification_tag,
-    transcript_anchor_end_space, transcript_navigation_turns, transcript_row_kinds,
+    transcript_anchor_end_space, transcript_navigation_turns, transcript_row_kinds, working_verb,
     transcript_row_splice, transcript_rows_fingerprint, widened_panel_width_for_file_editor,
     widened_panel_width_for_review,
 };
@@ -1615,6 +1615,24 @@ fn time_label_wakes_land_exactly_on_label_boundaries() {
     busy.status = SessionStatus::Working;
     let sessions = [busy];
     assert_eq!(next_time_label_change(&sessions, 1_030), Some(1));
+}
+
+#[test]
+fn working_verb_holds_its_window_then_advances() {
+    let turn = Uuid::new_v4();
+
+    // Stable for the whole window, so the label does not flicker frame to
+    // frame while the pulse clock ticks the row.
+    let first = working_verb(Some(turn), 0);
+    assert_eq!(working_verb(Some(turn), 1), first);
+    assert_eq!(working_verb(Some(turn), 3), first);
+    // Advances once the window closes.
+    assert_ne!(working_verb(Some(turn), 4), first);
+    // Consecutive turns do not both open on the same word.
+    let differs = (0..32).any(|_| working_verb(Some(Uuid::new_v4()), 0) != first);
+    assert!(differs, "the verb must be seeded per turn");
+    // A turn-less call still resolves to a real word.
+    assert!(!working_verb(None, 0).is_empty());
 }
 
 #[test]

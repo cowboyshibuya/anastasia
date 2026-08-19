@@ -1913,6 +1913,38 @@ transcript.you_stopped_after:
   en: You stopped after %{duration}
 transcript.working_for:
   en: Working for %{duration}
+transcript.working_on_todos:
+  en: Working on %{count} to-dos
+transcript.working_on_todo:
+  en: Working on 1 to-do
+transcript.verb_working:
+  en: Working
+transcript.verb_cooking:
+  en: Cooking
+transcript.verb_noodling:
+  en: Noodling
+transcript.verb_brewing:
+  en: Brewing
+transcript.verb_tinkering:
+  en: Tinkering
+transcript.verb_wrangling:
+  en: Wrangling
+transcript.verb_pondering:
+  en: Pondering
+transcript.verb_untangling:
+  en: Untangling
+transcript.verb_assembling:
+  en: Assembling
+transcript.verb_percolating:
+  en: Percolating
+transcript.verb_puzzling:
+  en: Puzzling
+transcript.verb_conjuring:
+  en: Conjuring
+transcript.verb_whittling:
+  en: Whittling
+transcript.verb_spelunking:
+  en: Spelunking
 transcript.thinking:
   en: Thinking
 transcript.thought_for:

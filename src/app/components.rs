@@ -50,6 +50,44 @@ pub(super) fn working_wave_dots(color: Hsla) -> AnyElement {
     .into_any_element()
 }
 
+/// Playful gerunds for the live turn's status line, in the spirit of Claude
+/// Code's rotating labels.
+const WORKING_VERB_KEYS: [&str; 14] = [
+    "transcript.verb_working",
+    "transcript.verb_cooking",
+    "transcript.verb_noodling",
+    "transcript.verb_brewing",
+    "transcript.verb_tinkering",
+    "transcript.verb_wrangling",
+    "transcript.verb_pondering",
+    "transcript.verb_untangling",
+    "transcript.verb_assembling",
+    "transcript.verb_percolating",
+    "transcript.verb_puzzling",
+    "transcript.verb_conjuring",
+    "transcript.verb_whittling",
+    "transcript.verb_spelunking",
+];
+
+/// How long one verb holds before the next takes over.
+const WORKING_VERB_PERIOD_SECS: u64 = 4;
+
+/// The verb for a turn's status line at `elapsed` seconds in.
+///
+/// A pure function of state rather than a timer: the row already re-renders on
+/// the shared pulse clock, because `working_wave_dots` holds a lease, so the
+/// word advances for free and costs no scheduling of its own. Seeding from the
+/// turn id keeps consecutive turns from opening on the same word. Under
+/// reduce-motion the clock stops ticking and the verb simply holds, which is
+/// the behaviour that setting asks for.
+pub(super) fn working_verb(turn_id: Option<Uuid>, elapsed: u64) -> String {
+    let seed = turn_id.map_or(0, |id| {
+        u64::from(id.as_bytes().iter().fold(0u8, |acc, byte| acc ^ byte))
+    });
+    let index = (seed + elapsed / WORKING_VERB_PERIOD_SECS) % WORKING_VERB_KEYS.len() as u64;
+    crate::i18n::translate(WORKING_VERB_KEYS[index as usize])
+}
+
 pub(super) fn format_message_time(created_at: u64) -> String {
     format_message_time_at(created_at, Local::now())
 }
@@ -1293,7 +1331,27 @@ pub(super) fn activity_disclosure_sections(
         }
         return sections;
     }
-    if let Some(arguments) = activity
+    // A parsed to-do list reads as the list, not as the JSON it arrived in.
+    // The disclosure is monospace, so the leading marks line up and carry each
+    // step's state by shape rather than by colour.
+    if !activity.plan_steps.is_empty() {
+        sections.push(ActivityDisclosureSection {
+            kind: ActivityDisclosureSectionKind::Arguments,
+            content: activity
+                .plan_steps
+                .iter()
+                .map(|step| {
+                    let mark = match step.status {
+                        PlanStepStatus::Done => '✓',
+                        PlanStepStatus::Active => '›',
+                        PlanStepStatus::Pending => '·',
+                    };
+                    format!("{mark} {}", step.text)
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+        });
+    } else if let Some(arguments) = activity
         .arguments
         .as_deref()
         .map(str::trim)

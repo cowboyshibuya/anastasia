@@ -420,6 +420,11 @@ pub(super) enum TranscriptRowKind {
     /// that has not produced a chunk yet still shows visible progress, and a
     /// streaming one shows it below whatever content has arrived.
     WorkingIndicator,
+    /// The live turn's to-do list, above the working indicator. Only the
+    /// current list gets a row: a checklist revised six times would otherwise
+    /// leave six blocks to scroll past, so superseded ones stay folded into
+    /// the activity cluster.
+    PlanSteps,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -626,7 +631,8 @@ pub(super) fn assistant_response_footer(
                 TranscriptRowKind::TurnBlock(_)
                 | TranscriptRowKind::TurnFold(_)
                 | TranscriptRowKind::ChangedFiles(_)
-                | TranscriptRowKind::WorkingIndicator => None,
+                | TranscriptRowKind::WorkingIndicator
+                | TranscriptRowKind::PlanSteps => None,
             })
             .filter(|part| !part.content.trim().is_empty())
             .map(|part| part.content.as_str())
@@ -928,6 +934,9 @@ pub(super) fn folded_transcript_row_kinds(
     // busy check matters on its own: a driver error can fail the session while
     // its turn is still marked running, and "Working" over a failure misleads.
     if session.status.is_busy() && session.active_turn_id().is_some() {
+        if live_plan_steps(session).is_some() {
+            rows.push(TranscriptRowKind::PlanSteps);
+        }
         rows.push(TranscriptRowKind::WorkingIndicator);
     }
 
@@ -1026,7 +1035,8 @@ fn turn_answer_start(session: &AgentSession, turn_rows: &[TranscriptRowKind]) ->
         TranscriptRowKind::TurnBlock(_)
         | TranscriptRowKind::TurnFold(_)
         | TranscriptRowKind::ChangedFiles(_)
-        | TranscriptRowKind::WorkingIndicator => false,
+        | TranscriptRowKind::WorkingIndicator
+        | TranscriptRowKind::PlanSteps => false,
     };
     let Some(last_text) = turn_rows.iter().rposition(is_answer_text) else {
         return turn_rows.len();
@@ -1043,8 +1053,27 @@ fn row_turn_id(session: &AgentSession, row: TranscriptRowKind) -> Option<Uuid> {
         TranscriptRowKind::TurnBlock(index) => session.transcript_blocks.get(index)?.turn_id,
         TranscriptRowKind::TurnFold(turn_id) => Some(turn_id),
         TranscriptRowKind::ChangedFiles(turn_id) => Some(turn_id),
-        TranscriptRowKind::WorkingIndicator => None,
+        TranscriptRowKind::WorkingIndicator | TranscriptRowKind::PlanSteps => None,
     }
+}
+
+/// The to-do list the live turn is currently working through, if it has one.
+///
+/// The newest `Plan` activity wins: providers revise one list in place, so the
+/// last one emitted is the current state. Bounded by the active turn's own
+/// activities and reached only while a turn is running.
+pub(super) fn live_plan_steps(session: &AgentSession) -> Option<&[PlanStep]> {
+    let turn_id = session.active_turn_id()?;
+    session
+        .transcript_blocks
+        .iter()
+        .rev()
+        .filter(|block| block.turn_id == Some(turn_id))
+        .flat_map(|block| block.activities.iter().rev())
+        .find(|activity| {
+            activity.kind == ActivityKind::Plan && !activity.plan_steps.is_empty()
+        })
+        .map(|activity| activity.plan_steps.as_slice())
 }
 
 pub(super) fn turn_fold_label(session: &AgentSession, turn_id: Uuid) -> String {

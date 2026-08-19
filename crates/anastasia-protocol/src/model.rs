@@ -1893,6 +1893,37 @@ impl ActivityFileChange {
     }
 }
 
+/// A single entry of an agent's to-do list, normalized across providers.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum PlanStepStatus {
+    #[default]
+    Pending,
+    Active,
+    Done,
+}
+
+impl PlanStepStatus {
+    /// Every provider spells its statuses differently and adds new ones
+    /// without warning, so an unrecognized value reads as not-yet-started
+    /// rather than being dropped: a step the user can still see is always
+    /// better than a step that silently vanishes from the list.
+    pub fn from_provider_status(status: &str) -> Self {
+        match status.trim().to_ascii_lowercase().replace(['-', ' '], "_").as_str() {
+            "in_progress" | "inprogress" | "active" | "running" | "current" => Self::Active,
+            "completed" | "complete" | "done" | "finished" => Self::Done,
+            _ => Self::Pending,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+pub struct PlanStep {
+    pub text: String,
+    #[serde(default)]
+    pub status: PlanStepStatus,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 pub struct ActivityItem {
     pub id: Uuid,
@@ -1917,6 +1948,11 @@ pub struct ActivityItem {
     /// patches on every frame.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub file_changes: Vec<ActivityFileChange>,
+    /// The agent's to-do list, normalized from whichever shape the provider
+    /// sent. Parsed once when the event arrives, for the same reason as
+    /// `file_changes`: a row builder must never reparse JSON per frame.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plan_steps: Vec<PlanStep>,
     /// Compact subject prepared from native tool input (a file, query,
     /// directory, or command). The row builder only formats this cached value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1955,6 +1991,7 @@ impl ActivityItem {
             failed: false,
             complete,
             file_changes: Vec::new(),
+            plan_steps: Vec::new(),
             display_target,
             display_description: None,
             reasoning: None,
@@ -2004,6 +2041,9 @@ impl ActivityItem {
         if self.kind != ActivityKind::FileChange {
             self.file_changes.clear();
         }
+        if self.kind != ActivityKind::Plan {
+            self.plan_steps.clear();
+        }
 
         let source = self
             .arguments
@@ -2041,6 +2081,12 @@ impl ActivityItem {
             extract_file_changes_from_value(source, &mut extracted, 0);
             if !extracted.is_empty() {
                 self.file_changes = extracted;
+            }
+        }
+        if self.kind == ActivityKind::Plan {
+            let extracted = extract_plan_steps(source);
+            if !extracted.is_empty() {
+                self.plan_steps = extracted;
             }
         }
         if let Some(target) = extract_activity_display_target(self.kind, source) {
@@ -2382,6 +2428,56 @@ fn compact_activity_target(value: &str) -> String {
         .chars()
         .take(MAX_CHARS - 1)
         .chain(std::iter::once('…'))
+        .collect()
+}
+
+/// Normalizes an agent's to-do list out of whichever shape the provider sent.
+///
+/// Claude and DeepSeek send `{"todos": [{"content", "status"}]}`, ACP sends
+/// `{"entries": [{"content", "status"}]}`, and Codex sends `{"plan": [{"step",
+/// "status"}]}`. The array itself may also arrive bare. Collecting the key
+/// names here keeps every provider's spelling in one place, next to
+/// `ActivityKind::from_tool_name`, rather than spread across the drivers.
+fn extract_plan_steps(source: &serde_json::Value) -> Vec<PlanStep> {
+    const LIST_KEYS: [&str; 4] = ["todos", "entries", "plan", "steps"];
+    const TEXT_KEYS: [&str; 4] = ["content", "step", "text", "title"];
+
+    let entries = source
+        .as_array()
+        .or_else(|| {
+            LIST_KEYS
+                .iter()
+                .find_map(|key| source.get(key).and_then(serde_json::Value::as_array))
+        })
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+
+    entries
+        .iter()
+        .filter_map(|entry| {
+            // A bare string is a step with no status of its own.
+            if let Some(text) = entry.as_str() {
+                let text = text.trim();
+                return (!text.is_empty()).then(|| PlanStep {
+                    text: text.to_owned(),
+                    status: PlanStepStatus::Pending,
+                });
+            }
+            let text = TEXT_KEYS
+                .iter()
+                .find_map(|key| entry.get(key).and_then(serde_json::Value::as_str))
+                .map(str::trim)
+                .filter(|text| !text.is_empty())?;
+            let status = entry
+                .get("status")
+                .and_then(serde_json::Value::as_str)
+                .map(PlanStepStatus::from_provider_status)
+                .unwrap_or_default();
+            Some(PlanStep {
+                text: text.to_owned(),
+                status,
+            })
+        })
         .collect()
 }
 
@@ -3087,6 +3183,57 @@ mod tests {
         let activity = ActivityItem::new(None, ActivityKind::Command, "bash", None, true)
             .with_output(Some(json_output.to_owned()));
         assert_eq!(activity.output.as_deref(), Some(json_output));
+    }
+
+    #[test]
+    fn plan_steps_normalize_across_every_provider_shape() {
+        let steps = |arguments: &str| {
+            let mut activity = ActivityItem::new(None, ActivityKind::Plan, "plan", None, false);
+            activity.arguments = Some(arguments.into());
+            activity.refresh_activity_metadata();
+            activity.plan_steps
+        };
+
+        // Claude / DeepSeek.
+        let todos = steps(
+            r#"{"todos":[{"content":"Read files","status":"completed"},
+                         {"content":"Edit files","status":"in_progress"},
+                         {"content":"Summarize","status":"pending"}]}"#,
+        );
+        assert_eq!(todos.len(), 3);
+        assert_eq!(todos[0].text, "Read files");
+        assert_eq!(todos[0].status, PlanStepStatus::Done);
+        assert_eq!(todos[1].status, PlanStepStatus::Active);
+        assert_eq!(todos[2].status, PlanStepStatus::Pending);
+
+        // ACP, whose entries used to be discarded entirely.
+        let entries = steps(r#"{"entries":[{"content":"Ship it","status":"in_progress"}]}"#);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].text, "Ship it");
+        assert_eq!(entries[0].status, PlanStepStatus::Active);
+
+        // Codex names the text field `step`.
+        let codex = steps(r#"{"plan":[{"step":"Refactor","status":"complete"}]}"#);
+        assert_eq!(codex[0].text, "Refactor");
+        assert_eq!(codex[0].status, PlanStepStatus::Done);
+
+        // An unknown status keeps the step visible rather than dropping it.
+        let unknown = steps(r#"{"todos":[{"content":"Mystery","status":"deferred"}]}"#);
+        assert_eq!(unknown[0].status, PlanStepStatus::Pending);
+
+        // A bare array, and bare strings, still parse.
+        let bare = steps(r#"["First","Second"]"#);
+        assert_eq!(bare.len(), 2);
+        assert_eq!(bare[1].text, "Second");
+
+        // Empty text is not a step.
+        assert!(steps(r#"{"todos":[{"content":"   ","status":"pending"}]}"#).is_empty());
+
+        // A non-plan activity never collects steps.
+        let mut command = ActivityItem::new(None, ActivityKind::Command, "bash", None, true);
+        command.arguments = Some(r#"{"todos":[{"content":"No","status":"pending"}]}"#.into());
+        command.refresh_activity_metadata();
+        assert!(command.plan_steps.is_empty());
     }
 
     #[test]

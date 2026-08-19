@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui::{DaemonGlyph, DaemonGlyphState};
 use base64::Engine as _;
 
 const CHANGED_FILES_PREVIEW_LIMIT: usize = 3;
@@ -1077,7 +1078,8 @@ impl Waku {
             TranscriptRowKind::TurnBlock(_)
             | TranscriptRowKind::TurnFold(_)
             | TranscriptRowKind::ChangedFiles(_)
-            | TranscriptRowKind::WorkingIndicator => false,
+            | TranscriptRowKind::WorkingIndicator
+            | TranscriptRowKind::PlanSteps => false,
         };
         let inner = match kind {
             TranscriptRowKind::Message(message_index) => self
@@ -1206,6 +1208,9 @@ impl Waku {
                 .render_changed_files_row(turn_id, &theme, cx)
                 .unwrap_or_else(|| div().into_any_element()),
             TranscriptRowKind::WorkingIndicator => self.render_working_indicator_row(&theme),
+            TranscriptRowKind::PlanSteps => self
+                .render_plan_steps_row(&theme)
+                .unwrap_or_else(|| div().into_any_element()),
         };
         div()
             .w_full()
@@ -1555,17 +1560,98 @@ impl Waku {
             .into_any_element()
     }
 
+    /// The live turn's to-do list, in the sidebar's visual language: one
+    /// `DaemonGlyph` per step carrying its state by shape as well as colour,
+    /// so the list stays readable without relying on colour alone.
+    fn render_plan_steps_row(&self, theme: &Theme) -> Option<AnyElement> {
+        let steps = self
+            .selected_session()
+            .and_then(transcript::live_plan_steps)?;
+        if steps.is_empty() {
+            return None;
+        }
+        let remaining = steps
+            .iter()
+            .filter(|step| step.status != PlanStepStatus::Done)
+            .count();
+        let header = if remaining == 1 {
+            tr!("transcript.working_on_todo")
+        } else {
+            tr!("transcript.working_on_todos", count = remaining.to_string())
+        };
+        Some(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(3.0))
+                .child(
+                    div()
+                        .h(px(22.0))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(DaemonGlyph::new(DaemonGlyphState::Executing).size(px(10.0)))
+                        .child(
+                            div()
+                                .text_size(px(12.5))
+                                .line_height(px(16.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(theme.text_secondary)
+                                .child(SharedString::from(header)),
+                        ),
+                )
+                .children(steps.iter().map(|step| {
+                    let (glyph, color, weight) = match step.status {
+                        PlanStepStatus::Done => {
+                            (DaemonGlyphState::Complete, theme.text_ghost, FontWeight::NORMAL)
+                        }
+                        PlanStepStatus::Active => {
+                            (DaemonGlyphState::Executing, theme.text, FontWeight::MEDIUM)
+                        }
+                        PlanStepStatus::Pending => {
+                            (DaemonGlyphState::Idle, theme.text_tertiary, FontWeight::NORMAL)
+                        }
+                    };
+                    div()
+                        .h(px(19.0))
+                        .pl(px(18.0))
+                        .flex()
+                        .items_center()
+                        .gap(px(6.0))
+                        .child(DaemonGlyph::new(glyph).size(px(10.0)))
+                        .child(
+                            div()
+                                .min_w_0()
+                                .text_size(px(12.5))
+                                .line_height(px(16.0))
+                                .font_weight(weight)
+                                .text_color(color)
+                                .text_ellipsis()
+                                .line_clamp(1)
+                                .child(SharedString::from(step.text.clone())),
+                        )
+                }))
+                .into_any_element(),
+        )
+    }
+
     /// The live turn's closing row: pulsing dots and "Working for Ns". It is
     /// on screen from the moment the prompt lands — before the provider has
     /// produced a single chunk — and stays below whatever streams in until
     /// the turn settles into its "Worked for N" fold.
     fn render_working_indicator_row(&self, theme: &Theme) -> AnyElement {
-        let elapsed = self
+        let turn = self
             .selected_session()
             .and_then(|session| session.turns.last())
-            .filter(|turn| turn.status == TurnStatus::Running)
+            .filter(|turn| turn.status == TurnStatus::Running);
+        let elapsed = turn
             .map(|turn| unix_time().saturating_sub(turn.started_at))
             .unwrap_or(0);
+        let label = format!(
+            "{}… {}",
+            working_verb(turn.map(|turn| turn.id), elapsed),
+            format_working_elapsed(elapsed)
+        );
         div()
             .h(px(22.0))
             .flex()
@@ -1578,10 +1664,7 @@ impl Waku {
                     .line_height(px(16.0))
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(theme.text_tertiary)
-                    .child(SharedString::from(tr!(
-                        "transcript.working_for",
-                        duration = format_working_elapsed(elapsed)
-                    ))),
+                    .child(SharedString::from(label)),
             )
             .into_any_element()
     }
