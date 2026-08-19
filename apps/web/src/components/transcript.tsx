@@ -1046,7 +1046,7 @@ function MessageRow({
               onSubmit={onSubmitEdit}
             />
           ) : visible ? (
-            <div className="max-w-[540px] min-w-0 rounded-xl bg-[var(--raised)] px-3 py-2 text-[14px] leading-5">
+            <div className="max-w-[540px] min-w-0 rounded-xl bg-[var(--raised)] px-3 py-2 text-[14px] leading-5 animate-[message-slide-in_180ms_cubic-bezier(0.16,1,0.3,1)]">
               <Markdown text={visible} compact />
             </div>
           ) : null}
@@ -1297,21 +1297,25 @@ function MessageContextMenu({
                 className="waku-menu-item"
                 onClick={() => void navigator.clipboard.writeText(selectedText)}
               >
-                <AnastasiaIcon className="size-3" name="copy" /> {t('common.copy_selection')}
+                <AnastasiaIcon className="size-3.5 shrink-0 text-muted-foreground" name="copy" />
+                <span className="flex-1 truncate">{t('common.copy_selection')}</span>
+                <kbd className="text-[10.5px] font-mono text-[var(--text-tertiary)]">⌘C</kbd>
               </ContextMenu.Item>
             )}
             <ContextMenu.Item
               className="waku-menu-item"
               onClick={() => void navigator.clipboard.writeText(content)}
             >
-              <AnastasiaIcon className="size-3" name="copy" /> {t('common.copy_message_title')}
+              <AnastasiaIcon className="size-3.5 shrink-0 text-muted-foreground" name="copy" />
+              <span className="flex-1 truncate">{t('common.copy_message_title')}</span>
             </ContextMenu.Item>
             {copyToComposer && (
               <ContextMenu.Item
                 className="waku-menu-item"
                 onClick={copyToComposer}
               >
-                <AnastasiaIcon className="size-3" name="compose" /> {t('common.copy_to_composer')}
+                <AnastasiaIcon className="size-3.5 shrink-0 text-muted-foreground" name="compose" />
+                <span className="flex-1 truncate">{t('common.copy_to_composer')}</span>
               </ContextMenu.Item>
             )}
             {code && (
@@ -1319,7 +1323,8 @@ function MessageContextMenu({
                 className="waku-menu-item"
                 onClick={() => void navigator.clipboard.writeText(code)}
               >
-                <AnastasiaIcon className="size-3" name="copy" /> {t('common.copy_code')}
+                <AnastasiaIcon className="size-3.5 shrink-0 text-muted-foreground" name="copy" />
+                <span className="flex-1 truncate">{t('common.copy_code')}</span>
               </ContextMenu.Item>
             )}
             {rewindAction && (
@@ -1331,10 +1336,12 @@ function MessageContextMenu({
                   onClick={rewindAction.onBegin}
                 >
                   <AnastasiaIcon
-                    className={cn('size-3', rewindAction.pending && 'motion-safe:animate-spin')}
+                    className={cn('size-3.5 shrink-0 text-muted-foreground', rewindAction.pending && 'motion-safe:animate-spin')}
                     name={rewindAction.pending ? 'loaderCircle' : 'rewind'}
                   />
-                  {t(rewindAction.pending ? 'session.reverting_message_title' : 'session.revert_to_here_title')}
+                  <span className="flex-1 truncate">
+                    {t(rewindAction.pending ? 'session.reverting_message_title' : 'session.revert_to_here_title')}
+                  </span>
                 </ContextMenu.Item>
               </>
             )}
@@ -1347,10 +1354,12 @@ function MessageContextMenu({
                   onClick={() => forkAction.onFork(forkAction.turnCount)}
                 >
                   <AnastasiaIcon
-                    className={cn('size-3', forkAction.pending && 'motion-safe:animate-spin')}
+                    className={cn('size-3.5 shrink-0 text-muted-foreground', forkAction.pending && 'motion-safe:animate-spin')}
                     name={forkAction.pending ? 'loaderCircle' : 'fork'}
                   />
-                  {t(forkAction.pending ? 'session.forking_task_title' : 'session.fork_task_title')}
+                  <span className="flex-1 truncate">
+                    {t(forkAction.pending ? 'session.forking_task_title' : 'session.fork_task_title')}
+                  </span>
                 </ContextMenu.Item>
               </>
             )}

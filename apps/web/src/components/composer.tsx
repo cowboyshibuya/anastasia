@@ -679,7 +679,7 @@ export function Composer({
             </div>
           )}
           <section
-            className="rounded-[13px] border bg-card p-2.5 focus-within:border-input"
+            className="rounded-[4px] border border-border/60 bg-[var(--card)] p-2.5 shadow-sm transition-colors focus-within:border-[var(--signal)]"
             onDragOver={(event) => {
               event.preventDefault()
               event.dataTransfer.dropEffect = 'copy'
@@ -702,15 +702,12 @@ export function Composer({
             </div>
           )}
             <Textarea
-              aria-controls={autocompleteOpen ? 'composer-autocomplete' : undefined}
-              aria-expanded={autocompleteOpen}
-              aria-label={t('composer.message')}
-              aria-activedescendant={autocompleteOpen
-                ? `composer-autocomplete-${autocompleteHighlight}`
+              aria-activedescendant={autocompleteOpen && autocompleteRows[autocompleteHighlight]
+                ? `autocomplete-item-${autocompleteRows[autocompleteHighlight]!.key}`
                 : undefined}
               aria-autocomplete="list"
-              className="max-h-48 min-h-[46px] overflow-y-auto resize-none border-0 bg-transparent px-1 pb-1 pt-0 text-[14px] leading-5 shadow-none focus-visible:ring-0"
-              placeholder={t(busy ? 'composer.queue_placeholder' : 'composer.prompt_placeholder')}
+              className="max-h-48 min-h-[46px] overflow-y-auto resize-none border-0 bg-transparent px-1 pb-1 pt-0 text-[13.5px] leading-5 shadow-none focus-visible:ring-0 font-sans"
+              placeholder={busy ? 'Steer Anastasia… (Enter to steer in-flight)' : t('composer.prompt_placeholder')}
               ref={composerInput}
               role="combobox"
               value={prompt}
@@ -731,7 +728,7 @@ export function Composer({
               onSelect={(event) => setCursor(event.currentTarget.selectionStart)}
             />
           <div
-            className="mt-2 flex min-w-0 items-center gap-1 pb-px text-[11.5px] leading-[14px]"
+            className="mt-2 flex min-w-0 items-center gap-1 pb-px text-[11px] font-mono leading-[14px]"
             onMouseDown={preserveComposerFocusOnMouseDown}
           >
             <ModelPicker
@@ -744,9 +741,16 @@ export function Composer({
                 const preferences = config
                   ? readComposerPreferences(browserComposerPreferenceStorage(), config.address)
                   : null
-                const remembered = preferences
-                  ? rememberedModelTraits(preferences, provider, model.id)
-                  : undefined
+                const remembered = rememberedModelTraits(preferences, provider, model.id)
+                rememberComposerSession(
+                  browserComposerPreferenceStorage(),
+                  config?.address ?? 'disconnected',
+                  provider,
+                  model.id,
+                  remembered?.reasoningEffort ?? model.default_reasoning_effort ?? null,
+                  remembered?.serviceTier ?? model.default_service_tier ?? null,
+                  remembered?.contextWindow ?? null,
+                )
                 savePatch({
                   provider,
                   model: model.id,
@@ -777,25 +781,25 @@ export function Composer({
             <AccessControl returnFocus={composerInput} session={session} onPatch={savePatch} />
             <InteractionModeControl session={session} onPatch={savePatch} />
             <div className="flex-1" />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {busy && (
                 <Button
                   aria-label={t(escapeStopArmed ? 'composer.stop_confirm' : 'composer.stop')}
-                  className="rounded-full"
+                  className="size-7 rounded-[4px] border border-border/40"
                   size="icon-sm"
                   variant="secondary"
                   onClick={stopTurn}
                 >
                   {escapeStopArmed
                     ? <span className="text-[10px] font-semibold">Esc</span>
-                    : <AnastasiaIcon className="size-[18px]" name="stopFilled" />}
+                    : <AnastasiaIcon className="size-3.5 text-destructive" name="stopFilled" />}
                 </Button>
               )}
               <Button
                 aria-expanded={filePickerOpen}
                 aria-haspopup="dialog"
                 aria-label={t('composer.attach_daemon')}
-                className="size-6 rounded-md text-[var(--text-secondary)]"
+                className="size-7 rounded-[4px] border border-border/40 text-[var(--text-secondary)]"
                 disabled={!client || uploading}
                 size="icon-sm"
                 title={t('composer.attach_daemon_title')}
@@ -803,29 +807,29 @@ export function Composer({
                 variant="ghost"
                 onClick={() => setFilePickerOpen(true)}
               >
-                <AnastasiaIcon className="size-[14px]" name="paperclip" />
+                <AnastasiaIcon className="size-[13px]" name="paperclip" />
               </Button>
               {busy ? (
                 hasDraft && (
                   <Button
                     aria-label={t('composer.queue_followup')}
-                    className="rounded-full"
+                    className="size-7 rounded-[4px] bg-gradient-to-br from-[#356FE6] to-[#81BEFF] text-white shadow-[0_2px_8px_rgba(53,111,230,0.3)] hover:opacity-95"
                     disabled={submitting || uploading}
                     size="icon-sm"
                     onClick={() => void submit()}
                   >
-                    <AnastasiaIcon name="arrowUp" />
+                    <AnastasiaIcon className="size-3.5" name="arrowUp" />
                   </Button>
                 )
               ) : (
                 <Button
                   aria-label={t('common.send')}
-                  className="rounded-full"
+                  className="size-7 rounded-[4px] bg-gradient-to-br from-[#356FE6] to-[#81BEFF] text-white shadow-[0_2px_8px_rgba(53,111,230,0.3)] hover:opacity-95 disabled:opacity-30 disabled:shadow-none"
                   disabled={submitting || uploading || !hasDraft}
                   size="icon-sm"
                   onClick={() => void submit()}
                 >
-                  <AnastasiaIcon name="arrowUp" />
+                  <AnastasiaIcon className="size-3.5" name="arrowUp" />
                 </Button>
               )}
             </div>
@@ -1232,7 +1236,7 @@ function ComposerAttachmentTile({
 
   return (
     <div
-      className={`group relative overflow-hidden border bg-[var(--inset)] outline-none focus-within:border-ring ${
+      className={`group relative overflow-hidden border bg-[var(--inset)] outline-none focus-within:border-ring animate-[chip-pop-in_140ms_cubic-bezier(0.16,1,0.3,1)] ${
         attachment.is_image ? 'size-16 rounded-lg' : 'h-6 rounded-md'
       }`}
       title={`@${attachment.mention}`}

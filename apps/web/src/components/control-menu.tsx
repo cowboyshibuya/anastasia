@@ -112,7 +112,7 @@ export function ControlMenu({
                     item.onSelect()
                   }}
                 >
-                  {item.icon && <AnastasiaIcon className="size-3 text-current" name={item.icon} />}
+                  {item.icon && <AnastasiaIcon className="size-3.5 shrink-0 text-muted-foreground" name={item.icon} />}
                   <span className="min-w-0 flex-1">
                     <span className={cn(
                       'flex items-baseline gap-1 truncate',
@@ -129,7 +129,7 @@ export function ControlMenu({
                       </span>
                     )}
                   </span>
-                  {item.selected && <AnastasiaIcon className="size-[11px] text-[var(--text-tertiary)]" name="check" />}
+                  {item.selected && <AnastasiaIcon className="size-3 shrink-0 text-[var(--signal)]" name="check" />}
                 </Menu.Item>
               </div>
             ))}

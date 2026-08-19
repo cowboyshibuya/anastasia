@@ -293,10 +293,15 @@ export function RightPanel({
   return (
     <aside
       className={cn(
-        'absolute inset-y-0 right-0 z-30 flex shrink-0 flex-col border-l bg-background shadow-2xl xl:relative xl:z-auto xl:shadow-none',
+        'absolute inset-y-0 right-0 z-30 flex shrink-0 flex-col border-l border-border/40 bg-background shadow-2xl xl:relative xl:z-auto xl:shadow-none',
         !open && 'hidden',
       )}
       style={{ width: `min(${fittedPanelWidth}px, 92vw)` }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && open) {
+          onOpenChange(false)
+        }
+      }}
     >
       <PanelResizeHandle
         edge="left"
@@ -306,7 +311,7 @@ export function RightPanel({
         value={fittedPanelWidth}
         onChange={onPanelWidthChange}
       />
-      <header className="flex h-12 shrink-0 items-center gap-1.5 px-2.5 pr-3.5">
+      <header className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border/40 px-2 font-mono text-[12px]">
         <div className="relative min-w-0 flex-1 self-stretch overflow-hidden">
           <div
             aria-label={t('right_panel.tabs')}
@@ -469,8 +474,10 @@ function PanelTabButton({
       aria-controls={panelContentId(tab.id)}
       aria-selected={active}
       className={cn(
-        'flex h-7 min-w-[100px] max-w-44 shrink-0 items-center gap-1.5 rounded-md px-2 text-left text-[12px] outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring',
-        active ? 'bg-accent text-foreground' : 'text-[var(--text-secondary)]',
+        'flex h-6 min-w-[90px] max-w-44 shrink-0 items-center gap-1.5 rounded-[4px] border px-2 text-left text-[11px] font-mono outline-none transition-all duration-150 ease-out',
+        active
+          ? 'border-border/60 bg-[var(--card)] text-foreground font-semibold shadow-sm'
+          : 'border-transparent text-[var(--text-secondary)] hover:bg-accent hover:text-foreground',
       )}
       id={panelTabId(tab.id)}
       role="tab"

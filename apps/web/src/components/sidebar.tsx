@@ -124,15 +124,18 @@ export function Sidebar({
             <AnastasiaIcon name="panelLeft" />
           </Button>
         </header>
-        <div className="px-2.5">
-          <SidebarAction
-            icon={<AnastasiaIcon name="pencil" />}
-            label={t('menu.new_task')}
+        <div className="px-2.5 pb-1">
+          <button
+            className="flex h-7 w-full items-center justify-center gap-1.5 rounded-[4px] border border-sidebar-border bg-[var(--surface-raised,#14181d)] text-[12px] font-mono text-[var(--text-primary,#f1f2f3)] transition-colors hover:border-[var(--signal)] hover:text-[var(--signal)]"
+            type="button"
             onClick={() => {
               onNewTask()
               onMobileOpenChange(false)
             }}
-          />
+          >
+            <span className="text-[13px] font-bold">+</span>
+            <span>New</span>
+          </button>
         </div>
 
         <nav aria-label={t('sidebar.tasks')} className="min-h-0 flex-1">
@@ -276,6 +279,22 @@ function SidebarAction({
   )
 }
 
+import { DaemonGlyph, type DaemonGlyphState } from '@/components/daemon-glyph'
+
+function sessionToGlyphState(status: string): DaemonGlyphState {
+  switch (status) {
+    case 'connecting':
+    case 'working':
+      return 'executing'
+    case 'waiting':
+      return 'waiting'
+    case 'failed':
+      return 'error'
+    default:
+      return 'idle'
+  }
+}
+
 function SessionRow({
   item,
   nowSeconds,
@@ -300,6 +319,7 @@ function SessionRow({
   const rowButton = useRef<HTMLButtonElement>(null)
   const restoreMenuFocus = useRef(false)
   const currentTitle = displayTitle(item.session)
+  const glyphState = sessionToGlyphState(item.session.status)
 
   async function commitRename() {
     if (skipRenameCommit.current) {
@@ -336,16 +356,16 @@ function SessionRow({
     >
       <ContextMenu.Trigger
         className={cn(
-          'group relative rounded-[7px] hover:bg-sidebar-accent',
-          selected && 'bg-sidebar-accent',
+          'group relative rounded-[4px] px-2 transition-colors',
+          selected ? 'bg-sidebar-accent' : 'hover:bg-sidebar-accent',
         )}
       >
         {renaming ? (
-          <div className="flex h-[51px] w-full min-w-0 flex-col gap-1 rounded-[7px] px-2 py-[7px]">
+          <div className="flex h-[48px] w-full min-w-0 flex-col justify-center gap-0.5 py-1 pr-2">
             <span className="flex min-w-0 w-full items-center gap-1.5 leading-[18px]">
               <Input
                 autoFocus
-                className="h-[22px] min-w-0 flex-1 rounded border-ring bg-[var(--inset)] px-1 text-[13.5px]"
+                className="h-[22px] min-w-0 flex-1 rounded-[2px] border-[var(--signal)] bg-[var(--inset)] px-1.5 font-mono text-[13px]"
                 value={title}
                 onBlur={() => void commitRename()}
                 onChange={(event) => setTitle(event.target.value)}
@@ -363,7 +383,7 @@ function SessionRow({
                   }
                 }}
               />
-              <SessionStatus status={item.session.status} t={t} />
+              <DaemonGlyph size={10} state={glyphState} />
             </span>
             <SessionMetadata item={item} nowSeconds={nowSeconds} t={t} />
           </div>
@@ -371,7 +391,7 @@ function SessionRow({
           <button
             aria-current={selected ? 'page' : undefined}
             aria-haspopup="menu"
-            className="flex h-[51px] w-full min-w-0 flex-col gap-1 rounded-[7px] px-2 py-[7px] text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-[48px] w-full min-w-0 flex-col justify-center gap-0.5 py-1 pr-2 text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
             ref={rowButton}
             type="button"
             onClick={() => onSelect(item.session.id)}
@@ -383,11 +403,11 @@ function SessionRow({
               }
             }}
           >
-            <span className="flex min-w-0 w-full items-center gap-1.5 leading-[18px]">
-              <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">
+            <span className="flex min-w-0 w-full items-center justify-between gap-1.5 leading-[18px]">
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
                 {currentTitle}
               </span>
-              <SessionStatus status={item.session.status} t={t} />
+              <DaemonGlyph size={10} state={glyphState} />
             </span>
             <SessionMetadata item={item} nowSeconds={nowSeconds} t={t} />
           </button>
@@ -409,18 +429,22 @@ function SessionRow({
                 setRenaming(true)
               }}
             >
-              <AnastasiaIcon className="size-3" name="pencil" /> {t('common.rename')}
+              <AnastasiaIcon className="size-3.5 shrink-0 text-muted-foreground" name="pencil" />
+              <span className="flex-1 truncate">{t('common.rename')}</span>
+              <kbd className="text-[10.5px] font-mono text-[var(--text-tertiary)]">R</kbd>
             </ContextMenu.Item>
             <ContextMenu.Separator className="waku-menu-separator" />
             <ContextMenu.Item
-              className="waku-menu-item text-destructive data-[highlighted]:bg-[var(--danger-soft)]"
+              className="waku-menu-item text-destructive hover:bg-[var(--danger-soft)] data-[highlighted]:bg-[var(--danger-soft)] data-[highlighted]:text-destructive"
               onClick={() => {
                 restoreMenuFocus.current = false
                 setMenuOpen(false)
                 void onRemove(item.session.id).catch(() => {})
               }}
             >
-              <AnastasiaIcon className="size-3" name="trash" /> {t('common.remove')}
+              <AnastasiaIcon className="size-3.5 shrink-0 text-destructive" name="trash" />
+              <span className="flex-1 truncate">{t('common.remove')}</span>
+              <kbd className="text-[10.5px] font-mono text-destructive/70">⌫</kbd>
             </ContextMenu.Item>
           </ContextMenu.Popup>
         </ContextMenu.Positioner>

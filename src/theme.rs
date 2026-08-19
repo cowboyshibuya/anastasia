@@ -97,102 +97,95 @@ impl Theme {
     pub fn dark() -> Self {
         Self {
             is_dark: true,
-            canvas: rgb(0x0E0E11).into(),
+            canvas: rgb(0x121213).into(),
             sidebar: if cfg!(target_os = "macos") {
                 transparent_black()
             } else {
-                rgb(0x0B0B0E).into()
+                rgb(0x09090A).into()
             },
-            sidebar_drag_background: rgb(0x0B0B0E).into(),
-            sidebar_item_background: hsla(0.0, 0.0, 0.941, 0.06),
-            surface: rgb(0x0E0E11).into(),
-            raised: rgb(0x18181D).into(),
-            composer: rgb(0x151519).into(),
-            inset: rgb(0x090A0C).into(),
-            terminal: rgb(0x090A0C).into(),
-            overlay: hsla(240.0 / 360.0, 0.10, 0.90, 0.05),
-            overlay_strong: hsla(240.0 / 360.0, 0.10, 0.90, 0.09),
+            sidebar_drag_background: rgb(0x09090A).into(),
+            sidebar_item_background: hsla(0.0, 0.0, 1.0, 0.05),
+            surface: rgb(0x121213).into(),
+            raised: rgb(0x212122).into(),
+            composer: rgb(0x1A1A1B).into(),
+            inset: rgb(0x09090A).into(),
+            terminal: rgb(0x09090A).into(),
+            overlay: hsla(220.0 / 360.0, 0.10, 0.90, 0.05),
+            overlay_strong: hsla(220.0 / 360.0, 0.10, 0.90, 0.09),
 
-            border: hsla(240.0 / 360.0, 0.10, 0.90, 0.08),
-            border_strong: hsla(240.0 / 360.0, 0.10, 0.90, 0.16),
-            sidebar_border: hsla(240.0 / 360.0, 0.10, 0.90, 0.08),
+            border: hsla(220.0 / 360.0, 0.08, 0.40, 0.22),
+            border_strong: hsla(220.0 / 360.0, 0.08, 0.60, 0.35),
+            sidebar_border: hsla(220.0 / 360.0, 0.08, 0.40, 0.22),
 
-            text: rgb(0xEDEDF0).into(),
-            text_secondary: rgb(0xA8A8B2).into(),
-            text_tertiary: rgb(0x82828C).into(),
-            // Was #575757 — 2.4:1 on the old plane, under the 3:1 a disabled
-            // control still owes the reader.
-            text_ghost: rgb(0x63636D).into(),
+            text: rgb(0xF1F2F3).into(),
+            text_secondary: rgb(0x9BA1A8).into(),
+            text_tertiary: rgb(0x78808A).into(),
+            text_ghost: rgb(0x667080).into(),
 
-            // One accent, one meaning. The gauge and the resize handle used to
-            // paint themselves a different blue from the accent, so two colors
-            // competed for "this is the active thing".
-            accent: rgb(0x6E8BFF).into(),
-            resize_handle: rgb(0x6E8BFF).into(),
-            gauge: rgb(0x6E8BFF).into(),
+            // Beautiful Electric & Sky Blue gradient colors (#356FE6 & #81BEFF)
+            accent: rgb(0x356FE6).into(),
+            resize_handle: rgb(0x356FE6).into(),
+            gauge: rgb(0x356FE6).into(),
 
-            selection: hsla(228.0 / 360.0, 1.0, 0.62, 0.38),
-            code_text: rgb(0xC9C4E8).into(),
-            code_wash: hsla(240.0 / 360.0, 0.10, 0.90, 0.08),
+            selection: hsla(220.0 / 360.0, 0.90, 0.60, 0.25),
+            code_text: rgb(0x81BEFF).into(),
+            code_wash: hsla(220.0 / 360.0, 0.90, 0.60, 0.08),
 
-            inverse: rgb(0xEDEDF0).into(),
-            on_inverse: rgb(0x0E0E11).into(),
+            inverse: rgb(0xF1F2F3).into(),
+            on_inverse: rgb(0x121213).into(),
 
-            warning: rgb(0xE0B36A).into(),
-            success: rgb(0x62C987).into(),
-            favorite: rgb(0xEAB308).into(),
-            danger: rgb(0xE2726A).into(),
-            danger_soft: hsla(4.0 / 360.0, 0.55, 0.63, 0.10),
+            warning: rgb(0xE6A450).into(),
+            success: rgb(0x81BEFF).into(),
+            favorite: rgb(0xE6A450).into(),
+            danger: rgb(0xEC626A).into(),
+            danger_soft: hsla(356.0 / 360.0, 0.80, 0.65, 0.12),
         }
     }
 
     pub fn light() -> Self {
         Self {
             is_dark: false,
-            canvas: rgb(0xF6F5F6).into(),
+            canvas: rgb(0xF9F9FA).into(),
             sidebar: if cfg!(target_os = "macos") {
                 transparent_black()
             } else {
-                rgb(0xF3F3F3).into()
+                rgb(0xEEEEF0).into()
             },
-            sidebar_drag_background: rgb(0xF3F3F3).into(),
-            sidebar_item_background: hsla(0.0, 0.0, 0.078, 0.06),
-            surface: rgb(0xF6F5F6).into(),
-            raised: rgb(0xECECEC).into(),
+            sidebar_drag_background: rgb(0xEEEEF0).into(),
+            sidebar_item_background: hsla(0.0, 0.0, 0.0, 0.04),
+            surface: rgb(0xF9F9FA).into(),
+            raised: rgb(0xFFFFFF).into(),
             composer: rgb(0xFFFFFF).into(),
-            inset: rgb(0xE6E6E6).into(),
+            inset: rgb(0xEEEEF0).into(),
             terminal: rgb(0xFFFFFF).into(),
-            overlay: hsla(220.0 / 360.0, 0.10, 0.12, 0.05),
-            overlay_strong: hsla(220.0 / 360.0, 0.10, 0.12, 0.09),
+            overlay: hsla(220.0 / 360.0, 0.10, 0.12, 0.04),
+            overlay_strong: hsla(220.0 / 360.0, 0.10, 0.12, 0.08),
 
-            border: hsla(220.0 / 360.0, 0.10, 0.12, 0.08),
-            border_strong: hsla(220.0 / 360.0, 0.10, 0.12, 0.15),
-            sidebar_border: hsla(0.0, 0.0, 0.078, 0.12),
+            border: hsla(220.0 / 360.0, 0.10, 0.30, 0.16),
+            border_strong: hsla(220.0 / 360.0, 0.10, 0.30, 0.32),
+            sidebar_border: hsla(220.0 / 360.0, 0.10, 0.30, 0.18),
 
-            text: rgb(0x242424).into(),
-            text_secondary: rgb(0x666666).into(),
-            // Both were under threshold on the #F6F5F6 canvas (3.4:1 and
-            // 2.3:1); nudged down to clear body text and the 3:1 a disabled
-            // control still owes the reader.
-            text_tertiary: rgb(0x707070).into(),
-            text_ghost: rgb(0x8E8E8E).into(),
+            text: rgb(0x111318).into(),
+            text_secondary: rgb(0x4A505A).into(),
+            text_tertiary: rgb(0x606874).into(),
+            text_ghost: rgb(0x767E8A).into(),
 
-            accent: rgb(0x3B5BDB).into(),
-            resize_handle: rgb(0x3B5BDB).into(),
-            gauge: rgb(0x3B5BDB).into(),
+            accent: rgb(0x356FE6).into(),
+            resize_handle: rgb(0x356FE6).into(),
+            gauge: rgb(0x356FE6).into(),
 
-            selection: hsla(211.0 / 360.0, 1.0, 0.50, 0.35),
-            code_text: rgb(0x9A5528).into(),
-            code_wash: hsla(220.0 / 360.0, 0.10, 0.12, 0.07),
+            selection: hsla(220.0 / 360.0, 0.90, 0.55, 0.25),
+            code_text: rgb(0x356FE6).into(),
+            code_wash: hsla(220.0 / 360.0, 0.90, 0.55, 0.08),
 
-            inverse: rgb(0x202227).into(),
-            on_inverse: rgb(0xF8F8F9).into(),
+            inverse: rgb(0x111318).into(),
+            on_inverse: rgb(0xF9F9FA).into(),
 
-            warning: rgb(0xA66B20).into(),
-            success: rgb(0x2F8F52).into(),
-            favorite: rgb(0xCA8A04).into(),
-            danger: rgb(0xC14840).into(),
-            danger_soft: hsla(4.0 / 360.0, 0.55, 0.52, 0.10),
+            warning: rgb(0xB45309).into(),
+            success: rgb(0x059669).into(),
+            favorite: rgb(0xB45309).into(),
+            danger: rgb(0xB91C1C).into(),
+            danger_soft: hsla(0.0, 0.80, 0.40, 0.10),
         }
     }
 

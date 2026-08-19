@@ -25,6 +25,22 @@ import { StartupScreen } from '@/components/startup-screen'
 import type { SettingsPageId } from '@/components/settings-view'
 import { Transcript } from '@/components/transcript'
 import { AnastasiaIcon } from '@/components/anastasia-icon'
+import { DaemonGlyph, type DaemonGlyphState } from '@/components/daemon-glyph'
+import { CommandTooltips } from '@/components/command-tooltips'
+
+function sessionToHeaderGlyphState(status?: string): DaemonGlyphState {
+  switch (status) {
+    case 'connecting':
+    case 'working':
+      return 'executing'
+    case 'waiting':
+      return 'waiting'
+    case 'failed':
+      return 'error'
+    default:
+      return 'idle'
+  }
+}
 import {
   useComposerDrafts,
   useSession,
@@ -1167,6 +1183,7 @@ export function AnastasiaApp() {
         />
       )}
       {palette}
+      <CommandTooltips />
     </div>
   )
 }
@@ -1226,48 +1243,64 @@ function TaskHeader({
   const { t } = useI18n()
   const cwd = session && project ? sessionCwd(session, project) : undefined
   const branches = useWorkspaceBranches(cwd)
-  const preset = session?.provider === 'deepSeek' && session.messages.length
-    ? agentPresetIdLabel(session.agent_preset || 'standard', t)
-    : null
+  const sessionHex = session ? `0x${session.id.replace(/-/g, '').slice(0, 4).toUpperCase()}` : '0xINIT'
+  const glyphState = session ? sessionToHeaderGlyphState(session.status) : 'idle'
+
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 px-3 lg:px-3.5">
-      <Button
-        aria-label={t('sidebar.open')}
-        className={sidebarVisible ? 'lg:hidden' : undefined}
-        size="icon-sm"
-        variant="ghost"
-        onClick={onMenu}
-      >
-        <AnastasiaIcon name="panelLeft" />
-      </Button>
-      <h1 className="min-w-0 truncate text-[13px] font-medium">{title}</h1>
-      {preset && (
-        <span className="max-w-44 truncate rounded-md bg-accent px-1.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
-          {preset}
-        </span>
-      )}
-      <div className="flex-1" />
-      {branches.data && (branches.data.additions > 0 || branches.data.deletions > 0) && (
-        <button
-          className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] hover:bg-accent"
-          type="button"
-          onClick={onOpenChanges}
+    <header className="flex h-9 shrink-0 items-center justify-between border-b border-border/40 bg-[var(--background)] px-3 text-[12px] font-mono">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button
+          aria-label={t('sidebar.open')}
+          className={cn('size-6 p-0', sidebarVisible ? 'lg:hidden' : '')}
+          size="icon-sm"
+          variant="ghost"
+          onClick={onMenu}
         >
-          <span className="text-[var(--success)]">+{branches.data.additions}</span>
-          <span className="text-destructive">-{branches.data.deletions}</span>
-        </button>
-      )}
-      {session && (
-        <EnvironmentPopover
-          sessionId={session.id}
-          onCommit={onCommit}
-          onCompareBranch={onCompareBranch}
-          onOpenBackgroundWork={onOpenBackgroundWork}
-        />
-      )}
-      <Button aria-label={t('right_panel.toggle')} size="icon-sm" variant="ghost" onClick={onTogglePanel}>
-        <AnastasiaIcon name="panelRight" />
-      </Button>
+          <AnastasiaIcon name="panelLeft" />
+        </Button>
+        <div className="flex items-center gap-1.5 truncate text-[12px]">
+          <span className="font-semibold text-foreground">{project ? projectDisplayName(project) : 'anastasia'}</span>
+          <span className="text-[var(--text-ghost)]">/</span>
+          <span className="text-[var(--text-secondary)]">{branches.data?.branch || 'main'}</span>
+        </div>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-2 px-2 py-0.5 rounded-[3px] border border-border/30 bg-[var(--card)] text-[11px] text-[var(--text-secondary)]">
+        <span>LOCAL</span>
+        <span className="text-[var(--text-ghost)]">·</span>
+        <span className="text-[var(--signal)] font-medium">{sessionHex}</span>
+        <DaemonGlyph size={10} state={glyphState} />
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {branches.data && (branches.data.additions > 0 || branches.data.deletions > 0) && (
+          <button
+            className="flex items-center gap-1 rounded-[3px] border border-border/40 px-1.5 py-0.5 text-[11px] font-mono hover:bg-accent"
+            type="button"
+            onClick={onOpenChanges}
+          >
+            <span className="text-[var(--signal)]">+{branches.data.additions}</span>
+            <span className="text-destructive">-{branches.data.deletions}</span>
+          </button>
+        )}
+        {session && (
+          <EnvironmentPopover
+            sessionId={session.id}
+            onCommit={onCommit}
+            onCompareBranch={onCompareBranch}
+            onOpenBackgroundWork={onOpenBackgroundWork}
+          />
+        )}
+        <Button
+          aria-label={t('right_panel.toggle')}
+          className="size-6 p-0"
+          size="icon-sm"
+          variant="ghost"
+          onClick={onTogglePanel}
+        >
+          <AnastasiaIcon name="panelRight" />
+        </Button>
+      </div>
     </header>
   )
 }

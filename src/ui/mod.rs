@@ -4,12 +4,15 @@ use gpui::{
     StyleRefinement, Styled, Svg, Window, canvas, div, img, point, prelude::*, px, rgb, svg,
 };
 
+pub mod daemon_glyph;
 pub mod menu;
 pub mod motion;
 pub mod scrollbar;
 pub mod splash;
 pub mod text_field;
 pub mod tooltip;
+
+pub use daemon_glyph::{DaemonGlyph, DaemonGlyphState};
 
 use crate::model::{ActivityKind, ProviderKind, SessionStatus};
 use crate::theme::Theme;

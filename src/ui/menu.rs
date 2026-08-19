@@ -919,12 +919,12 @@ impl RenderOnce for MenuCard {
                 let handle = self.handle.clone();
                 move |event, window, cx| handle.dismiss_on_down_out(event, window, cx)
             })
-            .min_w(px(176.0))
+            .min_w(px(190.0))
             .max_w(px(320.0))
-            .py(px(4.0))
-            .rounded(px(9.0))
+            .p(px(4.0))
+            .rounded(px(10.0))
             .border_1()
-            .border_color(theme.border_strong)
+            .border_color(theme.border)
             .bg(theme.raised)
             .shadow_lg()
             .flex()
@@ -941,16 +941,16 @@ impl RenderOnce for MenuCard {
         for (index, item) in items.into_iter().enumerate() {
             card = card.child(match item {
                 MenuItem::Separator => div()
-                    .my(px(4.0))
-                    .mx(px(6.0))
+                    .my(px(3.0))
+                    .mx(px(4.0))
                     .h(px(1.0))
                     .bg(theme.border)
                     .into_any_element(),
                 MenuItem::Header(label) => div()
-                    .px(px(10.0))
+                    .px(px(8.0))
                     .pt(px(6.0))
                     .pb(px(2.0))
-                    .text_size(px(10.0))
+                    .text_size(px(10.5))
                     .line_height(px(14.0))
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(theme.text_tertiary)
@@ -966,7 +966,7 @@ impl RenderOnce for MenuCard {
                     let color = match (disabled, selected) {
                         (true, _) => theme.text_ghost,
                         (false, true) => theme.text,
-                        (false, false) => theme.text_secondary,
+                        (false, false) => theme.text,
                     };
                     row(
                         index,
@@ -978,11 +978,11 @@ impl RenderOnce for MenuCard {
                     .text_color(color)
                     .when(selected, |element| element.font_weight(FontWeight::MEDIUM))
                     .when_some(item_icon, |element, path| {
-                        element.child(icon(path, 12.0, color))
+                        element.child(icon(path, 13.0, theme.text_secondary))
                     })
                     .child(div().flex_1().min_w_0().truncate().child(label))
                     .when(selected, |element| {
-                        element.child(icon("icons/check.svg", 11.0, theme.text_tertiary))
+                        element.child(icon("icons/check.svg", 12.0, theme.accent))
                     })
                     .into_any_element()
                 }
@@ -1000,7 +1000,7 @@ impl RenderOnce for MenuCard {
                         .into_any_element(),
                         // Non-interactive rows still need the row's insets so
                         // they line up with the entries around them.
-                        None => div().mx(px(4.0)).px(px(8.0)).child(body).into_any_element(),
+                        None => div().px(px(8.0)).py(px(4.0)).child(body).into_any_element(),
                     }
                 }
             });
@@ -1019,19 +1019,19 @@ fn row(
     handle: ContextMenuHandle,
     on_click: Option<Rc<dyn Fn(&mut Window, &mut App)>>,
 ) -> gpui::Stateful<gpui::Div> {
-    let hover = theme.overlay;
+    let hover = theme.overlay_strong;
     let highlight = theme.overlay_strong;
     div()
         .id(index)
-        .mx(px(4.0))
         .px(px(8.0))
-        .min_h(px(26.0))
+        .py(px(4.0))
+        .min_h(px(28.0))
         .rounded(px(6.0))
         .flex()
         .items_center()
         .gap(px(8.0))
-        .text_size(px(11.5))
-        .line_height(px(15.0))
+        .text_size(px(12.5))
+        .line_height(px(16.0))
         .when(highlighted, |element| element.bg(highlight))
         .when_some(on_click, |element, on_click| {
             element

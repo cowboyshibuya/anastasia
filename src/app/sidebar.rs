@@ -2,6 +2,7 @@ use chrono::{DateTime, Datelike, Days, Local, NaiveDate, Utc};
 use gpui::{KeyBinding, actions};
 
 use super::*;
+use crate::ui::{DaemonGlyph, DaemonGlyphState};
 
 actions!(waku_sidebar, [CancelSessionRename]);
 
@@ -1043,10 +1044,6 @@ impl Waku {
                 .map(|pending| pending.session_id),
             session_id,
         );
-        let working = matches!(
-            session.status,
-            SessionStatus::Connecting | SessionStatus::Working
-        );
         let project_name = self
             .state
             .projects
@@ -1096,16 +1093,23 @@ impl Waku {
         let menu = self.menu_handle(format!("session-{session_id}"), cx);
         let row_focus = menu.trigger_focus_handle().clone();
         let keyboard_menu = menu.clone();
+        let glyph_state = match session.status {
+            SessionStatus::Idle => DaemonGlyphState::Idle,
+            SessionStatus::Connecting | SessionStatus::Working => DaemonGlyphState::Executing,
+            SessionStatus::Waiting => DaemonGlyphState::Waiting,
+            SessionStatus::Failed => DaemonGlyphState::Error,
+        };
         let row = div()
             .id(SharedString::from(format!("session-{}", session.id)))
+            .relative()
             .w_full()
             .min_w_0()
             .flex()
             .flex_col()
-            .gap(px(4.0))
+            .gap(px(3.0))
             .px(px(8.0))
-            .py(px(7.0))
-            .rounded(px(7.0))
+            .py(px(6.0))
+            .rounded(px(4.0))
             .cursor_default()
             .when(selected, |element| {
                 element.bg(theme.sidebar_item_background)
@@ -1120,27 +1124,7 @@ impl Waku {
                     .overflow_hidden()
                     .line_height(px(18.0))
                     .child(title)
-                    .when(working, |element| {
-                        element.child(motion::spin_slow(icon(
-                            "icons/loader-circle.svg",
-                            12.0,
-                            status_color(&theme, session.status),
-                        )))
-                    })
-                    .when(session.status == SessionStatus::Waiting, |element| {
-                        element.child(icon(
-                            "icons/alert.svg",
-                            12.0,
-                            status_color(&theme, session.status),
-                        ))
-                    })
-                    .when(session.status == SessionStatus::Failed, |element| {
-                        element.child(icon(
-                            "icons/x.svg",
-                            12.0,
-                            status_color(&theme, session.status),
-                        ))
-                    }),
+                    .child(DaemonGlyph::new(glyph_state).size(px(10.0))),
             )
             .child(
                 div()
