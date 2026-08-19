@@ -2666,6 +2666,7 @@ impl Waku {
                 provider_cursor: session.provider_cursor.clone(),
                 ponytail: self.state.ponytail_mode(),
                 alabasta: self.alabasta_launch_request(session),
+                goal: session.goal.clone(),
             },
             event_wake: self.event_wake_tx.clone(),
             daemon_client: self.daemon.client(),
@@ -3009,6 +3010,33 @@ impl Waku {
             Vec::new()
         };
         let transcript_anchor = if let Some(session) = self.state.session_mut(session_id) {
+            let goal_text = if let Some(text) = prompt.strip_prefix("/goal ").or_else(|| prompt.strip_prefix("/goal\n")) {
+                let text = text.trim();
+                if !text.is_empty() { Some(text.to_owned()) } else { None }
+            } else if let Some(rest) = prompt.strip_prefix("Goal: ") {
+                let first_line = rest.lines().next().unwrap_or("").trim();
+                if !first_line.is_empty() && first_line != "$ARGUMENTS" {
+                    Some(first_line.to_owned())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            if let Some(text) = goal_text {
+                let prev_total = session.goal.as_ref().map_or(8, |g| g.step_total);
+                session.goal = Some(anastasia_protocol::model::SessionGoal {
+                    text,
+                    step_current: 1,
+                    step_total: prev_total,
+                    paused: false,
+                    created_at: unix_time(),
+                });
+            } else if let Some(goal) = session.goal.as_mut() {
+                if !goal.paused {
+                    goal.step_current = (goal.step_current + 1).min(goal.step_total);
+                }
+            }
             session.set_title_from_prompt(&human_prompt);
             let turn_id = session.begin_turn_with_presentation(
                 &prompt,
@@ -3156,10 +3184,12 @@ impl Waku {
             .iter()
             .find(|session| session.id == session_id)
             .is_some_and(|session| {
-                session.status == SessionStatus::Connecting
-                    && session.turns.last().is_some_and(|turn| {
-                        turn.status == TurnStatus::Running && !turn.provider_turn_started
-                    })
+                matches!(
+                    session.status,
+                    SessionStatus::Connecting | SessionStatus::Working
+                ) && session.turns.last().is_some_and(|turn| {
+                    turn.status == TurnStatus::Running
+                })
             });
         if !can_start {
             self.submission_preparations.remove(&session_id);

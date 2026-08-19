@@ -94,6 +94,7 @@ impl OpenCodeDriver {
             ponytail: _,
             harness_launch,
             alabasta,
+            goal: _,
         } = options;
         let resume_session_id = match provider_cursor {
             Some(ProviderResumeCursor::OpenCode { session_id }) => {
@@ -1303,6 +1304,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )
@@ -1395,6 +1397,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )

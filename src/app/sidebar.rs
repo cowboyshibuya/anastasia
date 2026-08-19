@@ -1567,6 +1567,44 @@ impl Waku {
                 items
             },
         );
+        let suggestions: &[&'static str] = &[
+            "Explain me this codebase",
+            "Write me a documentation about this project",
+            "Make a security audit about this project",
+            "Refactor and improve code quality",
+        ];
+
+        let suggestion_chips = div()
+            .mt(px(24.0))
+            .flex()
+            .flex_wrap()
+            .justify_center()
+            .gap(px(8.0))
+            .max_w(px(540.0))
+            .children(suggestions.iter().map(|&suggestion| {
+                div()
+                    .id(SharedString::from(suggestion))
+                    .px(px(14.0))
+                    .py(px(7.0))
+                    .rounded_full()
+                    .border_1()
+                    .border_color(theme.border)
+                    .bg(theme.surface)
+                    .text_size(px(12.5))
+                    .text_color(theme.text_secondary)
+                    .cursor_pointer()
+                    .hover(|style| style.bg(theme.overlay).text_color(theme.text))
+                    .child(suggestion)
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.composer.update(cx, |input, cx| {
+                            input.set_content(suggestion.to_owned(), cx);
+                        });
+                        let focus = this.composer_focus(cx);
+                        window.focus(&focus, cx);
+                        cx.notify();
+                    }))
+            }));
+
         div()
             .flex_1()
             .flex()
@@ -1594,6 +1632,7 @@ impl Waku {
                             .child(tr_cow!("onboarding.question_mark"))
                     }),
             )
+            .child(suggestion_chips)
     }
 }
 

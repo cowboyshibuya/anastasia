@@ -113,6 +113,7 @@ impl DeepSeekDriver {
             ponytail: _,
             harness_launch: _,
             alabasta: _,
+            goal: _,
         } = options;
         let (requested_session_id, resuming) = match provider_cursor {
             Some(ProviderResumeCursor::DeepSeek { session_id }) if !session_id.is_empty() => {

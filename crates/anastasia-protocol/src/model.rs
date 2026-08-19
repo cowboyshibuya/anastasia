@@ -836,6 +836,8 @@ pub struct AgentSession {
     pub turns: Vec<AgentTurn>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queued_messages: Vec<QueuedMessage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<SessionGoal>,
     /// Whether the transcript has been read from the database.
     ///
     /// Startup loads only the columns the session list needs, so a session
@@ -847,13 +849,27 @@ pub struct AgentSession {
     pub detail_loaded: bool,
 }
 
+/// A persistent session-level goal/objective pursued across turns.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+pub struct SessionGoal {
+    pub text: String,
+    #[serde(default)]
+    pub step_current: usize,
+    #[serde(default)]
+    pub step_total: usize,
+    #[serde(default)]
+    pub paused: bool,
+    #[serde(default)]
+    pub created_at: u64,
+}
+
 /// Anything deserialized from a `data` blob carries its full detail.
 fn detail_loaded_default() -> bool {
     true
 }
 
 impl AgentSession {
-    pub const DEFAULT_TITLE: &'static str = "New task";
+    pub const DEFAULT_TITLE: &'static str = "New";
 
     pub fn new(project_id: Uuid, provider: ProviderKind) -> Self {
         let now = unix_time();
@@ -887,6 +903,7 @@ impl AgentSession {
             transcript_blocks: Vec::new(),
             turns: Vec::new(),
             queued_messages: Vec::new(),
+            goal: None,
         }
     }
 
@@ -925,6 +942,7 @@ impl AgentSession {
             transcript_blocks: Vec::new(),
             turns: Vec::new(),
             queued_messages: Vec::new(),
+            goal: self.goal.clone(),
             detail_loaded: false,
         }
     }

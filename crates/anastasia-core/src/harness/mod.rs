@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
-use anastasia_protocol::model::{InteractionMode, RuntimeMode};
+use anastasia_protocol::model::{InteractionMode, RuntimeMode, SessionGoal};
 use crate::model::ProviderKind;
 
 /// Plan Mode instructions injected into the provider's instruction channel.
@@ -50,6 +50,24 @@ pub fn plan_contribution(
     } else {
         HarnessContribution::default()
     }
+}
+
+/// Generates a harness contribution when an active session goal exists.
+pub fn goal_contribution(goal: Option<&SessionGoal>) -> HarnessContribution {
+    if let Some(goal) = goal {
+        if !goal.paused && !goal.text.trim().is_empty() {
+            return HarnessContribution {
+                instructions: Some(format!(
+                    "# Persistent Session Goal\n\
+                     Objective: {}\n\
+                     Systematically pursue and fulfill this primary objective across turns until completed.",
+                    goal.text.trim()
+                )),
+                ..HarnessContribution::default()
+            };
+        }
+    }
+    HarnessContribution::default()
 }
 
 /// Separator between contributions in a composed instruction channel. A visible

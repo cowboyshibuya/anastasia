@@ -99,6 +99,7 @@ impl PiDriver {
             ponytail: _,
             harness_launch,
             alabasta,
+            goal: _,
         } = options;
         if mode != RuntimeMode::FullAccess || interaction_mode != InteractionMode::Build {
             return Err(anyhow!("Pi currently supports Build with Full access only"));
@@ -1127,6 +1128,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )

@@ -1597,6 +1597,30 @@ function NewTaskCanvas({
             </>
           )}
         </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-lg mx-auto">
+          {[
+            'Explain me this codebase',
+            'Write me a documentation about this project',
+            'Make a security audit about this project',
+            'Refactor and improve code quality',
+          ].map((suggestion) => (
+            <button
+              key={suggestion}
+              className="rounded-full border bg-card px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              type="button"
+              onClick={() => {
+                const input = document.querySelector<HTMLTextAreaElement>('textarea[aria-label]')
+                if (input) {
+                  input.value = suggestion
+                  input.dispatchEvent(new Event('input', { bubbles: true }))
+                  input.focus()
+                }
+              }}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

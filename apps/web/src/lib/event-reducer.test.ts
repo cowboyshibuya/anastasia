@@ -201,7 +201,7 @@ function event(kind: string, payload: unknown): SequencedEvent {
 function runningSession(): AgentSession {
   return {
     id: 'session',
-    title: 'New task',
+    title: 'New',
     project_id: 'project',
     workspace: { kind: 'local' },
     provider: 'codex',

@@ -125,6 +125,12 @@ fn builtin_waku_commands(provider: ProviderKind) -> Vec<SlashCommand> {
              commit with a clear message that describes the change and why it was made."
                 .to_owned(),
         ),
+        (
+            "goal",
+            tr!("commands.goal_description"),
+            "Goal: $ARGUMENTS\nKeep pursuing this goal systematically until completed."
+                .to_owned(),
+        ),
     ]
     .into_iter()
     .map(|(name, description, template)| SlashCommand {

@@ -1304,6 +1304,7 @@ mod tests {
                         provider_cursor: None,
                         ponytail: None,
                         alabasta: None,
+                        goal: None,
                     },
                 },
             )
@@ -1375,6 +1376,7 @@ mod tests {
                         provider_cursor: None,
                         ponytail: None,
                         alabasta: None,
+                        goal: None,
                     },
                 },
             )
@@ -1908,6 +1910,7 @@ mod tests {
             provider_cursor: None,
             ponytail: None,
             alabasta: None,
+            goal: None,
         }
     }
 }

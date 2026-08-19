@@ -1042,6 +1042,7 @@ pub struct Waku {
     /// without consulting the environment or account database in a frame.
     home_directory: Option<PathBuf>,
     composer: Entity<ComposerInput>,
+    composer_input_scroll: ScrollHandle,
     user_input_answer: Entity<ComposerInput>,
     /// Drafts are independent of transcript persistence: started tasks key by
     /// session id, while blank New Task pages key by project id.
@@ -2596,6 +2597,7 @@ impl Waku {
                 store,
                 home_directory,
                 composer,
+                composer_input_scroll: ScrollHandle::new(),
                 user_input_answer,
                 composer_drafts,
                 composer_draft_store,

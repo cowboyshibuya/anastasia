@@ -172,6 +172,8 @@ pub struct DriverStartOptions {
     pub ponytail: Option<PonytailMode>,
     /// The Alabasta task this session executes, when it is bound to one.
     pub alabasta: Option<AlabastaLaunchRequest>,
+    /// The active session goal, when one is set.
+    pub goal: Option<anastasia_protocol::model::SessionGoal>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -225,6 +225,7 @@ impl CodexDriver {
             ponytail: _,
             harness_launch,
             alabasta,
+            goal: _,
         } = options;
         let provider_session_id = match provider_cursor {
             Some(ProviderResumeCursor::Codex { thread_id }) => Some(thread_id),

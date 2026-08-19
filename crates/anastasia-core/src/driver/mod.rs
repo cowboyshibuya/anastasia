@@ -208,6 +208,8 @@ pub struct DriverStartOptions {
     pub ponytail: Option<PonytailMode>,
     /// The Alabasta task this session executes, when it is bound to one.
     pub alabasta: Option<AlabastaLaunchRequest>,
+    /// The active session goal, when one is set.
+    pub goal: Option<anastasia_protocol::model::SessionGoal>,
     /// Everything Anastasia tells this runtime at launch, already composed.
     /// Filled in by [`start_local`]; drivers apply it and never resolve it
     /// themselves.
@@ -239,15 +241,15 @@ pub(crate) fn start_local(
     let alabasta = crate::alabasta::resolve(provider, options.alabasta.as_ref());
     let binding = alabasta.binding.clone();
     let plan = crate::harness::plan_contribution(options.interaction_mode, options.mode);
+    let goal = crate::harness::goal_contribution(options.goal.as_ref());
     let mut options = options;
     // Composed in authority order: Plan mode instructions bind first to ensure
     // the agent formulates a plan without attempting modifications, followed by
-    // workspace standing rules (Alabasta) and code-style preferences (Ponytail).
-    // `compose` owns each provider's single instruction channel, so the contributors
-    // cannot overwrite one another.
+    // persistent session goal, workspace standing rules (Alabasta) and code-style
+    // preferences (Ponytail).
     options.harness_launch = crate::harness::compose(
         provider,
-        vec![plan, alabasta.contribution, ponytail.contribution],
+        vec![plan, goal, alabasta.contribution, ponytail.contribution],
     );
     let inner: Arc<dyn DriverControl> = match provider {
         ProviderKind::Codex => Arc::new(codex::CodexDriver::start(options, events)?),

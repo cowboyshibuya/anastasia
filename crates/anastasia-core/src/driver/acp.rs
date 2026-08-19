@@ -108,6 +108,7 @@ impl AcpDriver {
             ponytail: _,
             harness_launch,
             alabasta: _,
+            goal: _,
         } = options;
         let fork_context = match &provider_cursor {
             Some(ProviderResumeCursor::Cursor { fork_context, .. }) => fork_context.clone(),
@@ -1740,6 +1741,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )

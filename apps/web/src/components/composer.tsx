@@ -635,6 +635,49 @@ export function Composer({
               }}
             />
           )}
+          {session?.goal && (
+            <div className="mb-2 flex flex-col items-center gap-1.5 w-full">
+              <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-card border text-[11.5px] font-medium text-muted-foreground">
+                <AnastasiaIcon className="size-3 text-primary animate-spin" name="sparkle" />
+                <span>Step {session.goal.step_current} / {session.goal.step_total}</span>
+              </div>
+              <div className="flex w-full items-center justify-between gap-3 rounded-[12px] border bg-card px-3.5 py-2 text-xs">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <AnastasiaIcon className="size-4 text-primary shrink-0" name="sparkle" />
+                  <span className="font-semibold text-foreground shrink-0">Pursuing goal</span>
+                  <span className="truncate text-muted-foreground">{session.goal.text}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 text-muted-foreground">
+                  <button
+                    className="p-1 rounded hover:bg-accent"
+                    title={session.goal.paused ? 'Resume goal' : 'Pause goal'}
+                    type="button"
+                    onClick={() => {
+                      if (session?.goal) {
+                        session.goal.paused = !session.goal.paused
+                        void saveSession(session)
+                      }
+                    }}
+                  >
+                    <AnastasiaIcon className="size-3.5" name={session.goal.paused ? 'sparkle' : 'stop'} />
+                  </button>
+                  <button
+                    className="p-1 rounded hover:bg-accent"
+                    title="Clear goal"
+                    type="button"
+                    onClick={() => {
+                      if (session) {
+                        session.goal = undefined
+                        void saveSession(session)
+                      }
+                    }}
+                  >
+                    <AnastasiaIcon className="size-3.5" name="trash" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <section
             className="rounded-[13px] border bg-card p-2.5 focus-within:border-input"
             onDragOver={(event) => {
@@ -673,8 +716,14 @@ export function Composer({
               value={prompt}
               onBlur={() => setInputFocused(false)}
               onChange={(event) => {
-                setPrompt(event.target.value)
-                setCursor(event.target.selectionStart)
+                const target = event.target
+                setPrompt(target.value)
+                setCursor(target.selectionStart)
+                requestAnimationFrame(() => {
+                  if (target.selectionStart === target.value.length) {
+                    target.scrollTop = target.scrollHeight
+                  }
+                })
               }}
               onClick={(event) => setCursor(event.currentTarget.selectionStart)}
               onFocus={() => setInputFocused(true)}

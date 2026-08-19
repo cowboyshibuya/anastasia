@@ -186,6 +186,7 @@ impl ClaudeDriver {
             ponytail: _,
             harness_launch,
             alabasta,
+            goal: _,
         } = options;
         let (resume_session_id, resume_at) = match provider_cursor {
             Some(ProviderResumeCursor::Claude {
@@ -1527,6 +1528,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )
@@ -1599,6 +1601,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )

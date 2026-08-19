@@ -99,6 +99,7 @@ impl AmpDriver {
             ponytail: _,
             harness_launch: _,
             alabasta: _,
+            goal: _,
         } = options;
         if mode != RuntimeMode::FullAccess || interaction_mode != InteractionMode::Build {
             return Err(anyhow!(
@@ -582,6 +583,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )
@@ -644,6 +646,7 @@ mod tests {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: None,
             },
             events,
         )

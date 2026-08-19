@@ -599,7 +599,7 @@ export function createSession(
   const now = unixTime()
   return {
     id: crypto.randomUUID(),
-    title: 'New task',
+    title: 'New',
     auto_title: null,
     project_id: projectId,
     workspace: isolated ? { kind: 'newWorktree' } : { kind: 'local' },
@@ -637,7 +637,7 @@ export function beginTurn(
   const mentions = attachments.map((attachment) => `@${attachment.mention}`).join(' ')
   const providerPrompt = [visiblePrompt, mentions].filter(Boolean).join(' ')
   const autoTitle =
-    session.messages.length === 0 && session.title === 'New task' && !session.auto_title
+    session.messages.length === 0 && (session.title === 'New' || session.title === 'New task') && !session.auto_title
       ? promptTitle(visiblePrompt || attachments[0]?.name || '')
       : session.auto_title
   return {
@@ -676,8 +676,8 @@ export function beginTurn(
 }
 
 export function displayTitle(session: AgentSession): string {
-  if (session.title !== 'New task' && session.title.trim()) return session.title
-  return session.auto_title?.trim() || 'New Task'
+  if (session.title !== 'New' && session.title !== 'New task' && session.title.trim()) return session.title
+  return session.auto_title?.trim() || 'New'
 }
 
 export function sessionCwd(session: AgentSession, project: Project): string {

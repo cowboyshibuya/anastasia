@@ -2745,13 +2745,20 @@ impl Waku {
                 .w_full()
                 .max_w(px(CONTENT_MAX_WIDTH))
                 .mx_auto()
-                .rounded(px(COMPOSER_RADIUS))
-                .border_1()
-                .border_color(theme.border)
-                .bg(theme.composer)
-                .px(px(16.0))
-                .pt(px(14.0))
-                .pb(px(10.0))
+                .flex()
+                .flex_col()
+                .gap(px(10.0))
+                .children(self.render_goal_banner(cx))
+                .child(
+                    div()
+                        .w_full()
+                        .rounded(px(COMPOSER_RADIUS))
+                        .border_1()
+                        .border_color(theme.border)
+                        .bg(theme.composer)
+                        .px(px(16.0))
+                        .pt(px(14.0))
+                        .pb(px(10.0))
                 .drag_over::<ExternalPaths>(move |style, _, _, _| {
                     style.bg(drop_wash).border_color(drop_ring)
                 })
@@ -2793,6 +2800,7 @@ impl Waku {
                         .min_h(px(COMPOSER_INPUT_MIN_HEIGHT))
                         .max_h(px(COMPOSER_INPUT_MAX_HEIGHT))
                         .overflow_y_scroll()
+                        .track_scroll(&self.composer_input_scroll)
                         .child(self.composer.clone()),
                 )
                 .child(
@@ -2933,6 +2941,7 @@ impl Waku {
                                 })),
                         }),
                 ),
+            ),
         )
     }
 
@@ -3833,3 +3842,142 @@ pub(super) fn visible_picker_models(
     }
     models
 }
+
+impl Waku {
+    pub(super) fn render_goal_banner(&self, cx: &mut Context<Self>) -> Option<Div> {
+        let session = self.selected_session()?;
+        let goal = session.goal.as_ref()?;
+        let theme = Theme::current(cx);
+        let session_id = session.id;
+        let paused = goal.paused;
+
+        let elapsed_seconds = anastasia_protocol::model::unix_time().saturating_sub(goal.created_at);
+        let elapsed_str = if elapsed_seconds < 60 {
+            format!("{}s", elapsed_seconds)
+        } else if elapsed_seconds < 3600 {
+            format!("{}m", elapsed_seconds / 60)
+        } else {
+            format!("{}h", elapsed_seconds / 3600)
+        };
+
+        let step_label = format!("Step {} / {}", goal.step_current, goal.step_total);
+
+        Some(
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .gap(px(6.0))
+                .w_full()
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(5.0))
+                        .px(px(10.0))
+                        .py(px(3.0))
+                        .rounded_full()
+                        .bg(theme.surface)
+                        .border_1()
+                        .border_color(theme.border)
+                        .text_size(px(11.5))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(theme.text_secondary)
+                        .child(icon("icons/loader-circle.svg", 12.0, theme.accent))
+                        .child(step_label),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .rounded(px(12.0))
+                        .border_1()
+                        .border_color(theme.border)
+                        .bg(theme.composer)
+                        .px(px(14.0))
+                        .py(px(10.0))
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(12.0))
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(8.0))
+                                .flex_1()
+                                .min_w(px(0.0))
+                                .child(icon("icons/target.svg", 15.0, theme.accent))
+                                .child(
+                                    div()
+                                        .text_size(px(12.5))
+                                        .text_color(theme.text)
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child("Pursuing goal"),
+                                )
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .text_size(px(12.5))
+                                        .text_color(theme.text_secondary)
+                                        .truncate()
+                                        .child(goal.text.clone()),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(8.0))
+                                .flex_none()
+                                .child(
+                                    div()
+                                        .text_size(px(11.5))
+                                        .text_color(theme.text_tertiary)
+                                        .child(elapsed_str),
+                                )
+                                .child(
+                                    div()
+                                        .id("goal-pause-toggle")
+                                        .p(px(4.0))
+                                        .rounded(px(4.0))
+                                        .cursor_pointer()
+                                        .hover(|s| s.bg(theme.overlay))
+                                        .tooltip(Tooltip::text(if paused { "Resume goal" } else { "Pause goal" }))
+                                        .child(if paused {
+                                            icon("icons/play.svg", 13.0, theme.text_secondary)
+                                        } else {
+                                            icon("icons/pause.svg", 13.0, theme.text_secondary)
+                                        })
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            if let Some(session) = this.state.session_mut(session_id) {
+                                                if let Some(goal) = session.goal.as_mut() {
+                                                    goal.paused = !goal.paused;
+                                                    session.updated_at = anastasia_protocol::model::unix_time();
+                                                }
+                                            }
+                                            cx.notify();
+                                        })),
+                                )
+                                .child(
+                                    div()
+                                        .id("goal-clear")
+                                        .p(px(4.0))
+                                        .rounded(px(4.0))
+                                        .cursor_pointer()
+                                        .hover(|s| s.bg(theme.overlay))
+                                        .tooltip(Tooltip::text("Clear goal"))
+                                        .child(icon("icons/trash.svg", 13.0, theme.text_secondary))
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            if let Some(session) = this.state.session_mut(session_id) {
+                                                session.goal = None;
+                                                session.updated_at = anastasia_protocol::model::unix_time();
+                                            }
+                                            cx.notify();
+                                        })),
+                                ),
+                        ),
+                ),
+        )
+    }
+}
+

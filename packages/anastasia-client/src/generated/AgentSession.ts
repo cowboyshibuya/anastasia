@@ -11,6 +11,7 @@ import type { QueuedMessage } from "./QueuedMessage";
 import type { ReportedCommand } from "./ReportedCommand";
 import type { RuntimeEventCursor } from "./RuntimeEventCursor";
 import type { RuntimeMode } from "./RuntimeMode";
+import type { SessionGoal } from "./SessionGoal";
 import type { SessionStatus } from "./SessionStatus";
 import type { SessionWorkspace } from "./SessionWorkspace";
 import type { TranscriptBlock } from "./TranscriptBlock";
@@ -83,4 +84,4 @@ provider_session_id?: string | null,
  * Not stored in the session JSON — these are rows in the `messages`
  * table, reattached when the session is hydrated.
  */
-messages: Array<Message>, transcript_blocks: Array<TranscriptBlock>, turns: Array<AgentTurn>, queued_messages?: Array<QueuedMessage>, };
+messages: Array<Message>, transcript_blocks: Array<TranscriptBlock>, turns: Array<AgentTurn>, queued_messages?: Array<QueuedMessage>, goal?: SessionGoal | null, };

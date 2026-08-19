@@ -61,6 +61,8 @@ pub fn init(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("backspace", Backspace, Some("ComposerInput")),
         KeyBinding::new("delete", Delete, Some("ComposerInput")),
+        KeyBinding::new("shift-delete", Delete, Some("ComposerInput")),
+        KeyBinding::new("shift-backspace", Backspace, Some("ComposerInput")),
         KeyBinding::new("alt-backspace", DeleteToPreviousWord, Some("ComposerInput")),
         KeyBinding::new("alt-delete", DeleteToNextWord, Some("ComposerInput")),
         KeyBinding::new("left", Left, Some("ComposerInput")),

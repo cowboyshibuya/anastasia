@@ -641,6 +641,7 @@ impl Backend for WakuBackend {
                     ponytail: options.ponytail,
                     harness_launch: crate::harness::HarnessLaunch::disabled(),
                     alabasta: options.alabasta,
+                    goal: options.goal,
                 };
                 let (wake, _wake_events) = smol::channel::bounded(1);
                 let (event_sender, event_receiver) = driver::event_channel(wake);
@@ -1174,6 +1175,7 @@ impl WakuBackend {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: source.goal.clone(),
             },
             event_sender,
         )?;
@@ -1328,6 +1330,7 @@ impl WakuBackend {
                 ponytail: None,
                 harness_launch: crate::harness::HarnessLaunch::disabled(),
                 alabasta: None,
+                goal: source.goal.clone(),
             },
             event_sender,
         )?;

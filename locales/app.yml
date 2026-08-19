@@ -11,7 +11,7 @@ menu.quit:
 menu.file:
   en: File
 menu.new_task:
-  en: New Task
+  en: New
 menu.new_project:
   en: New Project…
 menu.edit:
@@ -77,7 +77,7 @@ command_palette.commands:
 command_palette.settings:
   en: Settings
 command_palette.new_task:
-  en: New task
+  en: New
 command_palette.open_project:
   en: Open project…
 command_palette.choose_model:
@@ -590,7 +590,7 @@ common.rename:
   en: Rename
 
 session.new_task:
-  en: New task
+  en: New
 
 sidebar.today:
   en: Today
@@ -1201,6 +1201,8 @@ commands.review_description:
   en: Review the pending changes on this branch
 commands.commit_description:
   en: Stage and commit the current changes
+commands.goal_description:
+  en: Set or update the persistent session goal
 commands.fast_description:
   en: Toggle fast mode
 commands.fast_enabled:

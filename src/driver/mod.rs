@@ -39,6 +39,7 @@ pub(crate) fn start_remote(
                 .transpose()?,
             ponytail: options.ponytail,
             alabasta: options.alabasta,
+            goal: options.goal,
         },
     };
     let (supports_steer, ponytail, alabasta) = match client.request(session_id, runtime_id, command)

@@ -1549,6 +1549,7 @@ fn session_skeleton(row: SessionColumns) -> Option<AgentSession> {
         transcript_blocks: Vec::new(),
         turns: Vec::new(),
         queued_messages: Vec::new(),
+        goal: None,
         detail_loaded: false,
     })
 }
@@ -2644,7 +2645,7 @@ mod tests {
         store.save(&mut state).unwrap();
         assert_eq!(
             store_in(&directory).load().unwrap().sessions[0].title,
-            "New task",
+            AgentSession::DEFAULT_TITLE,
             "an unmarked change stays in memory"
         );
 
@@ -2918,7 +2919,7 @@ mod tests {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(title, AgentSession::DEFAULT_TITLE);
+        assert_eq!(title, "New task");
         assert_eq!(auto_title.as_deref(), Some("Investigate the parser"));
     }
 

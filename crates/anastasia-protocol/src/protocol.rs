@@ -8,7 +8,9 @@ use uuid::Uuid;
 use crate::alabasta::{AlabastaLaunchRequest, AlabastaSessionBinding};
 use crate::attachments::{AttachmentUpload, StoredAttachment};
 use crate::computer_use::ComputerPermissions;
-use crate::model::{AgentSession, Project, ProviderKind, ProviderProbe, UserInputAnswer};
+use crate::model::{
+    AgentSession, Project, ProviderKind, ProviderProbe, SessionGoal, UserInputAnswer,
+};
 use crate::persistence::{ComposerDraftChange, ComposerDrafts, SessionMessageMatch};
 use crate::ponytail::{PonytailMode, PonytailStatus};
 use crate::provider_session::{ProviderSessionFork, ProviderSessionForkRequest};
@@ -268,6 +270,9 @@ pub struct WireDriverStartOptions {
     /// credential: the daemon reads that from the keychain itself.
     #[serde(default)]
     pub alabasta: Option<AlabastaLaunchRequest>,
+    /// The active session goal, when one is set.
+    #[serde(default)]
+    pub goal: Option<SessionGoal>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
