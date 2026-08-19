@@ -35,9 +35,11 @@ jobs:
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             clang \
             cmake \
             libfontconfig-dev \

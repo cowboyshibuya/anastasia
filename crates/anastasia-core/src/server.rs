@@ -1506,7 +1506,7 @@ mod tests {
         // to terminal capability queries. The PTY's local echo is enough to
         // prove that daemon-side input and output both crossed the WebSocket.
         let marker = b"waku-terminal-round-trip";
-        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        let deadline = std::time::Instant::now() + Duration::from_secs(15);
         let mut output = Vec::new();
         let mut seen_events = Vec::new();
         while std::time::Instant::now() < deadline

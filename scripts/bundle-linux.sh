@@ -14,12 +14,17 @@ archive="$target_dir/release/$package.tar.gz"
 staging="$(mktemp -d)"
 trap 'rm -rf -- "$staging"' EXIT
 
-cargo build --release --package anastasia --bin anastasia --package anastasia-daemon --bin anastasia-daemon
+cargo build --release --package anastasia --bin anastasia --bin anastasia_js_repl --bin anastasia_alabasta_bridge --package anastasia-daemon --bin anastasia-daemon
 
 package_dir="$staging/$package"
 install -Dm755 "$target_dir/release/anastasia" "$package_dir/bin/anastasia"
-# Daemon executable packaged with sibling anastasia-daemon
 install -Dm755 "$target_dir/release/anastasia-daemon" "$package_dir/bin/anastasia-daemon"
+if [ -f "$target_dir/release/anastasia_js_repl" ]; then
+  install -Dm755 "$target_dir/release/anastasia_js_repl" "$package_dir/bin/anastasia_js_repl"
+fi
+if [ -f "$target_dir/release/anastasia_alabasta_bridge" ]; then
+  install -Dm755 "$target_dir/release/anastasia_alabasta_bridge" "$package_dir/bin/anastasia_alabasta_bridge"
+fi
 install -Dm644 resources/linux/app.anastasia.desktop \
   "$package_dir/share/applications/app.anastasia.desktop"
 install -Dm644 resources/linux/app.anastasia.png \

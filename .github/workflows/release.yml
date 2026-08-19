@@ -85,9 +85,11 @@ jobs:
           rustup default 1.96.0
 
       - name: Install Linux dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             clang \
             cmake \
             libfontconfig-dev \
@@ -145,9 +147,11 @@ jobs:
           rustup default 1.96.0
 
       - name: Install Linux dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             clang \
             cmake \
             libfontconfig-dev \
