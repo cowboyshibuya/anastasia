@@ -44,6 +44,8 @@ export type { MessageAttachment } from "./MessageAttachment";
 export type { MessageRole } from "./MessageRole";
 export type { ModelSlice } from "./ModelSlice";
 export type { MonthSlice } from "./MonthSlice";
+export type { PlanStep } from "./PlanStep";
+export type { PlanStepStatus } from "./PlanStepStatus";
 export type { PlanUsage } from "./PlanUsage";
 export type { PlanWindow } from "./PlanWindow";
 export type { PonytailIntegration } from "./PonytailIntegration";
