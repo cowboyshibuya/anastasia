@@ -33,7 +33,8 @@ use crate::model::{
     ActivityItem, ActivityKind, AgentSession, BackgroundWorkEvent, BackgroundWorkItem,
     BackgroundWorkKey, BackgroundWorkKind, BackgroundWorkStatus, Checkpoint, CheckpointStatus,
     ContextUsage, DriverEvent, FavoriteModel, InteractionMode, Message, MessageAttachment,
-    MessageRole, PendingPermission, Project, ProviderKind, ProviderModel, ProviderProbe,
+    MessageRole, PLAN_ACCEPT, PendingPermission, Project, ProviderKind, ProviderModel,
+    ProviderProbe,
     ProviderResumeCursor, QueuedMessage, ReasoningBlock, RuntimeMode, SessionStatus,
     SessionWorkspace, TranscriptBlock, TurnStatus, UserInputAnswer, UserInputQuestion,
     compact_path, unix_time, unix_time_millis,
@@ -1129,6 +1130,10 @@ pub struct Waku {
     /// Providers whose turn settled since the last fetch, so the meters have
     /// moved.
     plan_usage_stale: HashSet<ProviderKind>,
+    /// Sessions whose options changed mid-turn and still owe a runtime restart.
+    /// Tearing down a busy session strands it in `Working` with no process left
+    /// to settle it, so the relaunch waits for the turn to end.
+    pending_runtime_reset: HashSet<Uuid>,
     /// The settings Usage page's snapshot: historical token/cost usage
     /// scanned from provider transcripts off-thread. Frames read only this.
     usage_history: Option<crate::usage_history::UsageHistory>,
@@ -2655,6 +2660,7 @@ impl Waku {
                 plan_usage_unconfigured: HashSet::new(),
                 plan_usage_checked_at: HashMap::new(),
                 plan_usage_stale: HashSet::new(),
+                pending_runtime_reset: HashSet::new(),
                 usage_history: None,
                 usage_history_pending_for: None,
                 usage_history_generation: 0,

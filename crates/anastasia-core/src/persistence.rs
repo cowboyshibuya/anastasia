@@ -231,6 +231,8 @@ struct AppState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     last_model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_model_project: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     last_reasoning_effort: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     last_service_tier: Option<String>,
@@ -264,6 +266,11 @@ pub struct PersistedState {
     pub last_provider: ProviderKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_model: Option<String>,
+    /// The project the remembered model was chosen in. A model choice is scoped
+    /// to its project so an expensive pick cannot silently follow the user into
+    /// every new project and shadow the catalog default forever.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_model_project: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_reasoning_effort: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -357,6 +364,7 @@ impl PersistedState {
             selected_session: None,
             last_provider: ProviderKind::Codex,
             last_model: None,
+            last_model_project: None,
             last_reasoning_effort: None,
             last_service_tier: None,
             last_context_window: None,
@@ -391,7 +399,10 @@ impl PersistedState {
 
     pub fn new_session(&self, project_id: Uuid, provider: ProviderKind) -> AgentSession {
         let mut session = AgentSession::new(project_id, provider);
-        if provider == self.last_provider {
+        // Scoped to the project the choice was made in: a deliberate pick of an
+        // expensive model sticks where it was made, while a new project starts
+        // from the catalog default instead of inheriting it forever.
+        if provider == self.last_provider && self.last_model_project == Some(project_id) {
             session.model.clone_from(&self.last_model);
             session
                 .reasoning_effort
@@ -484,6 +495,7 @@ impl PersistedState {
             selected_session: self.persistable_selected_session(),
             last_provider: self.last_provider,
             last_model: self.last_model.clone(),
+            last_model_project: self.last_model_project,
             last_reasoning_effort: self.last_reasoning_effort.clone(),
             last_service_tier: self.last_service_tier.clone(),
             last_context_window: self.last_context_window.clone(),
@@ -519,6 +531,7 @@ impl PersistedState {
         self.selected_session = app_state.selected_session;
         self.last_provider = app_state.last_provider;
         self.last_model = app_state.last_model;
+        self.last_model_project = app_state.last_model_project;
         self.last_reasoning_effort = app_state.last_reasoning_effort;
         self.last_service_tier = app_state.last_service_tier;
         self.last_context_window = app_state.last_context_window;
@@ -3448,13 +3461,18 @@ mod tests {
     #[test]
     fn selected_model_and_traits_are_used_for_new_sessions() {
         let mut state = PersistedState::fresh(PathBuf::from("/tmp/project"));
+        let project_id = state.projects[0].id;
         state.last_provider = ProviderKind::Grok;
         state.last_model = Some("grok-code-fast-1".into());
+        state.last_model_project = Some(project_id);
         state.last_reasoning_effort = Some("high".into());
         state.last_service_tier = Some("fast".into());
 
-        let remembered = state.new_session(state.projects[0].id, ProviderKind::Grok);
-        let other_provider = state.new_session(state.projects[0].id, ProviderKind::Codex);
+        let remembered = state.new_session(project_id, ProviderKind::Grok);
+        let other_provider = state.new_session(project_id, ProviderKind::Codex);
+        // A model chosen in one project must not follow the user into another;
+        // inheriting it everywhere is how an expensive pick becomes permanent.
+        let other_project = state.new_session(Uuid::new_v4(), ProviderKind::Grok);
 
         assert_eq!(remembered.model.as_deref(), Some("grok-code-fast-1"));
         assert_eq!(remembered.reasoning_effort.as_deref(), Some("high"));
@@ -3462,6 +3480,8 @@ mod tests {
         assert!(other_provider.model.is_none());
         assert!(other_provider.reasoning_effort.is_none());
         assert!(other_provider.service_tier.is_none());
+        assert!(other_project.model.is_none());
+        assert!(other_project.reasoning_effort.is_none());
     }
 
     #[test]

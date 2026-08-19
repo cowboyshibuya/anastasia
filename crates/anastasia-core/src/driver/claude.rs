@@ -32,8 +32,9 @@ use crate::driver::{
 };
 use crate::model::{
     ActivityKind, BackgroundWorkEvent, BackgroundWorkItem, BackgroundWorkKey, BackgroundWorkKind,
-    BackgroundWorkStatus, DriverEvent, InteractionMode, PermissionOption, ProviderResumeCursor,
-    RuntimeMode, UserInputAnswer, UserInputOption, UserInputQuestion, unix_time_millis,
+    BackgroundWorkStatus, DriverEvent, InteractionMode, PLAN_ACCEPT, PLAN_KEEP_PLANNING,
+    PermissionOption, ProviderResumeCursor, RuntimeMode, UserInputAnswer, UserInputOption,
+    UserInputQuestion, unix_time_millis,
 };
 
 enum CommandMessage {
@@ -370,13 +371,18 @@ impl ClaudeDriver {
                             request_id,
                             option_id,
                         } => {
-                            let decision = if option_id == "deny" {
-                                json!({
+                            let decision = match option_id.as_str() {
+                                "deny" => json!({
                                     "behavior": "deny",
                                     "message": "The user denied this tool call."
-                                })
-                            } else {
-                                json!({"behavior": "allow"})
+                                }),
+                                // Rejecting a plan is not rejecting a tool: the
+                                // agent must stay in Plan mode and revise.
+                                PLAN_KEEP_PLANNING => json!({
+                                    "behavior": "deny",
+                                    "message": "The user did not approve this plan. Remain in plan mode: ask what they want changed, then present a revised plan. Do not edit files or run mutating commands."
+                                }),
+                                _ => json!({"behavior": "allow"}),
                             };
                             write_line(
                                 &mut stdin,
@@ -582,6 +588,10 @@ impl DriverControl for ClaudeDriver {
     fn apply_options(&self, options: SessionOptions) -> bool {
         // The model has a setter; the permission posture is a launch flag, and
         // changing what a running agent may touch deserves a fresh session.
+        // Interaction mode is one too — a running process keeps the
+        // `--permission-mode` it was launched with — so a manual toggle must
+        // still relaunch. (Accepting a plan is the exception, and it never
+        // reaches here: the agent already left plan mode via ExitPlanMode.)
         if options.mode != self.mode || options.interaction_mode != self.interaction_mode {
             return false;
         }
@@ -1048,7 +1058,11 @@ fn handle_message(
         }
         Some("control_request") => {
             if value.pointer("/request/subtype").and_then(Value::as_str) == Some("can_use_tool") {
-                if !request_user_input(value, events, state) {
+                // Plan approval is checked alongside user input, ahead of
+                // `request_permission`, so neither is ever silently
+                // auto-approved: leaving Plan mode is the user's call.
+                if !request_user_input(value, events, state) && !request_plan_approval(value, events)
+                {
                     request_permission(value, events, commands, auto_approve);
                 }
             }
@@ -1399,6 +1413,47 @@ fn request_user_input(
     let _ = events.send(DriverEvent::UserInputRequested {
         request_id: request_id.to_owned(),
         questions,
+    });
+    true
+}
+
+/// Surfaces `ExitPlanMode` as a plan-approval prompt. Returns `false` for every
+/// other tool so the caller falls through to the normal permission path.
+///
+/// This deliberately bypasses `auto_approve`: under the default `FullAccess`
+/// posture a generic permission would be answered for the user, which would
+/// leave Plan mode without them ever seeing the plan.
+fn request_plan_approval(value: &Value, events: &impl DriverEventSink) -> bool {
+    let request = value.get("request").unwrap_or(&Value::Null);
+    if request.get("tool_name").and_then(Value::as_str) != Some("ExitPlanMode") {
+        return false;
+    }
+    let Some(request_id) = value.get("request_id").and_then(Value::as_str) else {
+        return true;
+    };
+    let detail = request
+        .pointer("/input/plan")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|plan| !plan.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| tr!("plan.review_before_building"));
+    let _ = events.send(DriverEvent::Permission {
+        request_id: request_id.to_owned(),
+        title: tr!("plan.ready_to_code"),
+        detail,
+        options: vec![
+            PermissionOption {
+                id: PLAN_ACCEPT.into(),
+                label: tr!("plan.accept"),
+                allow: true,
+            },
+            PermissionOption {
+                id: PLAN_KEEP_PLANNING.into(),
+                label: tr!("plan.keep_planning"),
+                allow: false,
+            },
+        ],
     });
     true
 }
@@ -2253,6 +2308,62 @@ mod tests {
         assert_eq!(questions[0].options[0].label, "Preview");
         assert!(command_rx.try_recv().is_err());
         assert!(state.pending_user_inputs.lock().contains_key("ask-1"));
+    }
+
+    #[test]
+    fn exit_plan_mode_asks_the_user_even_under_full_access() {
+        let (events, event_rx, commands, command_rx, turn, mut state) = harness();
+        let request = json!({
+            "type": "control_request",
+            "request_id": "plan-1",
+            "request": {
+                "subtype": "can_use_tool",
+                "tool_name": "ExitPlanMode",
+                "input": {"plan": "## Steps\n1. Rewire the driver."}
+            }
+        });
+
+        // `true` is Full Access, where every other tool is auto-approved.
+        // Leaving Plan mode is the user's call, so this one must not be.
+        handle_message(&request, "s", &events, &commands, &turn, true, &mut state);
+        let DriverEvent::Permission {
+            request_id,
+            detail,
+            options,
+            ..
+        } = event_rx.try_recv().unwrap()
+        else {
+            panic!("ExitPlanMode must reach the plan approval UI");
+        };
+        assert_eq!(request_id, "plan-1");
+        assert!(detail.contains("Rewire the driver"), "the plan is the detail");
+        assert_eq!(options[0].id, PLAN_ACCEPT);
+        assert!(options[0].allow);
+        assert_eq!(options[1].id, PLAN_KEEP_PLANNING);
+        assert!(!options[1].allow);
+        // Nothing was answered on the user's behalf.
+        assert!(command_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn other_tools_still_take_the_ordinary_permission_path() {
+        let (events, event_rx, commands, _command_rx, turn, mut state) = harness();
+        let request = json!({
+            "type": "control_request",
+            "request_id": "bash-1",
+            "request": {
+                "subtype": "can_use_tool",
+                "tool_name": "Bash",
+                "input": {"command": "ls"}
+            }
+        });
+
+        handle_message(&request, "s", &events, &commands, &turn, false, &mut state);
+        let DriverEvent::Permission { options, .. } = event_rx.try_recv().unwrap() else {
+            panic!("a normal tool must still raise a normal permission");
+        };
+        assert_eq!(options[0].id, "allow");
+        assert_eq!(options[1].id, "deny");
     }
 
     #[test]

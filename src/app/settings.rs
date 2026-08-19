@@ -1859,6 +1859,7 @@ impl Waku {
             if self.state.last_provider == provider {
                 self.state.last_provider = fallback;
                 self.state.last_model = None;
+                self.state.last_model_project = None;
                 self.state.last_reasoning_effort = None;
                 self.state.last_service_tier = None;
                 self.state.last_context_window = None;

@@ -39,14 +39,36 @@ impl Waku {
         let mut buttons = div().flex().items_center().gap(px(8.0)).mt(px(10.0));
         for option in &permission.options {
             let request_id = request_id.clone();
+            let key_request_id = request_id.clone();
             let option_id = option.id.clone();
+            let key_option_id = option.id.clone();
             let allow = option.allow;
+            // Deciding a permission — and accepting a plan — must be reachable
+            // without a mouse, matching the question card next door.
+            let focus = self.transcript_control_focus(
+                format!("permission-{}-{}", permission.request_id, option.id),
+                cx,
+            );
             buttons = buttons.child(
                 div()
                     .id(SharedString::from(format!(
                         "permission-{}-{}",
                         permission.request_id, option.id
                     )))
+                    .track_focus(&focus)
+                    .tab_index(0)
+                    .tab_stop(true)
+                    .focus_visible(|style| style.border_1().border_color(theme.accent))
+                    .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
+                        if matches!(event.keystroke.key.as_str(), "enter" | "space") {
+                            this.respond_permission(
+                                key_request_id.clone(),
+                                key_option_id.clone(),
+                                cx,
+                            );
+                            cx.stop_propagation();
+                        }
+                    }))
                     .h(px(28.0))
                     .px(px(13.0))
                     .rounded(px(7.0))
@@ -1094,7 +1116,13 @@ impl Waku {
                     let select_popover = popover.clone();
                     let favorite_model_id = model.id.clone();
                     let favorite_weak = weak.clone();
-                    let subtitle = model_picker_subtitle(kind, model.sub_provider.as_deref());
+                    let subtitle = match model_usage_hint(kind, &model.id) {
+                        Some(hint) => format!(
+                            "{} · {hint}",
+                            model_picker_subtitle(kind, model.sub_provider.as_deref())
+                        ),
+                        None => model_picker_subtitle(kind, model.sub_provider.as_deref()),
+                    };
                     rows = rows.child(
                         div()
                             .id(SharedString::from(format!(
@@ -3779,6 +3807,27 @@ pub(super) fn model_picker_subtitle(provider: ProviderKind, sub_provider: Option
         Some(name) if name.eq_ignore_ascii_case(provider_name) => provider_name.to_owned(),
         Some(name) => format!("{name} · {provider_name}"),
         None => provider_name.to_owned(),
+    }
+}
+
+/// How hard a model draws on the plan's rate limit, relative to Sonnet.
+///
+/// Picking Opus is a fivefold decision the picker otherwise makes look like a
+/// lateral one, which is how a single prompt quietly eats a fifth of a window.
+/// Sonnet is the baseline and stays unlabelled. Static, so it costs a frame
+/// nothing; only Claude publishes a documented ratio, so only Claude is scored.
+pub(super) fn model_usage_hint(provider: ProviderKind, model_id: &str) -> Option<String> {
+    if provider != ProviderKind::Claude {
+        return None;
+    }
+    // The `[1m]` long-context suffix rides on the id; match the family only.
+    let id = model_id.to_ascii_lowercase();
+    if id.contains("opus") || id.contains("fable") {
+        Some(tr!("models.usage_high"))
+    } else if id.contains("haiku") {
+        Some(tr!("models.usage_low"))
+    } else {
+        None
     }
 }
 

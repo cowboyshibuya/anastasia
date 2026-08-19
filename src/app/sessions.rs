@@ -181,6 +181,7 @@ impl Waku {
             self.state.selected_project = Some(project_id);
             self.state.last_provider = provider;
             self.state.last_model = model;
+            self.state.last_model_project = Some(project_id);
             self.state.last_reasoning_effort = reasoning_effort;
             self.state.last_service_tier = service_tier;
             self.state.last_context_window = context_window;
@@ -828,6 +829,7 @@ impl Waku {
     }
 
     pub(super) fn reset_session_runtime(&mut self, session_id: Uuid) {
+        self.pending_runtime_reset.remove(&session_id);
         if let Some(runtime) = self.runtimes.remove(&session_id) {
             runtime.driver.cancel();
             runtime.driver.close();
@@ -875,6 +877,7 @@ impl Waku {
         else {
             return;
         };
+        let project_id = self.selected_session().map(|session| session.project_id);
 
         self.remember_selected_model_traits();
         let (reasoning_effort, service_tier, context_window) =
@@ -890,6 +893,7 @@ impl Waku {
             session.context_window.clone_from(&context_window);
             self.state.last_provider = provider;
             self.state.last_model = Some(model);
+            self.state.last_model_project = project_id;
             self.state.last_reasoning_effort = reasoning_effort;
             self.state.last_service_tier = service_tier;
             self.state.last_context_window = context_window;
@@ -1231,6 +1235,7 @@ impl Waku {
             .iter()
             .find(|session| session.id == session_id)
             .map(|session| session.provider.id());
+        let accepted_plan = option_id == PLAN_ACCEPT;
         let decision = if let Some(runtime) = self.runtimes.get_mut(&session_id) {
             let decision = runtime
                 .pending_permission
@@ -1259,13 +1264,20 @@ impl Waku {
                     decision,
                 });
         }
+        // Accepting a plan is the only way out of Plan mode. Deliberately no
+        // `apply_session_options` here: the agent already left plan mode by
+        // calling ExitPlanMode, so the running process is correct and the flag
+        // only matters at the next launch. Restarting would kill the live turn.
+        let mut accepted = false;
         if let Some(session) = self.selected_session_mut() {
             session.status = SessionStatus::Working;
-            if decision == Some("allow") && session.interaction_mode == InteractionMode::Plan {
+            if accepted_plan && session.interaction_mode == InteractionMode::Plan {
                 session.interaction_mode = InteractionMode::Build;
-                self.apply_session_options(session_id, cx);
-                self.save();
+                accepted = true;
             }
+        }
+        if accepted {
+            self.save();
         }
         cx.notify();
     }
@@ -1430,13 +1442,10 @@ impl Waku {
             runtime
                 .driver
                 .respond_user_input(pending.request_id, answers);
+            // Answering clarifying questions is not plan approval: the agent
+            // is still planning and the turn is still running.
             if let Some(session) = self.state.session_mut(session_id) {
                 session.status = SessionStatus::Working;
-                if session.interaction_mode == InteractionMode::Plan {
-                    session.interaction_mode = InteractionMode::Build;
-                    self.apply_session_options(session_id, cx);
-                    self.save();
-                }
             }
             self.user_input_answer
                 .update(cx, |input, cx| input.clear(cx));

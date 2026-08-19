@@ -1832,6 +1832,13 @@ impl<'de> Deserialize<'de> for ReportedCommand {
     }
 }
 
+/// Permission option id that accepts a proposed plan and moves the session from
+/// Plan to Build. This is the only path out of Plan mode.
+pub const PLAN_ACCEPT: &str = "accept_plan";
+/// Permission option id that rejects a proposed plan and keeps the session in
+/// Plan mode so the agent can revise it.
+pub const PLAN_KEEP_PLANNING: &str = "keep_planning";
+
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PermissionOption {

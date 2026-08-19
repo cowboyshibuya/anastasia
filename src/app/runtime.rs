@@ -2615,9 +2615,25 @@ impl Waku {
                     .runtimes
                     .get(&session_id)
                     .is_some_and(|runtime| runtime.options_generation == generation);
+                // Never tear down a busy session: `reset_session_runtime`
+                // removes the runtime, so the resulting TurnFinished /
+                // ProcessExited events are never drained and the session is
+                // stranded in `Working` forever. Defer to the end of the turn
+                // instead; while idle the reset is free, since the next prompt
+                // relaunches with the new options anyway.
+                let busy = waku
+                    .state
+                    .sessions
+                    .iter()
+                    .find(|session| session.id == session_id)
+                    .is_some_and(|session| session.status.is_busy());
                 if is_current && !applied {
-                    waku.reset_session_runtime(session_id);
-                    cx.notify();
+                    if busy {
+                        waku.pending_runtime_reset.insert(session_id);
+                    } else {
+                        waku.reset_session_runtime(session_id);
+                        cx.notify();
+                    }
                 }
             });
         })

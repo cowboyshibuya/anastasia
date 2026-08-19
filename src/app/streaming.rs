@@ -549,6 +549,12 @@ impl Waku {
                         );
                     }
                 }
+                // An options change that arrived mid-turn deferred its restart
+                // to here, so the new launch flags take effect on the next
+                // prompt rather than being silently dropped.
+                if self.pending_runtime_reset.contains(&session_id) {
+                    self.reset_session_runtime(session_id);
+                }
                 self.finish_active_turn_with_analytics(
                     session_id,
                     if success {

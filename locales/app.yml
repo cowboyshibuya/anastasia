@@ -1036,11 +1036,23 @@ permission.agent_asks_for_permission:
   en: The agent is asking for permission
 permission.agent_wants_to:
   en: The agent wants to %{action}
+plan.ready_to_code:
+  en: Ready to code?
+plan.review_before_building:
+  en: The agent finished planning. Review the plan, then choose whether to start building.
+plan.accept:
+  en: Accept plan
+plan.keep_planning:
+  en: Keep planning
 common.close:
   en: Close
 common.default:
   en: Default
 
+models.usage_high:
+  en: ~5× Sonnet usage
+models.usage_low:
+  en: ~⅓ Sonnet usage
 models.none_found:
   en: No models found
 models.favorite_hint:
