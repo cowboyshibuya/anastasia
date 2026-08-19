@@ -93,6 +93,8 @@ const COMPOSER_LINE_HEIGHT: f32 = 24.0;
 /// The empty composer's typing area. Tall enough that the card reads as an
 /// invitation to write rather than a one-line input.
 const COMPOSER_INPUT_MIN_HEIGHT: f32 = 64.0;
+/// Maximum height of the composer's typing area before it scrolls.
+const COMPOSER_INPUT_MAX_HEIGHT: f32 = 240.0;
 /// Corner radius of the composer card.
 const COMPOSER_RADIUS: f32 = 26.0;
 /// Diameter of the send / stop button.

@@ -19,7 +19,38 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
+use anastasia_protocol::model::{InteractionMode, RuntimeMode};
 use crate::model::ProviderKind;
+
+/// Plan Mode instructions injected into the provider's instruction channel.
+pub const PLAN_MODE_INSTRUCTIONS: &str = "\
+# Plan Mode Instructions
+You are operating in Plan Mode.
+1. Review and inspect the codebase to thoroughly analyze the user's request (read-only).
+2. Do NOT write, edit, create, or delete any files.
+3. Do NOT execute mutating or destructive commands.
+4. Formulate a comprehensive implementation plan detailing:
+   - Summary of the problem and proposed approach
+   - Specific files to create, modify, or delete
+   - Step-by-step implementation changes
+   - Verification and testing plan
+5. Ask any necessary clarifying questions if requirements are ambiguous.
+6. Present the complete plan to the user and request their confirmation to proceed with implementation in Build mode.";
+
+/// Generates a harness contribution when operating in Plan mode.
+pub fn plan_contribution(
+    interaction_mode: InteractionMode,
+    mode: RuntimeMode,
+) -> HarnessContribution {
+    if interaction_mode == InteractionMode::Plan || mode == RuntimeMode::Plan {
+        HarnessContribution {
+            instructions: Some(PLAN_MODE_INSTRUCTIONS.to_owned()),
+            ..HarnessContribution::default()
+        }
+    } else {
+        HarnessContribution::default()
+    }
+}
 
 /// Separator between contributions in a composed instruction channel. A visible
 /// rule keeps two rulesets from reading as one run-on document to the model.
@@ -352,6 +383,30 @@ mod tests {
             env,
             vec![("PLUGIN_DATA".to_owned(), Some(hostile.to_owned()))]
         );
+    }
+
+    #[test]
+    fn plan_mode_generates_instructions_and_composes_cleanly() {
+        let plan = plan_contribution(InteractionMode::Plan, RuntimeMode::FullAccess);
+        assert!(plan.instructions.is_some());
+        assert!(plan.instructions.unwrap().contains("Plan Mode Instructions"));
+
+        let build = plan_contribution(InteractionMode::Build, RuntimeMode::FullAccess);
+        assert_eq!(build, HarnessContribution::default());
+
+        let claude_launch = compose(
+            ProviderKind::Claude,
+            vec![plan_contribution(InteractionMode::Plan, RuntimeMode::Ask)],
+        );
+        assert_eq!(claude_launch.args[0], "--append-system-prompt");
+        assert!(claude_launch.args[1].contains("Plan Mode Instructions"));
+
+        let codex_launch = compose(
+            ProviderKind::Codex,
+            vec![plan_contribution(InteractionMode::Plan, RuntimeMode::FullAccess)],
+        );
+        assert_eq!(codex_launch.args[0], "-c");
+        assert!(codex_launch.args[1].contains("Plan Mode Instructions"));
     }
 
     #[test]

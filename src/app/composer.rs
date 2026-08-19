@@ -2788,8 +2788,11 @@ impl Waku {
                 })
                 .child(
                     div()
+                        .id("composer-input-scroll")
                         .px(px(2.0))
                         .min_h(px(COMPOSER_INPUT_MIN_HEIGHT))
+                        .max_h(px(COMPOSER_INPUT_MAX_HEIGHT))
+                        .overflow_y_scroll()
                         .child(self.composer.clone()),
                 )
                 .child(

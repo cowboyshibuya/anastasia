@@ -238,13 +238,17 @@ pub(crate) fn start_local(
     let status = ponytail.status.clone();
     let alabasta = crate::alabasta::resolve(provider, options.alabasta.as_ref());
     let binding = alabasta.binding.clone();
+    let plan = crate::harness::plan_contribution(options.interaction_mode, options.mode);
     let mut options = options;
-    // Composed in authority order: a workspace's approved decisions and standing
-    // rules bind harder than a code-style preference, so Alabasta goes first.
-    // `compose` owns each provider's single instruction channel, so the two
+    // Composed in authority order: Plan mode instructions bind first to ensure
+    // the agent formulates a plan without attempting modifications, followed by
+    // workspace standing rules (Alabasta) and code-style preferences (Ponytail).
+    // `compose` owns each provider's single instruction channel, so the contributors
     // cannot overwrite one another.
-    options.harness_launch =
-        crate::harness::compose(provider, vec![alabasta.contribution, ponytail.contribution]);
+    options.harness_launch = crate::harness::compose(
+        provider,
+        vec![plan, alabasta.contribution, ponytail.contribution],
+    );
     let inner: Arc<dyn DriverControl> = match provider {
         ProviderKind::Codex => Arc::new(codex::CodexDriver::start(options, events)?),
         ProviderKind::Pi => Arc::new(pi::PiDriver::start(options, events)?),

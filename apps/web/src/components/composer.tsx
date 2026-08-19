@@ -666,7 +666,7 @@ export function Composer({
                 ? `composer-autocomplete-${autocompleteHighlight}`
                 : undefined}
               aria-autocomplete="list"
-              className="max-h-48 min-h-[46px] resize-none border-0 bg-transparent px-1 pb-1 pt-0 text-[14px] leading-5 shadow-none focus-visible:ring-0"
+              className="max-h-48 min-h-[46px] overflow-y-auto resize-none border-0 bg-transparent px-1 pb-1 pt-0 text-[14px] leading-5 shadow-none focus-visible:ring-0"
               placeholder={t(busy ? 'composer.queue_placeholder' : 'composer.prompt_placeholder')}
               ref={composerInput}
               role="combobox"
