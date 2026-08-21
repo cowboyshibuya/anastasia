@@ -15,6 +15,7 @@ export type { AttachmentUpload } from "./AttachmentUpload";
 export type { AttachmentUploadEntry } from "./AttachmentUploadEntry";
 export type { BranchEntry } from "./BranchEntry";
 export type { BranchSnapshot } from "./BranchSnapshot";
+export type { CacheUsage } from "./CacheUsage";
 export type { Checkpoint } from "./Checkpoint";
 export type { CheckpointFile } from "./CheckpointFile";
 export type { CheckpointStatus } from "./CheckpointStatus";
