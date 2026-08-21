@@ -1489,6 +1489,7 @@ impl Waku {
             (label, Some(window)) => format!("{label} · {window}"),
             (label, None) => label,
         };
+        let provider = session.provider;
         let reasoning_efforts = model.reasoning_efforts.clone();
         let default_effort = model.default_reasoning_effort.clone();
         let service_tiers = model.service_tiers.clone();
@@ -1521,13 +1522,18 @@ impl Waku {
                         let is_default = default_effort.as_deref() == Some(effort.as_str());
                         let selected = selected_effort.as_deref() == Some(effort.as_str());
                         items.push(
-                            traits_choice(theme, option.label, is_default, selected).on_click(
-                                move |_, cx| {
-                                    let _ = weak.update(cx, |this, cx| {
-                                        this.set_reasoning_effort(effort.clone(), cx);
-                                    });
-                                },
-                            ),
+                            traits_choice(
+                                theme,
+                                option.label,
+                                reasoning_usage_hint(provider, &effort),
+                                is_default,
+                                selected,
+                            )
+                            .on_click(move |_, cx| {
+                                let _ = weak.update(cx, |this, cx| {
+                                    this.set_reasoning_effort(effort.clone(), cx);
+                                });
+                            }),
                         );
                     }
                 }
@@ -1541,6 +1547,7 @@ impl Waku {
                         traits_choice(
                             theme,
                             tr!("models.standard"),
+                            None,
                             default_tier == "default",
                             selected_tier == "default",
                         )
@@ -1556,13 +1563,12 @@ impl Waku {
                         let is_default = default_tier == tier;
                         let selected = selected_tier == tier;
                         items.push(
-                            traits_choice(theme, option.label, is_default, selected).on_click(
-                                move |_, cx| {
+                            traits_choice(theme, option.label, None, is_default, selected)
+                                .on_click(move |_, cx| {
                                     let _ = weak.update(cx, |this, cx| {
                                         this.set_service_tier(tier.clone(), cx);
                                     });
-                                },
-                            ),
+                                }),
                         );
                     }
                 }
@@ -1577,13 +1583,18 @@ impl Waku {
                         let is_default = default_window.as_deref() == Some(window.as_str());
                         let selected = selected_window.as_deref() == Some(window.as_str());
                         items.push(
-                            traits_choice(theme, option.label, is_default, selected).on_click(
-                                move |_, cx| {
-                                    let _ = weak.update(cx, |this, cx| {
-                                        this.set_context_window(window.clone(), cx);
-                                    });
-                                },
-                            ),
+                            traits_choice(
+                                theme,
+                                option.label,
+                                context_window_usage_hint(provider, &window),
+                                is_default,
+                                selected,
+                            )
+                            .on_click(move |_, cx| {
+                                let _ = weak.update(cx, |this, cx| {
+                                    this.set_context_window(window.clone(), cx);
+                                });
+                            }),
                         );
                     }
                 }
@@ -3829,6 +3840,25 @@ pub(super) fn model_usage_hint(provider: ProviderKind, model_id: &str) -> Option
     } else {
         None
     }
+}
+
+/// How hard a reasoning effort draws on the plan's rate limit.
+///
+/// `ultracode` is not simply one more rung above `xhigh`: it also turns on
+/// standing dynamic-workflow orchestration, so the session spawns subagents, and
+/// subagents are the single largest token consumer available from this menu. It
+/// sat in the ladder looking like a lateral step. Reasoning tokens bill as output
+/// and are re-read as input on the following turn, so the rungs below it compound
+/// too — but only `ultracode` changes the shape of what runs.
+pub(super) fn reasoning_usage_hint(provider: ProviderKind, effort: &str) -> Option<String> {
+    (provider == ProviderKind::Claude && effort == "ultracode")
+        .then(|| tr!("models.usage_subagents"))
+}
+
+/// The 1M window is a premium input tier, not just more room, and the bare "1M"
+/// label read as a capacity choice rather than a price one.
+pub(super) fn context_window_usage_hint(provider: ProviderKind, window: &str) -> Option<String> {
+    (provider == ProviderKind::Claude && window == "1m").then(|| tr!("models.usage_premium"))
 }
 
 /// The models the picker lists, in display order.

@@ -1289,6 +1289,7 @@ fn handle_session_update(
                 let _ = events.send(DriverEvent::UsageUpdated {
                     context_tokens: used,
                     context_window: window,
+                    cache: None,
                 });
             }
         }
@@ -1699,6 +1700,7 @@ mod tests {
             DriverEvent::UsageUpdated {
                 context_tokens: Some(9677),
                 context_window: Some(500000),
+                cache: None,
             }
         ));
     }

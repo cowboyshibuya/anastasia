@@ -454,6 +454,7 @@ impl Waku {
             DriverEvent::UsageUpdated {
                 context_tokens,
                 context_window,
+                cache,
             } => {
                 // Meta about the conversation, not turn output: it applies
                 // even while a rewound or cancelled turn's tail drains.
@@ -464,6 +465,13 @@ impl Waku {
                     }
                     if let Some(window) = context_window {
                         usage.window = Some(window);
+                    }
+                    // Last call wins rather than accumulating: this reports how
+                    // the conversation is being billed *now*, so a relaunch has
+                    // to show up immediately instead of being averaged away by
+                    // however many warm turns preceded it.
+                    if let Some(cache) = cache {
+                        usage.cache = Some(cache);
                     }
                     self.state.mark_session_dirty(session_id);
                 }

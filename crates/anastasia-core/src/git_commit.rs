@@ -21,7 +21,14 @@ pub use anastasia_protocol::git::{AgentInvocation, CommitSnapshot as Snapshot};
 const GIT_TIMEOUT: Duration = Duration::from_secs(120);
 const AGENT_TIMEOUT: Duration = Duration::from_secs(180);
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(40);
-const MAX_DIFF_BYTES: usize = 96 * 1024;
+const MAX_DIFF_BYTES: usize = 32 * 1024;
+
+/// Writing a 72-character subject line is not a frontier-model task, and this
+/// runs as a fresh `--print` process with `--no-session-persistence`, so it pays
+/// full cold-cache price on every byte of diff it is handed. Inheriting the
+/// session's Opus and its reasoning effort turned one commit into a five-figure
+/// token reasoning request; pin the cheap model and let the ladder go.
+const CLAUDE_COMMIT_MODEL: &str = "claude-haiku-4-5";
 const MAX_STDOUT_BYTES: usize = 1024 * 1024;
 const MAX_STDERR_BYTES: usize = 256 * 1024;
 const MAX_ERROR_CHARS: usize = 4_000;
@@ -236,14 +243,11 @@ fn agent_arguments(
             push(&mut args, "--disable-slash-commands");
             push(&mut args, "--no-session-persistence");
             push(&mut args, "--no-chrome");
-            if let Some(model) = model {
-                push(&mut args, "--model");
-                push(&mut args, model);
-            }
-            if let Some(effort) = reasoning_effort {
-                push(&mut args, "--effort");
-                push(&mut args, effort);
-            }
+            // Deliberately not the session's model or effort: see
+            // `CLAUDE_COMMIT_MODEL`. Passing no `--effort` leaves the CLI on its
+            // own default, which is already more than a subject line needs.
+            push(&mut args, "--model");
+            push(&mut args, CLAUDE_COMMIT_MODEL);
         }
         ProviderKind::Codex => {
             push(&mut args, "exec");

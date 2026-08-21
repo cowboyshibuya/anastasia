@@ -9,6 +9,7 @@
 use gpui::{PathBuilder, relative};
 
 use super::*;
+use anastasia_core::model::CacheUsage;
 use crate::usage::{PlanUsage, format_tokens, reset_label};
 
 const USAGE_METER_MENU_ID: &str = "usage-meter";
@@ -431,6 +432,39 @@ fn usage_panel(
             )
             .child(meter_bar(&theme, percent.unwrap_or(0.0))),
     );
+    // Only shown once a provider has actually reported a split, so a transport
+    // that never reports one renders exactly the panel it did before.
+    if let Some(ratio) = usage.cache.and_then(CacheUsage::hit_ratio) {
+        let percent = ratio * 100.0;
+        panel = panel.child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .text_color(theme.text_secondary)
+                        .child(tr!("usage.prompt_cache")),
+                )
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_size(px(11.0))
+                        // A cold prompt cache is a real cost event, not a
+                        // neutral one, so it is worth a color — paired with the
+                        // number, never carrying the meaning alone.
+                        .text_color(if ratio < 0.5 {
+                            theme.warning
+                        } else {
+                            theme.text_tertiary
+                        })
+                        .child(SharedString::from(tr!(
+                            "usage.prompt_cache_hit",
+                            percent = format!("{percent:.0}")
+                        ))),
+                ),
+        );
+    }
     if plan.is_some() || error.is_some() || plan_loading {
         panel = panel.child(div().h(px(1.0)).flex_none().bg(theme.border));
     }

@@ -64,7 +64,7 @@ pub fn compile(client: &AlabastaClient, request: &ContextRequest) -> CompiledCon
             status: AlabastaStatus::failed(request.provider, error_msg),
         };
     }
-    let text = render(&standing, package_opt.as_ref(), &request.task_identifier);
+    let text = cap(render(&standing, package_opt.as_ref(), &request.task_identifier));
     let sources = package_opt
         .as_ref()
         .map(sources_of)
@@ -98,6 +98,38 @@ pub fn compile(client: &AlabastaClient, request: &ContextRequest) -> CompiledCon
             approximate_tokens,
         ),
     }
+}
+
+/// Ceiling on the compiled context, in bytes — roughly 10k tokens.
+///
+/// This text goes into the provider's instruction channel, so it is prepended to
+/// every request for the life of the session. The server reports
+/// `meta/approximateTokens` but nothing on this side ever enforced it, which left
+/// a large workspace free to put an unbounded block in front of the whole
+/// conversation.
+///
+/// ponytail: a byte cap, not a token count — no tokenizer here, and the point is
+/// a ceiling rather than a precise budget. Swap in a real count if the status
+/// line ever needs to report the number rather than just the fact.
+const MAX_CONTEXT_BYTES: usize = 40 * 1024;
+
+/// Truncates on a char boundary and tells the model it was truncated, so it
+/// treats the tail as missing rather than as the end of the rules.
+fn cap(mut text: String) -> String {
+    if text.len() <= MAX_CONTEXT_BYTES {
+        return text;
+    }
+    let end = text
+        .char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= MAX_CONTEXT_BYTES)
+        .last()
+        .unwrap_or(0);
+    text.truncate(end);
+    text.push_str(
+        "\n\n[Workspace context truncated here. Ask for the remainder if you need it.]\n",
+    );
+    text
 }
 
 /// Renders the package as markdown.

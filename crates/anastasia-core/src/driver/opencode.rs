@@ -194,6 +194,7 @@ impl OpenCodeDriver {
                 let _ = events.send(DriverEvent::UsageUpdated {
                     context_tokens: Some(tokens),
                     context_window: None,
+                    cache: None,
                 });
             }
         } else if let Some(model) = model.as_ref() {
@@ -248,6 +249,7 @@ impl OpenCodeDriver {
                     let _ = metadata_events.send(DriverEvent::UsageUpdated {
                         context_tokens: None,
                         context_window: Some(window),
+                        cache: None,
                     });
                 }
             })?;
@@ -902,6 +904,7 @@ fn handle_event(
                     let _ = events.send(DriverEvent::UsageUpdated {
                         context_tokens,
                         context_window,
+                        cache: None,
                     });
                 }
             }
@@ -1335,6 +1338,7 @@ mod tests {
                 DriverEvent::UsageUpdated {
                     context_tokens: tokens,
                     context_window: window,
+                    cache: None,
                 } => {
                     context_tokens = tokens.or(context_tokens);
                     context_window = window.or(context_window);
@@ -1570,7 +1574,8 @@ mod tests {
             event_rx.try_recv().unwrap(),
             DriverEvent::UsageUpdated {
                 context_tokens: Some(15_201),
-                context_window: Some(200_000)
+                context_window: Some(200_000),
+                ..
             }
         ));
         assert!(event_rx.try_recv().is_err());

@@ -240,7 +240,7 @@ pub(crate) fn start_local(
     let status = ponytail.status.clone();
     let alabasta = crate::alabasta::resolve(provider, options.alabasta.as_ref());
     let binding = alabasta.binding.clone();
-    let plan = crate::harness::plan_contribution(options.interaction_mode, options.mode);
+    let plan = crate::harness::plan_contribution(provider, options.interaction_mode, options.mode);
     let goal = crate::harness::goal_contribution(options.goal.as_ref());
     let mut options = options;
     // Composed in authority order: Plan mode instructions bind first to ensure

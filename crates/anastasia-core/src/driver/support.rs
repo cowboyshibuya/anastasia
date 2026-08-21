@@ -12,24 +12,47 @@ use serde_json::Value;
 
 use super::computer_use as computer_use_runtime;
 use crate::driver::DriverEventSender;
-use crate::model::{ActivityKind, ProviderKind};
+use crate::model::{ActivityKind, CacheUsage, ProviderKind};
 
 /// The context-window occupancy of one API call from a Claude-wire `usage`
 /// object (Claude Code and Amp share the format): prompt (fresh + cached) plus
 /// output. Multi-call messages carry per-call `iterations`; the last one is
 /// the live context, and summed outer fields would double-count cache reads.
 pub(super) fn claude_context_tokens(usage: &Value) -> Option<u64> {
-    let call = usage
-        .get("iterations")
-        .and_then(Value::as_array)
-        .and_then(|iterations| iterations.last())
-        .unwrap_or(usage);
+    let call = last_call(usage);
     let field = |name: &str| call.get(name).and_then(Value::as_u64).unwrap_or(0);
     let total = field("input_tokens")
         + field("cache_read_input_tokens")
         + field("cache_creation_input_tokens")
         + field("output_tokens");
     (total > 0).then_some(total)
+}
+
+/// The cached/fresh split of the same call `claude_context_tokens` measures.
+///
+/// Read separately rather than folded into the total because the two answer
+/// different questions: the total is how full the window is, this is how much of
+/// it had to be paid for at full price. A resumed session re-reads its whole
+/// transcript as `cache_creation`, so this is what makes an avoidable relaunch
+/// visible instead of merely suspected.
+pub(super) fn claude_cache_usage(usage: &Value) -> Option<CacheUsage> {
+    let call = last_call(usage);
+    let field = |name: &str| call.get(name).and_then(Value::as_u64).unwrap_or(0);
+    let cache = CacheUsage {
+        read: field("cache_read_input_tokens"),
+        created: field("cache_creation_input_tokens"),
+    };
+    (cache.read + cache.created > 0).then_some(cache)
+}
+
+/// Multi-call messages carry per-call `iterations`; the last one is the live
+/// state, and summed outer fields would double-count cache reads.
+fn last_call(usage: &Value) -> &Value {
+    usage
+        .get("iterations")
+        .and_then(Value::as_array)
+        .and_then(|iterations| iterations.last())
+        .unwrap_or(usage)
 }
 
 #[derive(Clone)]
@@ -492,6 +515,46 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+
+    /// The split has to come from the same call the total does, or a multi-call
+    /// message reports one turn's occupancy against another turn's cache state.
+    #[test]
+    fn cache_usage_reads_the_last_call_and_ignores_uncached_ones() {
+        let warm = serde_json::json!({
+            "input_tokens": 12,
+            "cache_read_input_tokens": 9_000,
+            "cache_creation_input_tokens": 1_000,
+            "output_tokens": 40
+        });
+        let cache = claude_cache_usage(&warm).unwrap();
+        assert_eq!((cache.read, cache.created), (9_000, 1_000));
+        assert_eq!(cache.hit_ratio(), Some(0.9));
+
+        // A resumed session writes its whole transcript fresh: 0% reused.
+        let cold = serde_json::json!({
+            "input_tokens": 12,
+            "cache_creation_input_tokens": 80_000,
+            "output_tokens": 40
+        });
+        assert_eq!(claude_cache_usage(&cold).unwrap().hit_ratio(), Some(0.0));
+
+        // `iterations` wins over the summed outer fields.
+        let multi = serde_json::json!({
+            "cache_read_input_tokens": 1,
+            "cache_creation_input_tokens": 99,
+            "iterations": [
+                {"cache_read_input_tokens": 5, "cache_creation_input_tokens": 5},
+                {"cache_read_input_tokens": 30, "cache_creation_input_tokens": 10}
+            ]
+        });
+        let cache = claude_cache_usage(&multi).unwrap();
+        assert_eq!((cache.read, cache.created), (30, 10));
+
+        // Nothing cacheable reported at all is absent, not zero — a provider
+        // that never reports the split must not render as a 0% cache miss.
+        let none = serde_json::json!({"input_tokens": 12, "output_tokens": 40});
+        assert!(claude_cache_usage(&none).is_none());
+    }
 
     fn computer_use_config() -> computer_use_runtime::ComputerUseConfig {
         computer_use_runtime::ComputerUseConfig {

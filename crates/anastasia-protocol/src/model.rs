@@ -742,6 +742,26 @@ pub struct ContextUsage {
     pub tokens: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache: Option<CacheUsage>,
+}
+
+/// The cached/fresh split of one API call's prompt.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, TS)]
+pub struct CacheUsage {
+    /// Prompt tokens served from cache, billed at a fraction of the input rate.
+    pub read: u64,
+    /// Prompt tokens written into the cache, billed *above* the input rate.
+    pub created: u64,
+}
+
+impl CacheUsage {
+    /// Share of the cached-or-created prompt that was a cache hit, 0.0–1.0.
+    /// `None` when the last call carried no cacheable prompt at all.
+    pub fn hit_ratio(self) -> Option<f32> {
+        let total = self.read + self.created;
+        (total > 0).then(|| self.read as f32 / total as f32)
+    }
 }
 
 /// Last daemon event incorporated into a session's persisted projection.
@@ -1642,6 +1662,13 @@ pub enum DriverEvent {
     UsageUpdated {
         context_tokens: Option<u64>,
         context_window: Option<u64>,
+        /// How much of the last call's prompt was served from the provider's
+        /// prompt cache, and how much had to be written fresh. Only providers
+        /// whose stream reports the split populate this. It is the cheapest
+        /// signal that a session is being torn down and resumed more often than
+        /// it should be: a warm conversation reads near 100%, a relaunched one
+        /// near zero.
+        cache: Option<CacheUsage>,
     },
     /// Account-level rate-limit meters carried by the provider's own stream
     /// (Codex's `account/rateLimits/updated`). Same shape the OAuth fetcher

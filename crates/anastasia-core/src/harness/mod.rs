@@ -38,10 +38,21 @@ You are operating in Plan Mode.
 6. Present the complete plan to the user and request their confirmation to proceed with implementation in Build mode.";
 
 /// Generates a harness contribution when operating in Plan mode.
+///
+/// Claude Code is excluded: `--permission-mode plan` already installs its own
+/// plan-mode instructions, so this block would only restate them. Restating them
+/// is not merely redundant, it is expensive — the text sits in
+/// `--append-system-prompt`, so adding and removing it on every plan/build toggle
+/// changes the cached prefix and forces the whole transcript to be re-read at
+/// cache-creation price. Providers with no native plan mode still need it.
 pub fn plan_contribution(
+    provider: ProviderKind,
     interaction_mode: InteractionMode,
     mode: RuntimeMode,
 ) -> HarnessContribution {
+    if provider == ProviderKind::Claude {
+        return HarnessContribution::default();
+    }
     if interaction_mode == InteractionMode::Plan || mode == RuntimeMode::Plan {
         HarnessContribution {
             instructions: Some(PLAN_MODE_INSTRUCTIONS.to_owned()),
@@ -405,26 +416,45 @@ mod tests {
 
     #[test]
     fn plan_mode_generates_instructions_and_composes_cleanly() {
-        let plan = plan_contribution(InteractionMode::Plan, RuntimeMode::FullAccess);
+        let plan = plan_contribution(
+            ProviderKind::Codex,
+            InteractionMode::Plan,
+            RuntimeMode::FullAccess,
+        );
         assert!(plan.instructions.is_some());
         assert!(plan.instructions.unwrap().contains("Plan Mode Instructions"));
 
-        let build = plan_contribution(InteractionMode::Build, RuntimeMode::FullAccess);
-        assert_eq!(build, HarnessContribution::default());
-
-        let claude_launch = compose(
-            ProviderKind::Claude,
-            vec![plan_contribution(InteractionMode::Plan, RuntimeMode::Ask)],
+        let build = plan_contribution(
+            ProviderKind::Codex,
+            InteractionMode::Build,
+            RuntimeMode::FullAccess,
         );
-        assert_eq!(claude_launch.args[0], "--append-system-prompt");
-        assert!(claude_launch.args[1].contains("Plan Mode Instructions"));
+        assert_eq!(build, HarnessContribution::default());
 
         let codex_launch = compose(
             ProviderKind::Codex,
-            vec![plan_contribution(InteractionMode::Plan, RuntimeMode::FullAccess)],
+            vec![plan_contribution(
+                ProviderKind::Codex,
+                InteractionMode::Plan,
+                RuntimeMode::FullAccess,
+            )],
         );
         assert_eq!(codex_launch.args[0], "-c");
         assert!(codex_launch.args[1].contains("Plan Mode Instructions"));
+    }
+
+    /// Claude has native plan mode, and the toggle must not perturb the cached
+    /// system prefix. In both interaction modes the launch is byte-identical.
+    #[test]
+    fn claude_plan_mode_contributes_nothing() {
+        for mode in [InteractionMode::Plan, InteractionMode::Build] {
+            let contribution = plan_contribution(ProviderKind::Claude, mode, RuntimeMode::Ask);
+            assert_eq!(contribution, HarnessContribution::default());
+            assert_eq!(
+                compose(ProviderKind::Claude, vec![contribution]),
+                HarnessLaunch::disabled()
+            );
+        }
     }
 
     #[test]

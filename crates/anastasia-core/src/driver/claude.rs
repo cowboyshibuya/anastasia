@@ -51,6 +51,7 @@ enum CommandMessage {
         answers: Vec<UserInputAnswer>,
     },
     Options(SessionOptions),
+    PermissionMode(RuntimeMode, InteractionMode),
     StopBackgroundWork {
         key: BackgroundWorkKey,
         control_id: String,
@@ -81,8 +82,20 @@ fn stop_task_request(request_id: u64, task_id: &str) -> Value {
 pub struct ClaudeDriver {
     commands: Sender<CommandMessage>,
     pending_user_inputs: Arc<Mutex<HashMap<String, Value>>>,
+    posture: Mutex<LaunchPosture>,
+}
+
+/// What the running process is currently set to, as opposed to what it was
+/// launched with.
+///
+/// Most of a session's posture is negotiable at runtime — `set_permission_mode`
+/// moves an existing process between permission modes — so this tracks the live
+/// value rather than the launch argument. Only the two genuinely launch-bound
+/// settings force a relaunch, and both are recorded here to detect that.
+struct LaunchPosture {
     mode: RuntimeMode,
     interaction_mode: InteractionMode,
+    reasoning_effort: Option<String>,
 }
 
 /// The permission posture Claude is launched with.
@@ -141,9 +154,18 @@ fn configure_stream_command(
         "--permission-mode",
         permission_mode(mode, interaction_mode),
     ]);
-    if mode == RuntimeMode::FullAccess && interaction_mode != InteractionMode::Plan {
+    if uses_bypass_flag(mode, interaction_mode) {
         command.arg("--dangerously-skip-permissions");
     }
+}
+
+/// Whether a launch needs `--dangerously-skip-permissions`.
+///
+/// The CLI refuses `set_permission_mode bypassPermissions` on a process that was
+/// not launched with the flag, so crossing this boundary is one of the two
+/// changes a running session cannot absorb.
+fn uses_bypass_flag(mode: RuntimeMode, interaction_mode: InteractionMode) -> bool {
+    mode == RuntimeMode::FullAccess && interaction_mode != InteractionMode::Plan
 }
 
 fn write_claude_mcp_config(bridge_path: &Path) -> anyhow::Result<PathBuf> {
@@ -467,6 +489,20 @@ impl ClaudeDriver {
                                 }),
                             )
                         }
+                        CommandMessage::PermissionMode(mode, interaction_mode) => {
+                            next_request_id += 1;
+                            write_line(
+                                &mut stdin,
+                                &json!({
+                                    "type": "control_request",
+                                    "request_id": format!("waku-{next_request_id}"),
+                                    "request": {
+                                        "subtype": "set_permission_mode",
+                                        "mode": permission_mode(mode, interaction_mode)
+                                    }
+                                }),
+                            )
+                        }
                         CommandMessage::StopBackgroundWork { key, control_id } => {
                             next_request_id += 1;
                             let request_id = format!("waku-{next_request_id}");
@@ -538,8 +574,11 @@ impl ClaudeDriver {
         Ok(Self {
             commands,
             pending_user_inputs,
-            mode,
-            interaction_mode,
+            posture: Mutex::new(LaunchPosture {
+                mode,
+                interaction_mode,
+                reasoning_effort,
+            }),
         })
     }
 }
@@ -586,13 +625,36 @@ impl DriverControl for ClaudeDriver {
     }
 
     fn apply_options(&self, options: SessionOptions) -> bool {
-        // The model has a setter; the permission posture is a launch flag, and
-        // changing what a running agent may touch deserves a fresh session.
-        // Interaction mode is one too — a running process keeps the
-        // `--permission-mode` it was launched with — so a manual toggle must
-        // still relaunch. (Accepting a plan is the exception, and it never
-        // reaches here: the agent already left plan mode via ExitPlanMode.)
-        if options.mode != self.mode || options.interaction_mode != self.interaction_mode {
+        // Almost everything is negotiable at runtime: the model has a setter, and
+        // so does the permission posture, so a plan/build toggle rides
+        // `set_permission_mode` instead of a relaunch. That matters for cost as
+        // much as for latency — relaunching resumes the transcript against a cold
+        // prompt cache, so the whole conversation is re-read at cache-creation
+        // price every time. Two changes genuinely cannot be absorbed: `--effort`,
+        // for which the CLI exposes no control request, and
+        // `--dangerously-skip-permissions`, which the CLI requires to have been
+        // present at launch before it will honor `bypassPermissions`.
+        let mut posture = self.posture.lock();
+        if options.reasoning_effort != posture.reasoning_effort
+            || uses_bypass_flag(options.mode, options.interaction_mode)
+                != uses_bypass_flag(posture.mode, posture.interaction_mode)
+        {
+            return false;
+        }
+        let posture_changed = options.mode != posture.mode
+            || options.interaction_mode != posture.interaction_mode;
+        posture.mode = options.mode;
+        posture.interaction_mode = options.interaction_mode;
+        drop(posture);
+        if posture_changed
+            && self
+                .commands
+                .send(CommandMessage::PermissionMode(
+                    options.mode,
+                    options.interaction_mode,
+                ))
+                .is_err()
+        {
             return false;
         }
         self.commands.send(CommandMessage::Options(options)).is_ok()
@@ -1166,6 +1228,7 @@ fn handle_message(
                     let _ = events.send(DriverEvent::UsageUpdated {
                         context_tokens: Some(tokens),
                         context_window: None,
+                        cache: super::support::claude_cache_usage(usage),
                     });
                 }
             }
@@ -1304,6 +1367,7 @@ fn handle_message(
                 let _ = events.send(DriverEvent::UsageUpdated {
                     context_tokens: None,
                     context_window: Some(window),
+                    cache: None,
                 });
             }
             if !std::mem::take(&mut *turn_active.lock()) {
@@ -1720,14 +1784,119 @@ mod tests {
         );
     }
 
+    fn test_driver(
+        mode: RuntimeMode,
+        interaction_mode: InteractionMode,
+        reasoning_effort: Option<&str>,
+    ) -> (ClaudeDriver, crossbeam_channel::Receiver<CommandMessage>) {
+        let (commands, command_rx) = unbounded();
+        let driver = ClaudeDriver {
+            commands,
+            pending_user_inputs: Arc::new(Mutex::new(HashMap::new())),
+            posture: Mutex::new(LaunchPosture {
+                mode,
+                interaction_mode,
+                reasoning_effort: reasoning_effort.map(str::to_owned),
+            }),
+        };
+        (driver, command_rx)
+    }
+
+    fn options(
+        mode: RuntimeMode,
+        interaction_mode: InteractionMode,
+        reasoning_effort: Option<&str>,
+    ) -> SessionOptions {
+        SessionOptions {
+            mode,
+            interaction_mode,
+            model: None,
+            reasoning_effort: reasoning_effort.map(str::to_owned),
+            service_tier: None,
+            context_window: None,
+        }
+    }
+
+    /// The plan/build toggle is the hottest control in the app, and relaunching
+    /// on it re-reads the whole transcript against a cold prompt cache. It has to
+    /// ride `set_permission_mode` on the live process instead.
+    #[test]
+    fn plan_toggle_rides_the_running_process() {
+        let (driver, command_rx) = test_driver(RuntimeMode::Ask, InteractionMode::Build, None);
+
+        assert!(driver.apply_options(options(RuntimeMode::Ask, InteractionMode::Plan, None)));
+        assert!(matches!(
+            command_rx.try_recv(),
+            Ok(CommandMessage::PermissionMode(
+                RuntimeMode::Ask,
+                InteractionMode::Plan
+            ))
+        ));
+        // And back, from the posture the process is now actually in.
+        assert!(driver.apply_options(options(RuntimeMode::Ask, InteractionMode::Build, None)));
+        let _ = command_rx.try_recv();
+        assert!(matches!(
+            command_rx.try_recv(),
+            Ok(CommandMessage::PermissionMode(
+                RuntimeMode::Ask,
+                InteractionMode::Build
+            ))
+        ));
+    }
+
+    /// An unchanged posture must not spend a control request, or every option
+    /// change would churn the permission mode for no reason.
+    #[test]
+    fn unchanged_posture_sends_no_permission_request() {
+        let (driver, command_rx) = test_driver(RuntimeMode::Auto, InteractionMode::Build, None);
+        assert!(driver.apply_options(options(RuntimeMode::Auto, InteractionMode::Build, None)));
+        assert!(matches!(command_rx.try_recv(), Ok(CommandMessage::Options(_))));
+        assert!(command_rx.try_recv().is_err());
+    }
+
+    /// The two changes a running process genuinely cannot absorb: `--effort` has
+    /// no control request, and the CLI refuses `bypassPermissions` unless it was
+    /// launched with `--dangerously-skip-permissions`.
+    #[test]
+    fn launch_bound_changes_still_relaunch() {
+        let (driver, _rx) = test_driver(RuntimeMode::Ask, InteractionMode::Build, Some("medium"));
+        assert!(!driver.apply_options(options(
+            RuntimeMode::Ask,
+            InteractionMode::Build,
+            Some("high")
+        )));
+
+        let (driver, _rx) = test_driver(RuntimeMode::Ask, InteractionMode::Build, None);
+        assert!(!driver.apply_options(options(
+            RuntimeMode::FullAccess,
+            InteractionMode::Build,
+            None
+        )));
+
+        let (driver, _rx) = test_driver(RuntimeMode::FullAccess, InteractionMode::Build, None);
+        assert!(!driver.apply_options(options(RuntimeMode::Ask, InteractionMode::Build, None)));
+
+        // Full Access *into* Plan drops the flag's precondition either way, so it
+        // is the same launch-bound boundary and must relaunch too.
+        let (driver, _rx) = test_driver(RuntimeMode::FullAccess, InteractionMode::Build, None);
+        assert!(!driver.apply_options(options(
+            RuntimeMode::FullAccess,
+            InteractionMode::Plan,
+            None
+        )));
+    }
+
     #[test]
     fn steering_is_advertised_and_rides_the_command_channel() {
         let (commands, command_rx) = unbounded();
         let driver = ClaudeDriver {
             commands,
             pending_user_inputs: Arc::new(Mutex::new(HashMap::new())),
-            mode: RuntimeMode::FullAccess,
-            interaction_mode: InteractionMode::Build,
+            posture: Mutex::new(LaunchPosture {
+                mode: RuntimeMode::FullAccess,
+                interaction_mode: InteractionMode::Build,
+                reasoning_effort: None,
+            }),
         };
 
         assert!(driver.supports_steer());
@@ -2421,6 +2590,7 @@ mod tests {
                 DriverEvent::UsageUpdated {
                     context_tokens,
                     context_window,
+                    ..
                 } => Some((context_tokens, context_window)),
                 _ => None,
             })

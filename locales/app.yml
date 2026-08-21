@@ -1053,6 +1053,10 @@ models.usage_high:
   en: ~5× Sonnet usage
 models.usage_low:
   en: ~⅓ Sonnet usage
+models.usage_subagents:
+  en: spawns subagents
+models.usage_premium:
+  en: premium rate
 models.none_found:
   en: No models found
 models.favorite_hint:
@@ -2148,6 +2152,10 @@ usage.context_used:
   en: Context window %{percent}% used (%{shortcut})
 usage.shortcut:
   en: Usage (%{shortcut})
+usage.prompt_cache:
+  en: Prompt cache
+usage.prompt_cache_hit:
+  en: "{percent}% reused"
 usage.context_window:
   en: Context window
 usage.plan_limits:

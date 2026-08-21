@@ -773,7 +773,13 @@ impl RightPanelSessionState {
 
 /// One choice in the model-traits menu: a label plus a badge marking the
 /// provider's own default, so the current selection and the default read apart.
-fn traits_choice(theme: Theme, label: String, is_default: bool, selected: bool) -> MenuItem {
+fn traits_choice(
+    theme: Theme,
+    label: String,
+    hint: Option<String>,
+    is_default: bool,
+    selected: bool,
+) -> MenuItem {
     MenuItem::custom(move |_, _| {
         div()
             .w(px(190.0))
@@ -789,6 +795,15 @@ fn traits_choice(theme: Theme, label: String, is_default: bool, selected: bool) 
                     .text_color(theme.text_secondary)
                     .child(label.clone()),
             )
+            .when_some(hint.clone(), |element, hint| {
+                element.child(
+                    div()
+                        .flex_none()
+                        .text_size(px(10.0))
+                        .text_color(theme.text_tertiary)
+                        .child(hint),
+                )
+            })
             .when(is_default, |element| {
                 element.child(
                     div()

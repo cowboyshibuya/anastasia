@@ -1788,6 +1788,7 @@ fn handle_codex_message(
                 let _ = events.send(DriverEvent::UsageUpdated {
                     context_tokens: tokens,
                     context_window: window,
+                    cache: None,
                 });
             }
         }

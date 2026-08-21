@@ -783,10 +783,18 @@ fn reasoning_options<const N: usize>(efforts: [&str; N]) -> Vec<ProviderModelOpt
         .collect()
 }
 
+/// Medium, not high, matching the Codex arm above and the CLI's own posture.
+///
+/// The picker renders this default as the selected value even while the session
+/// carries no explicit effort, so touching the control at all pins `--effort` and
+/// `last_reasoning_effort` carries it to every later session in the project.
+/// Defaulting to high therefore made one glance at the picker a standing bill:
+/// reasoning tokens are billed as output and then re-read as input on the next
+/// turn, so the choice compounds across a conversation.
 fn claude_reasoning_model(id: &str, name: &str) -> ProviderModel {
     ProviderModel::new(id, name).reasoning(
         reasoning_options(["low", "medium", "high", "xhigh", "max"]),
-        "high",
+        "medium",
     )
 }
 
@@ -797,7 +805,7 @@ fn claude_reasoning_model(id: &str, name: &str) -> ProviderModel {
 fn claude_ultracode_model(id: &str, name: &str) -> ProviderModel {
     ProviderModel::new(id, name).reasoning(
         reasoning_options(["low", "medium", "high", "xhigh", "max", "ultracode"]),
-        "high",
+        "medium",
     )
 }
 

@@ -773,6 +773,7 @@ fn handle_session_event(
                 let _ = events.send(DriverEvent::UsageUpdated {
                     context_tokens: None,
                     context_window: window,
+                    cache: None,
                 });
             }
         }
@@ -1152,6 +1153,7 @@ fn emit_projection(key: &str, value: &Value, events: &impl DriverEventSink) {
                 let _ = events.send(DriverEvent::UsageUpdated {
                     context_tokens: tokens,
                     context_window: window,
+                    cache: None,
                 });
             }
         }
@@ -1176,6 +1178,7 @@ fn emit_usage(usage: Option<&Value>, events: &impl DriverEventSink) {
         let _ = events.send(DriverEvent::UsageUpdated {
             context_tokens: Some(total),
             context_window: None,
+            cache: None,
         });
     }
 }
@@ -1623,7 +1626,8 @@ mod tests {
             event_rx.recv().unwrap(),
             DriverEvent::UsageUpdated {
                 context_tokens: Some(120),
-                context_window: Some(8192)
+                context_window: Some(8192),
+                ..
             }
         ));
     }
