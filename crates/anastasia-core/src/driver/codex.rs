@@ -185,26 +185,36 @@ fn configure_alabasta_command(
         return;
     }
     if let Ok(bridge_path) = crate::computer_use::alabasta_bridge_path() {
-        command
-            .arg("-c")
-            .arg(format!(
-                "mcp_servers.alabasta.command={}",
-                toml_string(&bridge_path.display().to_string())
-            ))
-            .arg("-c")
-            .arg("mcp_servers.alabasta.args=[]");
-        if let Ok(address) = std::env::var(anastasia_protocol::DAEMON_ADDRESS_ENV) {
-            command.arg("-c").arg(format!(
-                "mcp_servers.alabasta.env.ANASTASIA_DAEMON_ADDRESS={}",
-                toml_string(&address)
-            ));
-        }
-        if let Ok(token) = std::env::var(anastasia_protocol::DAEMON_TOKEN_ENV) {
-            command.arg("-c").arg(format!(
-                "mcp_servers.alabasta.env.ANASTASIA_DAEMON_TOKEN={}",
-                toml_string(&token)
-            ));
-        }
+        configure_alabasta_server(command, &bridge_path);
+    }
+}
+
+fn configure_alabasta_server(command: &mut Command, bridge_path: &Path) {
+    command
+        .arg("-c")
+        .arg(format!(
+            "mcp_servers.alabasta.command={}",
+            toml_string(&bridge_path.display().to_string())
+        ))
+        .arg("-c")
+        .arg("mcp_servers.alabasta.args=[]")
+        .arg("-c")
+        .arg("mcp_servers.alabasta.default_tools_approval_mode=\"approve\"")
+        .arg("-c")
+        .arg("mcp_servers.alabasta.tool_timeout_sec=45")
+        .arg("-c")
+        .arg("mcp_servers.alabasta.supports_parallel_tool_calls=false");
+    if let Ok(address) = std::env::var(anastasia_protocol::DAEMON_ADDRESS_ENV) {
+        command.arg("-c").arg(format!(
+            "mcp_servers.alabasta.env.ANASTASIA_DAEMON_ADDRESS={}",
+            toml_string(&address)
+        ));
+    }
+    if let Ok(token) = std::env::var(anastasia_protocol::DAEMON_TOKEN_ENV) {
+        command.arg("-c").arg(format!(
+            "mcp_servers.alabasta.env.ANASTASIA_DAEMON_TOKEN={}",
+            toml_string(&token)
+        ));
     }
 }
 
@@ -1713,7 +1723,7 @@ fn handle_codex_message(
         "item/started" | "item/completed" => {
             if let Some(item) = params.get("item") {
                 stream_state.capture_citations(item);
-                let complete = method == "item/completed";
+                let complete = codex_item_complete(method, item);
                 if let Some(work) = codex_command_work(item, complete) {
                     let _ = events.send(DriverEvent::BackgroundWork(BackgroundWorkEvent::Upsert(
                         work,
@@ -2202,6 +2212,10 @@ fn codex_item_failed(item: &Value) -> bool {
             .is_some_and(|code| code != 0)
 }
 
+fn codex_item_complete(method: &str, item: &Value) -> bool {
+    method == "item/completed" && item.get("status").and_then(Value::as_str) != Some("inProgress")
+}
+
 fn format_activity_json(value: &Value) -> Option<String> {
     serde_json::to_string_pretty(value)
         .ok()
@@ -2347,6 +2361,18 @@ mod tests {
         assert!(is_codex_turn_started(&started, Some("thread-1")));
         assert!(!is_codex_turn_started(&started, Some("thread-2")));
         assert!(!is_codex_turn_started(&started, None));
+    }
+
+    #[test]
+    fn in_progress_items_are_not_completed_by_a_contradictory_event() {
+        let item = json!({"type": "mcpToolCall", "status": "inProgress"});
+
+        assert!(!codex_item_complete("item/completed", &item));
+        assert!(!codex_item_complete("item/started", &item));
+        assert!(codex_item_complete(
+            "item/completed",
+            &json!({"type": "mcpToolCall", "status": "completed"})
+        ));
     }
 
     #[test]
@@ -3126,26 +3152,28 @@ mod tests {
 
     #[test]
     fn codex_alabasta_mcp_config_registers_server_without_secret() {
-        let launch = anastasia_protocol::alabasta::AlabastaLaunchRequest {
-            connection: anastasia_protocol::alabasta::AlabastaConnection {
-                site_url: "https://example.convex.site".into(),
-                app_url: "https://example.com".into(),
-                account_label: "user@example.com".into(),
-                workspace_id: "ws-123".into(),
-                workspace_slug: "ws".into(),
-                workspace_name: "Workspace".into(),
-            },
-            task_id: "task-1".into(),
-            task_identifier: "ALB-1".into(),
-            task_title: "Test Task".into(),
-            product_id: None,
-        };
         let mut cmd = Command::new("codex");
-        configure_alabasta_command(&mut cmd, Some(&launch));
+        configure_alabasta_server(&mut cmd, Path::new("/tmp/anastasia_alabasta_bridge"));
         let args = cmd
             .get_args()
             .map(|s| s.to_string_lossy().into_owned())
             .collect::<Vec<_>>();
+        assert!(
+            args.iter().any(|arg| {
+                arg == "mcp_servers.alabasta.default_tools_approval_mode=\"approve\""
+            })
+        );
+        assert!(
+            args.iter()
+                .any(|arg| arg == "mcp_servers.alabasta.tool_timeout_sec=45")
+        );
+        assert!(
+            args.iter()
+                .any(|arg| { arg == "mcp_servers.alabasta.supports_parallel_tool_calls=false" })
+        );
+        assert!(args.iter().any(|arg| {
+            arg == "mcp_servers.alabasta.command=\"/tmp/anastasia_alabasta_bridge\""
+        }));
         assert!(!args.iter().any(|arg| arg.contains("alab_sk_")));
     }
 }

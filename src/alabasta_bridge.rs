@@ -162,6 +162,7 @@ pub fn tool_definitions() -> Vec<JsonValue> {
         json!({
             "name": "alabasta_get_context_package",
             "description": "Retrieve the compiled L1 context package for an Alabasta task, including relevant decisions, conventions, and dependencies.",
+            "annotations": read_only_annotations(),
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -177,6 +178,7 @@ pub fn tool_definitions() -> Vec<JsonValue> {
         json!({
             "name": "alabasta_get_standing_context",
             "description": "Retrieve the L0 standing context rules for the workspace or a specific product.",
+            "annotations": read_only_annotations(),
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -191,6 +193,7 @@ pub fn tool_definitions() -> Vec<JsonValue> {
         json!({
             "name": "alabasta_search_context",
             "description": "Search the workspace context using ranked keyword search.",
+            "annotations": read_only_annotations(),
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -211,6 +214,7 @@ pub fn tool_definitions() -> Vec<JsonValue> {
         json!({
             "name": "alabasta_read_resource",
             "description": "Read an Alabasta context resource by its alabasta:// URI.",
+            "annotations": read_only_annotations(),
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -226,6 +230,7 @@ pub fn tool_definitions() -> Vec<JsonValue> {
         json!({
             "name": "alabasta_get_task",
             "description": "Get details for an Alabasta task by its human-readable identifier (e.g. ALB-482).",
+            "annotations": read_only_annotations(),
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -239,6 +244,15 @@ pub fn tool_definitions() -> Vec<JsonValue> {
             }
         }),
     ]
+}
+
+fn read_only_annotations() -> JsonValue {
+    json!({
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+    })
 }
 
 fn handle_tool_call(
@@ -340,5 +354,8 @@ mod tests {
                 "alabasta_get_task",
             ]
         );
+        for definition in defs {
+            assert_eq!(definition["annotations"], read_only_annotations());
+        }
     }
 }
