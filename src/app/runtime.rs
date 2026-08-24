@@ -3442,6 +3442,18 @@ impl Waku {
             if keep_runtime {
                 self.runtimes.insert(session_id, runtime);
             }
+            let status = self
+                .state
+                .sessions
+                .iter()
+                .find(|session| session.id == session_id)
+                .map(|session| session.status);
+            // Event handling temporarily removes the runtime from the map. A
+            // deferred options reset must run only after reinsertion or it
+            // closes nothing and the stale provider is put straight back.
+            if runtime_reset_ready(self.pending_runtime_reset.contains(&session_id), status) {
+                self.reset_session_runtime(session_id);
+            }
             changed |= runtime_changed || background_changed;
             persisted_state_changed |= runtime_changed;
             if self.state.selected_session == Some(session_id)
@@ -3480,6 +3492,10 @@ impl Waku {
     }
 }
 
+fn runtime_reset_ready(pending: bool, status: Option<SessionStatus>) -> bool {
+    pending && status.is_some_and(|status| !status.is_busy())
+}
+
 #[cfg(test)]
 mod response_fork_title_tests {
     use super::next_response_fork_title;
@@ -3505,6 +3521,26 @@ mod response_fork_title_tests {
             next_response_fork_title("Plan (2026)", ["Plan (2026)"]),
             "Plan (2026) (2)"
         );
+    }
+}
+
+#[cfg(test)]
+mod runtime_reset_tests {
+    use super::runtime_reset_ready;
+    use crate::model::SessionStatus;
+
+    #[test]
+    fn deferred_option_reset_waits_for_the_turn_to_settle() {
+        for status in [
+            SessionStatus::Connecting,
+            SessionStatus::Working,
+            SessionStatus::Waiting,
+        ] {
+            assert!(!runtime_reset_ready(true, Some(status)));
+        }
+        assert!(runtime_reset_ready(true, Some(SessionStatus::Idle)));
+        assert!(runtime_reset_ready(true, Some(SessionStatus::Failed)));
+        assert!(!runtime_reset_ready(false, Some(SessionStatus::Idle)));
     }
 }
 
