@@ -33,7 +33,8 @@ use crate::model::{
     ActivityItem, ActivityKind, AgentSession, BackgroundWorkEvent, BackgroundWorkItem,
     BackgroundWorkKey, BackgroundWorkKind, BackgroundWorkStatus, Checkpoint, CheckpointStatus,
     ContextUsage, DriverEvent, FavoriteModel, InteractionMode, Message, MessageAttachment,
-    MessageRole, PLAN_ACCEPT, PendingPermission, PlanStep, PlanStepStatus, Project, ProviderKind,
+    MessageRole, PLAN_ACCEPT, PendingPermission, PermissionOption, PlanStep, PlanStepStatus, Project,
+    ProviderKind,
     ProviderModel, ProviderProbe,
     ProviderResumeCursor, QueuedMessage, ReasoningBlock, RuntimeMode, SessionStatus,
     SessionWorkspace, TranscriptBlock, TurnStatus, UserInputAnswer, UserInputQuestion,
@@ -66,8 +67,8 @@ use crate::ui::motion::WidthTween;
 use crate::ui::splash::SplashPhase;
 use crate::ui::text_field::TextField;
 use crate::ui::{
-    MenuChip, ProjectNameSelector, activity_icon, activity_noun, contain_scroll, file_icon, icon,
-    icon_button, motion, provider_color, provider_icon,
+    MenuChip, Orb, ProjectNameSelector, activity_icon, activity_noun, contain_scroll, file_icon,
+    icon, icon_button, motion, provider_color, provider_icon,
 };
 use crate::{
     CancelTurn, CloseFind, CloseWindow, CopySelection, FindNext, FindPrevious, FocusComposer,
@@ -1283,6 +1284,10 @@ pub struct Waku {
     /// Per-item disclosure overrides. Reasoning starts open while live; tool
     /// details start closed, so the stored bool must preserve either choice.
     expanded_activity_items: HashMap<Uuid, bool>,
+    /// Pending approval cards the user expanded. Request ids are provider-stable.
+    expanded_permissions: HashSet<String>,
+    /// Sessions whose live agent to-do list the user folded. Runtime-only.
+    collapsed_plan_steps: HashSet<Uuid>,
     /// Settled turns whose folded work the user has reopened.
     expanded_turns: HashSet<Uuid>,
     /// Per-response file cards the user expanded beyond their three-file
@@ -1503,6 +1508,8 @@ pub struct Waku {
     message_markdown: RefCell<HashMap<Uuid, MarkdownView>>,
     /// Parsed markdown for reasoning activities, keyed by stable activity id.
     activity_markdown: RefCell<HashMap<Uuid, MarkdownView>>,
+    /// One pending plan approval rendered as Markdown in the composer card.
+    permission_markdown: RefCell<Option<(String, MarkdownView)>>,
     /// Byte offsets live reasoning peeks render from, slid forward as the
     /// thought grows; see `live_reasoning_window_start`.
     reasoning_window_starts: RefCell<HashMap<Uuid, usize>>,
@@ -2743,6 +2750,8 @@ impl Waku {
                 last_stream_save: Instant::now(),
                 activities_expanded: HashMap::new(),
                 expanded_activity_items: HashMap::new(),
+                expanded_permissions: HashSet::new(),
+                collapsed_plan_steps: HashSet::new(),
                 expanded_turns: HashSet::new(),
                 expanded_changed_files: HashSet::new(),
                 transcript_control_focuses: RefCell::new(HashMap::new()),
@@ -2865,6 +2874,7 @@ impl Waku {
                 transcript_layout_width: Cell::new(Pixels::ZERO),
                 message_markdown: RefCell::new(HashMap::new()),
                 activity_markdown: RefCell::new(HashMap::new()),
+                permission_markdown: RefCell::new(None),
                 reasoning_window_starts: RefCell::new(HashMap::new()),
                 activity_scroll_viewports: RefCell::new(HashMap::new()),
                 markdown_link_handler,

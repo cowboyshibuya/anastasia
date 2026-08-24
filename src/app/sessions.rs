@@ -1226,6 +1226,8 @@ impl Waku {
         option_id: String,
         cx: &mut Context<Self>,
     ) {
+        self.expanded_permissions.remove(&request_id);
+        self.permission_markdown.borrow_mut().take();
         let Some(session_id) = self.state.selected_session else {
             return;
         };

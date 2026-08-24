@@ -1044,6 +1044,10 @@ plan.accept:
   en: Accept plan
 plan.keep_planning:
   en: Keep planning
+plan.view_full:
+  en: View full plan
+plan.show_less:
+  en: Show less
 common.close:
   en: Close
 common.default:
@@ -1921,6 +1925,8 @@ transcript.working_on_todos:
   en: Working on %{count} to-dos
 transcript.working_on_todo:
   en: Working on 1 to-do
+transcript.todos:
+  en: To-dos
 transcript.verb_working:
   en: Working
 transcript.verb_cooking:

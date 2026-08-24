@@ -26,7 +26,7 @@ use gpui::{
     AnyElement, BorderStyle, Bounds, ClipboardItem, CursorStyle, DispatchPhase, Font, FontStyle,
     FontWeight, Hsla, InteractiveText, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent,
     MouseMoveEvent, MouseUpEvent, ParentElement, Pixels, Point, SharedString, StrikethroughStyle,
-    StyledText, TextLayout, TextRun, UnderlineStyle, Window, canvas, div, font, img, point,
+    StyledText, TextLayout, TextRun, UnderlineStyle, Window, canvas, div, fill, font, img, point,
     prelude::*, px, quad, relative, size,
 };
 
@@ -486,6 +486,7 @@ pub struct Ctx<'a> {
     /// Set while rendering the first element of a block, for copy spacing.
     starts_block: Cell<bool>,
     animate_streaming: bool,
+    streaming_caret_opacity: Option<f32>,
     now: Instant,
 }
 
@@ -506,6 +507,7 @@ impl<'a> Ctx<'a> {
             next_ordinal: Cell::new(0),
             starts_block: Cell::new(true),
             animate_streaming: true,
+            streaming_caret_opacity: None,
             now: Instant::now(),
         }
     }
@@ -524,6 +526,11 @@ impl<'a> Ctx<'a> {
         self
     }
 
+    pub fn with_streaming_caret(mut self, opacity: Option<f32>) -> Self {
+        self.streaming_caret_opacity = opacity;
+        self
+    }
+
     fn with_cache(&self, view: &'a MarkdownView) -> Self {
         Self {
             row: self.row.clone(),
@@ -535,6 +542,7 @@ impl<'a> Ctx<'a> {
             next_ordinal: Cell::new(self.next_ordinal.get()),
             starts_block: Cell::new(self.starts_block.get()),
             animate_streaming: self.animate_streaming,
+            streaming_caret_opacity: self.streaming_caret_opacity,
             now: Instant::now(),
         }
     }
@@ -577,6 +585,7 @@ fn text_element_with_selection(
     code_wash: Hsla,
     selection_wash: Hsla,
     block_break: bool,
+    caret: Option<(Hsla, f32)>,
 ) -> AnyElement {
     let styled = StyledText::new(flat.text.clone()).with_runs(runs);
     let layout = styled.layout().clone();
@@ -629,6 +638,14 @@ fn text_element_with_selection(
                     ));
                 }
             }
+            if let Some((color, opacity)) = caret
+                && let Some(position) = layout.position_for_index(text.len())
+            {
+                window.paint_quad(fill(
+                    Bounds::new(position, size(px(1.5), layout.line_height())),
+                    color.opacity(opacity),
+                ));
+            }
             // Paint order is document order, so simply appending here
             // rebuilds the frame's selection continuity.
             selection.registry.borrow_mut().push(RegisteredText {
@@ -652,7 +669,7 @@ fn text_element_with_selection(
         .into_any_element()
 }
 
-fn text_element(flat: &FlatText, key: TextKey, ctx: &Ctx) -> AnyElement {
+fn text_element(flat: &FlatText, key: TextKey, ctx: &Ctx, terminal: bool) -> AnyElement {
     let runs = match ctx
         .cache
         .filter(|view| ctx.animate_streaming && view.streaming.get())
@@ -675,6 +692,10 @@ fn text_element(flat: &FlatText, key: TextKey, ctx: &Ctx) -> AnyElement {
         ctx.palette.code_wash,
         ctx.palette.selection,
         ctx.take_block_break(),
+        terminal
+            .then_some(ctx.streaming_caret_opacity)
+            .flatten()
+            .map(|opacity| (ctx.palette.accent, opacity)),
     )
 }
 
@@ -701,6 +722,7 @@ pub fn selectable_flat_text(
         code_wash,
         selection_wash,
         block_break,
+        None,
     )
 }
 
@@ -715,7 +737,7 @@ pub fn plain_text(
 ) -> AnyElement {
     let key = ctx.next_key();
     let flat = ctx.flat(key.index, || flatten_plain(text, family, weight, color));
-    text_element(&flat, key, ctx)
+    text_element(&flat, key, ctx, false)
 }
 
 /// A zero-size canvas that clears the frame's registry. Paint it *before* any
@@ -1002,7 +1024,7 @@ fn markdown_capped<'a>(
     let mut children = Vec::with_capacity(blocks.len() - first);
     for (block_ix, block) in leading.iter().enumerate().skip(first) {
         ctx.next_ordinal.set(block_ordinal_base(block_ix));
-        children.push(render_block(block, &ctx));
+        children.push(render_block(block, &ctx, false));
         debug_assert!(
             ctx.next_ordinal.get() - block_ordinal_base(block_ix) < 1 << BLOCK_ORDINAL_STRIDE_BITS,
             "a single block overflowed its ordinal stride"
@@ -1013,7 +1035,7 @@ fn markdown_capped<'a>(
     let last_base = block_ordinal_base(blocks.len() - 1);
     ctx.next_ordinal.set(last_base);
     view.volatile_from.set(last_base);
-    children.push(render_block(last, &ctx));
+    children.push(render_block(last, &ctx, true));
     if ctx.animate_streaming && view.streaming.get() {
         // Every element visible on the attach pass has synchronously adopted
         // its baseline. Elements introduced by later appends should now fade.
@@ -1032,7 +1054,7 @@ fn markdown_capped<'a>(
     )
 }
 
-fn render_block(block: &Block, ctx: &Ctx) -> AnyElement {
+fn render_block(block: &Block, ctx: &Ctx, terminal: bool) -> AnyElement {
     ctx.starts_block.set(true);
     match block {
         Block::Paragraph { runs } => {
@@ -1045,7 +1067,7 @@ fn render_block(block: &Block, ctx: &Ctx) -> AnyElement {
                 .min_w_0()
                 .text_size(px(ctx.metrics.text_size))
                 .line_height(px(ctx.metrics.line_height))
-                .child(text_element(&flat, key, ctx))
+                .child(text_element(&flat, key, ctx, terminal))
                 .into_any_element()
         }
         Block::Heading { level, runs } => {
@@ -1060,7 +1082,7 @@ fn render_block(block: &Block, ctx: &Ctx) -> AnyElement {
                 .when(*level <= 2, |element| element.pt(px(4.0)))
                 .text_size(px(size))
                 .line_height(px(line_height))
-                .child(text_element(&flat, key, ctx))
+                .child(text_element(&flat, key, ctx, terminal))
                 .into_any_element()
         }
         Block::Image { url, alt } => render_image(url, alt, ctx),
@@ -1068,7 +1090,10 @@ fn render_block(block: &Block, ctx: &Ctx) -> AnyElement {
         Block::BlockQuote { children } => {
             let rendered = children
                 .iter()
-                .map(|child| render_block(child, ctx))
+                .enumerate()
+                .map(|(index, child)| {
+                    render_block(child, ctx, terminal && index + 1 == children.len())
+                })
                 .collect::<Vec<_>>();
             div()
                 .w_full()
@@ -1096,7 +1121,7 @@ fn render_block(block: &Block, ctx: &Ctx) -> AnyElement {
         Block::List {
             ordered_start,
             items,
-        } => render_list(*ordered_start, items, ctx),
+        } => render_list(*ordered_start, items, ctx, terminal),
         Block::Table {
             header,
             rows,
@@ -1111,7 +1136,12 @@ fn render_block(block: &Block, ctx: &Ctx) -> AnyElement {
     }
 }
 
-fn render_list(ordered_start: Option<u64>, items: &[ListItem], ctx: &Ctx) -> AnyElement {
+fn render_list(
+    ordered_start: Option<u64>,
+    items: &[ListItem],
+    ctx: &Ctx,
+    terminal: bool,
+) -> AnyElement {
     let marker_width = if ordered_start.is_some() { 22.0 } else { 14.0 };
     let rendered = items
         .iter()
@@ -1130,10 +1160,18 @@ fn render_list(ordered_start: Option<u64>, items: &[ListItem], ctx: &Ctx) -> Any
                 }
                 (None, None) => marker_text("•".to_owned(), marker_width, ctx),
             };
+            let item_is_terminal = terminal && index + 1 == items.len();
             let blocks = item
                 .blocks
                 .iter()
-                .map(|block| render_block(block, ctx))
+                .enumerate()
+                .map(|(block_index, block)| {
+                    render_block(
+                        block,
+                        ctx,
+                        item_is_terminal && block_index + 1 == item.blocks.len(),
+                    )
+                })
                 .collect::<Vec<_>>();
             div()
                 .w_full()
@@ -1422,7 +1460,7 @@ fn render_code_block(language: Option<&str>, code: &str, ctx: &Ctx) -> AnyElemen
                         .text_size(px(ctx.metrics.code_text_size))
                         .line_height(px(ctx.metrics.code_line_height))
                         .text_color(ctx.palette.secondary)
-                        .child(text_element(&flat, key, ctx)),
+                        .child(text_element(&flat, key, ctx, false)),
                 ),
         )
         .into_any_element()
@@ -1552,7 +1590,7 @@ fn table_row(
                     TableAlign::Center => element.items_center().text_center(),
                     TableAlign::Right => element.items_end().text_right(),
                 })
-                .child(text_element(&flat, key, ctx)),
+                .child(text_element(&flat, key, ctx, false)),
         );
     }
     row

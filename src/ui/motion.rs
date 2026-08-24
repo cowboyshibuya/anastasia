@@ -356,6 +356,12 @@ fn pulse_phase(period: Duration, stride: u32, view: EntityId, cx: &mut App) -> f
     phase
 }
 
+/// Read a half-cadence phase for paint work embedded in another element, such
+/// as the final-glyph streaming caret. It shares the loader clock and lease.
+pub fn pulse_phase_slow(period: Duration, view: EntityId, cx: &mut App) -> f32 {
+    pulse_phase(period, 2, view, cx)
+}
+
 /// A loader element styled from the shared clock's phase. Resolving the phase
 /// is deferred to render, where the owning view is known, so call sites need
 /// neither a `Window` nor an `EntityId` in scope.

@@ -10,6 +10,39 @@ pub(super) enum ComposerSubmitAction {
     Stop,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ApprovalCardKind {
+    Action,
+    Plan,
+}
+
+fn approval_card_kind(options: &[PermissionOption]) -> ApprovalCardKind {
+    if options.iter().any(|option| option.id == PLAN_ACCEPT) {
+        ApprovalCardKind::Plan
+    } else {
+        ApprovalCardKind::Action
+    }
+}
+
+fn toggle_string_disclosure(expanded: &mut HashSet<String>, id: &str) {
+    if !expanded.remove(id) {
+        expanded.insert(id.to_owned());
+    }
+}
+
+#[cfg(test)]
+mod approval_card_tests {
+    use super::*;
+
+    #[test]
+    fn plan_accept_option_selects_the_plan_card() {
+        let action = [PermissionOption { id: "allow".into(), label: "Allow".into(), allow: true }];
+        let plan = [PermissionOption { id: PLAN_ACCEPT.into(), label: "Accept plan".into(), allow: true }];
+        assert_eq!(approval_card_kind(&action), ApprovalCardKind::Action);
+        assert_eq!(approval_card_kind(&plan), ApprovalCardKind::Plan);
+    }
+}
+
 pub(super) fn composer_submit_action(
     status: Option<SessionStatus>,
     preparing: bool,
@@ -35,8 +68,10 @@ impl Waku {
         }
         let permission = self.selected_runtime()?.pending_permission.as_ref()?;
         let theme = Theme::current(cx);
+        let is_plan = approval_card_kind(&permission.options) == ApprovalCardKind::Plan;
+        let expanded = self.expanded_permissions.contains(&permission.request_id);
         let request_id = permission.request_id.clone();
-        let mut buttons = div().flex().items_center().gap(px(8.0)).mt(px(10.0));
+        let mut buttons = div().flex().items_center().justify_end().gap(px(8.0)).mt(px(12.0));
         for option in &permission.options {
             let request_id = request_id.clone();
             let key_request_id = request_id.clone();
@@ -97,24 +132,95 @@ impl Waku {
                     })),
             );
         }
+        let detail = if is_plan {
+            let mut palette = MarkdownPalette::from_theme(&theme);
+            palette.text = theme.text_secondary;
+            let ctx = self.markdown_ctx(
+                format!("permission-plan-{}", permission.request_id),
+                &palette,
+                MarkdownMetrics::COMPACT,
+                false,
+            );
+            let mut cache = self.permission_markdown.borrow_mut();
+            if cache.as_ref().is_none_or(|(id, _)| id != &permission.request_id) {
+                *cache = Some((permission.request_id.clone(), MarkdownView::new()));
+            }
+            let (_, view) = cache.as_mut().expect("plan cache initialized");
+            view.set_text(&permission.detail, false);
+            md::render::markdown(view, &ctx).unwrap_or_else(|| div().into_any_element())
+        } else {
+            div()
+                .font_family(crate::md::render::MONO_FAMILY)
+                .text_size(px(10.5))
+                .line_height(px(16.0))
+                .text_color(theme.text_secondary)
+                .whitespace_normal()
+                .child(SharedString::from(permission.detail.clone()))
+                .into_any_element()
+        };
+        let expand_control = is_plan.then(|| {
+            let click_id = permission.request_id.clone();
+            let key_id = permission.request_id.clone();
+            let focus = self.transcript_control_focus(
+                format!("permission-expand-{}", permission.request_id),
+                cx,
+            );
+            div()
+                .id(SharedString::from(format!("permission-expand-{}", permission.request_id)))
+                .track_focus(&focus)
+                .tab_index(0)
+                .tab_stop(true)
+                .mt(px(7.0))
+                .h(px(24.0))
+                .flex()
+                .items_center()
+                .gap(px(5.0))
+                .cursor_default()
+                .text_size(px(10.5))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(theme.text_tertiary)
+                .focus_visible(|style| style.text_color(theme.accent))
+                .hover(|style| style.text_color(theme.text))
+                .child(if expanded { tr!("plan.show_less") } else { tr!("plan.view_full") })
+                .child(icon(
+                    if expanded { "icons/chevron-up.svg" } else { "icons/chevron-down.svg" },
+                    9.0,
+                    theme.text_tertiary,
+                ))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    toggle_string_disclosure(&mut this.expanded_permissions, &click_id);
+                    cx.notify();
+                }))
+                .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
+                    if matches!(event.keystroke.key.as_str(), "enter" | "space") {
+                        toggle_string_disclosure(&mut this.expanded_permissions, &key_id);
+                        cx.notify();
+                        cx.stop_propagation();
+                    }
+                }))
+        });
         Some(
             div().px(px(20.0)).pb(px(8.0)).child(
                 div()
                     .w_full()
                     .max_w(px(CONTENT_MAX_WIDTH))
                     .mx_auto()
-                    .p(px(12.0))
-                    .rounded(px(12.0))
+                    .p(px(13.0))
+                    .rounded(px(13.0))
                     .border_1()
-                    .border_color(theme.border_strong)
-                    .bg(theme.raised)
+                    .border_color(if is_plan { theme.accent.opacity(0.32) } else { theme.warning.opacity(0.42) })
+                    .bg(theme.composer)
                     .shadow_md()
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap(px(8.0))
-                            .child(icon("icons/alert.svg", 13.0, theme.warning))
+                            .child(icon(
+                                if is_plan { "icons/lightbulb.svg" } else { "icons/alert.svg" },
+                                14.0,
+                                if is_plan { theme.accent } else { theme.warning },
+                            ))
                             .child(
                                 div()
                                     .text_size(px(12.5))
@@ -127,18 +233,14 @@ impl Waku {
                         div()
                             .id("permission-detail")
                             .mt(px(8.0))
-                            .max_h(px(92.0))
+                            .max_h(px(if is_plan && expanded { 320.0 } else if is_plan { 128.0 } else { 104.0 }))
                             .overflow_y_scroll()
-                            .p(px(8.0))
-                            .rounded(px(7.0))
+                            .p(px(if is_plan { 10.0 } else { 8.0 }))
+                            .rounded(px(8.0))
                             .bg(theme.inset)
-                            .font_family(crate::md::render::MONO_FAMILY)
-                            .text_size(px(10.5))
-                            .line_height(px(16.0))
-                            .text_color(theme.text_secondary)
-                            .whitespace_normal()
-                            .child(SharedString::from(permission.detail.clone())),
+                            .child(detail),
                     )
+                    .children(expand_control)
                     .child(buttons),
             ),
         )
@@ -435,7 +537,7 @@ impl Waku {
     ) -> Div {
         let theme = Theme::current(cx);
         let target = &permission.target;
-        let mut buttons = div().mt(px(12.0)).flex().items_center().gap(px(8.0));
+        let mut buttons = div().mt(px(12.0)).flex().items_center().justify_end().gap(px(8.0));
         let mut options = vec![
             ("task", tr!("computer_use.allow_for_task"), true),
             ("deny", tr!("common.deny"), false),
@@ -444,12 +546,21 @@ impl Waku {
             options.insert(1, ("always", tr!("computer_use.always_allow_app"), false));
         }
         for (decision, label, primary) in options {
+            let key_decision = decision;
+            let focus = self.transcript_control_focus(
+                format!("computer-permission-{}-{decision}", permission.request.call_id),
+                cx,
+            );
             buttons = buttons.child(
                 div()
                     .id(SharedString::from(format!(
                         "computer-permission-{}-{decision}",
                         permission.request.call_id
                     )))
+                    .track_focus(&focus)
+                    .tab_index(0)
+                    .tab_stop(true)
+                    .focus_visible(|style| style.border_1().border_color(theme.accent))
                     .h(px(29.0))
                     .px(px(13.0))
                     .rounded(px(7.0))
@@ -475,6 +586,12 @@ impl Waku {
                     .child(label)
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.respond_computer_permission(decision, cx);
+                    }))
+                    .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
+                        if matches!(event.keystroke.key.as_str(), "enter" | "space") {
+                            this.respond_computer_permission(key_decision, cx);
+                            cx.stop_propagation();
+                        }
                     })),
             );
         }
@@ -485,10 +602,10 @@ impl Waku {
                 .max_w(px(CONTENT_MAX_WIDTH))
                 .mx_auto()
                 .p(px(13.0))
-                .rounded(px(12.0))
+                .rounded(px(13.0))
                 .border_1()
                 .border_color(theme.warning.opacity(0.5))
-                .bg(theme.raised)
+                .bg(theme.composer)
                 .shadow_md()
                 .child(
                     div()
@@ -4058,4 +4175,3 @@ impl Waku {
         )
     }
 }
-

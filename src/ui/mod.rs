@@ -7,12 +7,14 @@ use gpui::{
 pub mod daemon_glyph;
 pub mod menu;
 pub mod motion;
+pub mod orb;
 pub mod scrollbar;
 pub mod splash;
 pub mod text_field;
 pub mod tooltip;
 
 pub use daemon_glyph::{DaemonGlyph, DaemonGlyphState};
+pub use orb::Orb;
 
 use crate::model::{ActivityKind, ProviderKind, SessionStatus};
 use crate::theme::Theme;

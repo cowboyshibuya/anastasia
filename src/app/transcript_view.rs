@@ -1,4 +1,20 @@
 use super::*;
+
+fn plan_step_progress(steps: &[PlanStep]) -> (usize, usize) {
+    (
+        steps
+            .iter()
+            .filter(|step| step.status == PlanStepStatus::Done)
+            .count(),
+        steps.len(),
+    )
+}
+
+fn toggle_session_disclosure(collapsed: &mut HashSet<Uuid>, session_id: Uuid) {
+    if !collapsed.remove(&session_id) {
+        collapsed.insert(session_id);
+    }
+}
 use crate::ui::{DaemonGlyph, DaemonGlyphState};
 use base64::Engine as _;
 
@@ -994,7 +1010,7 @@ impl Waku {
     /// The markdown render context for one transcript row. Element keys are
     /// scoped to the row, so a virtualized remount recreates the same keys and
     /// an in-progress selection survives scrolling.
-    fn markdown_ctx<'a>(
+    pub(super) fn markdown_ctx<'a>(
         &self,
         row: String,
         palette: &'a MarkdownPalette,
@@ -1141,12 +1157,21 @@ impl Waku {
                         MarkdownMetrics::BODY
                     };
                     let animate_streaming = message.streaming && !cx.reduce_motion();
+                    let caret_opacity = animate_streaming.then(|| {
+                        let phase = motion::pulse_phase_slow(
+                            Duration::from_millis(900),
+                            window.current_view(),
+                            cx,
+                        );
+                        if phase < 0.55 { 1.0 } else { 0.18 }
+                    });
                     let ctx = self.markdown_ctx(
                         format!("message-{}", message.id),
                         &palette,
                         metrics,
                         animate_streaming,
-                    );
+                    )
+                    .with_streaming_caret(caret_opacity);
                     // Human and assistant messages share the Markdown path.
                     // Parse only visible rows rather than doing work for every
                     // driver delta or every off-screen prompt.
@@ -1209,7 +1234,7 @@ impl Waku {
                 .unwrap_or_else(|| div().into_any_element()),
             TranscriptRowKind::WorkingIndicator => self.render_working_indicator_row(&theme),
             TranscriptRowKind::PlanSteps => self
-                .render_plan_steps_row(&theme)
+                .render_plan_steps_row(index, &theme, cx)
                 .unwrap_or_else(|| div().into_any_element()),
         };
         div()
@@ -1560,77 +1585,120 @@ impl Waku {
             .into_any_element()
     }
 
-    /// The live turn's to-do list, in the sidebar's visual language: one
-    /// `DaemonGlyph` per step carrying its state by shape as well as colour,
-    /// so the list stays readable without relying on colour alone.
-    fn render_plan_steps_row(&self, theme: &Theme) -> Option<AnyElement> {
+    fn render_plan_steps_row(
+        &self,
+        row_index: usize,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let session_id = self.state.selected_session?;
         let steps = self
             .selected_session()
             .and_then(transcript::live_plan_steps)?;
         if steps.is_empty() {
             return None;
         }
-        let remaining = steps
-            .iter()
-            .filter(|step| step.status != PlanStepStatus::Done)
-            .count();
-        let header = if remaining == 1 {
-            tr!("transcript.working_on_todo")
-        } else {
-            tr!("transcript.working_on_todos", count = remaining.to_string())
-        };
+        let (done, total) = plan_step_progress(steps);
+        let collapsed = self.collapsed_plan_steps.contains(&session_id);
+        let orb_id = self
+            .selected_session()
+            .and_then(AgentSession::active_turn_id)
+            .unwrap_or(session_id);
+        let focus = self.transcript_control_focus(format!("plan-steps-{session_id}"), cx);
         Some(
             div()
+                .w_full()
                 .flex()
                 .flex_col()
-                .gap(px(3.0))
+                .rounded(px(10.0))
+                .border_1()
+                .border_color(theme.border)
+                .bg(theme.surface.blend(theme.overlay.opacity(0.55)))
+                .overflow_hidden()
                 .child(
                     div()
-                        .h(px(22.0))
+                        .id(SharedString::from(format!("plan-steps-{session_id}")))
+                        .track_focus(&focus)
+                        .tab_index(0)
+                        .tab_stop(true)
+                        .h(px(34.0))
+                        .px(px(10.0))
                         .flex()
                         .items_center()
                         .gap(px(8.0))
-                        .child(DaemonGlyph::new(DaemonGlyphState::Executing).size(px(10.0)))
+                        .cursor_default()
+                        .focus_visible(|style| style.bg(theme.overlay_strong))
+                        .hover(|style| style.bg(theme.overlay))
+                        .active(|style| style.bg(theme.overlay_strong))
+                        .child(Orb::for_id(orb_id).size(px(14.0)))
                         .child(
                             div()
                                 .text_size(px(12.5))
                                 .line_height(px(16.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(theme.text_secondary)
-                                .child(SharedString::from(header)),
-                        ),
-                )
-                .children(steps.iter().map(|step| {
-                    let (glyph, color, weight) = match step.status {
-                        PlanStepStatus::Done => {
-                            (DaemonGlyphState::Complete, theme.text_ghost, FontWeight::NORMAL)
-                        }
-                        PlanStepStatus::Active => {
-                            (DaemonGlyphState::Executing, theme.text, FontWeight::MEDIUM)
-                        }
-                        PlanStepStatus::Pending => {
-                            (DaemonGlyphState::Idle, theme.text_tertiary, FontWeight::NORMAL)
-                        }
-                    };
-                    div()
-                        .h(px(19.0))
-                        .pl(px(18.0))
-                        .flex()
-                        .items_center()
-                        .gap(px(6.0))
-                        .child(DaemonGlyph::new(glyph).size(px(10.0)))
-                        .child(
-                            div()
-                                .min_w_0()
-                                .text_size(px(12.5))
-                                .line_height(px(16.0))
-                                .font_weight(weight)
-                                .text_color(color)
-                                .text_ellipsis()
-                                .line_clamp(1)
-                                .child(SharedString::from(step.text.clone())),
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(theme.text)
+                                .child(tr!("transcript.todos")),
                         )
-                }))
+                        .child(
+                            div()
+                                .text_size(px(10.5))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(theme.text_tertiary)
+                                .child(SharedString::from(format!("{done}/{total}"))),
+                        )
+                        .child(div().flex_1())
+                        .child(icon(
+                            if collapsed { "icons/chevron-right.svg" } else { "icons/chevron-down.svg" },
+                            10.0,
+                            theme.text_tertiary,
+                        ))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.toggle_block_disclosure(row_index, cx, |this| {
+                                toggle_session_disclosure(&mut this.collapsed_plan_steps, session_id);
+                            });
+                        }))
+                        .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
+                            if matches!(event.keystroke.key.as_str(), "enter" | "space") {
+                                this.toggle_block_disclosure(row_index, cx, |this| {
+                                    toggle_session_disclosure(&mut this.collapsed_plan_steps, session_id);
+                                });
+                                cx.stop_propagation();
+                            }
+                        })),
+                )
+                .when(!collapsed, |list| list.child(
+                    div()
+                        .px(px(10.0))
+                        .pb(px(8.0))
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .children(steps.iter().map(|step| {
+                            let (glyph, color, weight) = match step.status {
+                                PlanStepStatus::Done => (DaemonGlyphState::Complete, theme.text_ghost, FontWeight::NORMAL),
+                                PlanStepStatus::Active => (DaemonGlyphState::Executing, theme.text, FontWeight::MEDIUM),
+                                PlanStepStatus::Pending => (DaemonGlyphState::Idle, theme.text_tertiary, FontWeight::NORMAL),
+                            };
+                            div()
+                                .min_h(px(24.0))
+                                .px(px(4.0))
+                                .flex()
+                                .items_center()
+                                .gap(px(8.0))
+                                .child(DaemonGlyph::new(glyph).size(px(12.0)))
+                                .child(
+                                    div()
+                                        .min_w_0()
+                                        .text_size(px(12.0))
+                                        .line_height(px(16.0))
+                                        .font_weight(weight)
+                                        .text_color(color)
+                                        .text_ellipsis()
+                                        .line_clamp(1)
+                                        .child(SharedString::from(step.text.clone())),
+                                )
+                        }))
+                ))
                 .into_any_element(),
         )
     }
@@ -1657,7 +1725,10 @@ impl Waku {
             .flex()
             .items_center()
             .gap(px(8.0))
-            .child(working_wave_dots(theme.text_tertiary))
+            .child(
+                turn.map(|turn| Orb::for_id(turn.id).size(px(14.0)).into_any_element())
+                    .unwrap_or_else(|| working_wave_dots(theme.text_tertiary)),
+            )
             .child(
                 div()
                     .text_size(px(11.5))
@@ -1908,18 +1979,35 @@ impl Waku {
                                 .hover(|element| element.bg(activity_hover_surface))
                                 .active(|element| element.bg(activity_active_surface))
                         })
-                        .child(icon(
-                            activity_icon(activity.kind),
-                            12.0,
-                            theme.text_tertiary,
-                        ))
-                        .child(
+                        .child(if !activity.complete && !activity.failed {
+                            Orb::for_id(id).size(px(13.0)).into_any_element()
+                        } else {
+                            icon(activity_icon(activity.kind), 12.0, theme.text_tertiary)
+                                .into_any_element()
+                        })
+                        .child(if reasoning_live {
+                            let label = SharedString::from(action_label);
+                            let color = theme.text_secondary;
+                            motion::pulse(Duration::from_millis(1_600), move |phase| {
+                                let wave = (phase * std::f32::consts::TAU).sin() * 0.5 + 0.5;
+                                div()
+                                    .flex_none()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(color)
+                                    .opacity(0.48 + 0.52 * wave)
+                                    .child(label)
+                                    .into_any_element()
+                            })
+                            .every(2)
+                            .into_any_element()
+                        } else {
                             div()
                                 .flex_none()
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme.text_secondary)
-                                .child(SharedString::from(action_label)),
-                        )
+                                .child(SharedString::from(action_label))
+                                .into_any_element()
+                        })
                         .when(!row_detail.is_empty(), |element| {
                             element.child(
                                 div()
@@ -2527,5 +2615,27 @@ mod activity_scroll_tests {
             px(120.0),
             px(240.0),
         ));
+    }
+
+    #[test]
+    fn plan_step_progress_counts_only_completed_steps() {
+        let steps = [
+            PlanStep { text: "Read".into(), status: PlanStepStatus::Done },
+            PlanStep { text: "Edit".into(), status: PlanStepStatus::Active },
+            PlanStep { text: "Test".into(), status: PlanStepStatus::Pending },
+        ];
+        assert_eq!(plan_step_progress(&steps), (1, 3));
+    }
+
+    #[test]
+    fn todo_collapse_state_is_isolated_per_session() {
+        let first = Uuid::new_v4();
+        let second = Uuid::new_v4();
+        let mut collapsed = HashSet::new();
+        toggle_session_disclosure(&mut collapsed, first);
+        assert!(collapsed.contains(&first));
+        assert!(!collapsed.contains(&second));
+        toggle_session_disclosure(&mut collapsed, first);
+        assert!(collapsed.is_empty());
     }
 }
